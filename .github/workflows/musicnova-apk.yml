@@ -1,133 +1,35 @@
-name: Build MusicNova APK
+name: Build Music Nova Native APK
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - native-migration
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: '17'
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Check files
-        run: |
-          test -f index.html || (echo "index.html repo ke root me nahi hai" && exit 1)
-          test -f logo.jpg || (echo "logo.jpg repo ke root me nahi hai" && exit 1)
-
-      - name: Prepare Capacitor project
-        run: |
-          mkdir -p www
-          cp index.html www/index.html
-          cp logo.jpg www/logo.jpg
-          cat > package.json <<'JSON'
-          {
-            "name": "musicnova",
-            "version": "1.0.0",
-            "private": true,
-            "dependencies": {
-              "@capacitor/core": "^6.2.0",
-              "@capacitor/android": "^6.2.0"
-            },
-            "devDependencies": {
-              "@capacitor/cli": "^6.2.0"
-            }
-          }
-          JSON
-          cat > capacitor.config.json <<'JSON'
-          {
-            "appId": "com.musicnova.app",
-            "appName": "MusicNova",
-            "webDir": "www",
-            "backgroundColor": "#05000c"
-          }
-          JSON
-          npm install --no-audit --no-fund
-          npx cap add android
-          npx cap sync android
-
-      - name: Icon, dark bars, privacy patch
-        run: |
-          pip install pillow
-          python3 - <<'PY'
-          import glob, os, re, sys
-          from PIL import Image, ImageDraw, ImageStat
-          RES = "android/app/src/main/res"
-          im = Image.open("logo.jpg").convert("RGB")
-          w, h = im.size; s = min(w, h)
-          im = im.crop(((w-s)//2, (h-s)//2, (w-s)//2+s, (h-s)//2+s))
-          ring = Image.new("L", im.size, 0); d = ImageDraw.Draw(ring)
-          d.rectangle([0,0,s,s], fill=255); d.rectangle([s*.08,s*.08,s*.92,s*.92], fill=0)
-          mean = ImageStat.Stat(im, ring).mean
-          bg = tuple(int(c*0.8) for c in mean)
-          hexbg = "#FF%02X%02X%02X" % bg
-          # adaptive foreground (own files, independent of template names)
-          fg = Image.new("RGBA", (432,432), bg+(255,))
-          fg.paste(im.resize((288,288), Image.LANCZOS), (72,72))
-          os.makedirs(RES+"/drawable-nodpi", exist_ok=True)
-          fg.save(RES+"/drawable-nodpi/mn_fg.png")
-          open(RES+"/values/mn_colors.xml","w").write('<?xml version="1.0" encoding="utf-8"?>\n<resources>\n<color name="mn_icon_bg">%s</color>\n<color name="mn_dark">#FF05000C</color>\n</resources>\n' % hexbg)
-          adaptive = ('<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'
-           '<background android:drawable="@color/mn_icon_bg" />\n<foreground android:drawable="@drawable/mn_fg" />\n</adaptive-icon>\n')
-          os.makedirs(RES+"/mipmap-anydpi-v26", exist_ok=True)
-          for n in ("ic_launcher","ic_launcher_round"):
-              open(RES+"/mipmap-anydpi-v26/%s.xml" % n,"w").write(adaptive)
-          sizes = {"mdpi":48,"hdpi":72,"xhdpi":96,"xxhdpi":144,"xxxhdpi":192}
-          for dens,px in sizes.items():
-              base = im.resize((px,px), Image.LANCZOS).convert("RGBA")
-              m1 = Image.new("L",(px*4,px*4),0); ImageDraw.Draw(m1).rounded_rectangle([0,0,px*4-1,px*4-1], radius=px*4//6, fill=255)
-              sq = base.copy(); sq.putalpha(m1.resize((px,px), Image.LANCZOS))
-              m2 = Image.new("L",(px*4,px*4),0); ImageDraw.Draw(m2).ellipse([0,0,px*4-1,px*4-1], fill=255)
-              rd = base.copy(); rd.putalpha(m2.resize((px,px), Image.LANCZOS))
-              os.makedirs("%s/mipmap-%s" % (RES,dens), exist_ok=True)
-              sq.save("%s/mipmap-%s/ic_launcher.png" % (RES,dens))
-              rd.save("%s/mipmap-%s/ic_launcher_round.png" % (RES,dens))
-              # stale template foreground pngs could clash with nothing now, leave them
-          # dark status/nav bars + window background
-          st = RES+"/values/styles.xml"
-          s = open(st).read()
-          items = ('<item name="android:statusBarColor">@color/mn_dark</item>'
-                   '<item name="android:navigationBarColor">@color/mn_dark</item>'
-                   '<item name="android:windowBackground">@color/mn_dark</item>')
-          n = 0
-          for name in ("AppTheme.NoActionBar","AppTheme"):
-              m = re.search(r'(<style\s+name="%s"[^>]*>)' % re.escape(name), s)
-              if m:
-                  s = s[:m.end()] + items + s[m.end():]; n += 1
-          if n == 0:
-              print("WARNING: theme not found, bars keep default")
-          open(st,"w").write(s)
-          # privacy: no cloud backup of app data
-          mf = "android/app/src/main/AndroidManifest.xml"
-          t = open(mf).read()
-          t = t.replace('android:allowBackup="true"','android:allowBackup="false"')
-          open(mf,"w").write(t)
-          print("MusicNova patch done", hexbg)
-          PY
-
-      - name: Install stable signing key
-        run: |
-          mkdir -p ~/.android
-          echo "MIIKZgIBAzCCChAGCSqGSIb3DQEHAaCCCgEEggn9MIIJ+TCCBcAGCSqGSIb3DQEHAaCCBbEEggWtMIIFqTCCBaUGCyqGSIb3DQEMCgECoIIFQDCCBTwwZgYJKoZIhvcNAQUNMFkwOAYJKoZIhvcNAQUMMCsEFMG/BeV/gAvDY/yWz1ZAPCWFokwXAgInEAIBIDAMBggqhkiG9w0CCQUAMB0GCWCGSAFlAwQBKgQQP6buzj+seG8Fw1xvxGS05gSCBNCLSy313MPHaeVJAwzO736GUUGn5mS+P7aCKUvB74QwrdgCFPP9OB31mI7Um1aXgMZ4qX0lYjKdbmilH4rfK8qPEVHNONboqVd1ak/i4vZ5axDz6BCaT9mpipt6wFTlwIH14lN1/UsPGSukRC5CQVH/eiUIUyBxYL3wNzUqRa8Mklc/8TYk0zIebHEGAFGdjyCuoKBtsbzl8+Ei8DpHTu2lT7oat1I72OsmTxb1vj7Jce5q8iA5Xv7Mu55GiB209i3DzxFrOluLZA96wPfPbuOev65WSEibhiLynd2H8taiL20fiQ6GCkOtUu4SkuK8BGpBJpyj/6UMopohavMyI9l+1zmYNRL4+nhZql3Wg4uew8YxKSjplmBQNfsMuHq+0gJzc873SpmS+mhKnTXdcZBN7fImVQvK7sSdYr6kbdjE2WldbmLh9D6O1tuIdacZJt+9nxUVI+8P7+NbWRO4nmBIbvgOC2CAF2kUOcb5XR8pQUIy7KNceRBu4DHyzpxbAlNjmn9Tvg/0uE/laQy8IGua0t9jjDD+uOzwFrQatYaMNcZm4MnQjyxQDwz/zlyNz+MFd5yYeHv8KfwO++g/rmHtfGuwlhQ9xXjRYO7/FF/JkrTNV1pxKF/dU4c1y+LTewgXMHmA/ywCQ7O8aUFHmSuwfBrkLJh5kkoZiOWRXDDCDXbQm8y/mUNqwonTbFTf/gopK0xhYdyxw9eg5iTxHeOIekuQB0V2q5Cch0aI9JkeKRi0MKgPuacUl0+0CCSpi6mHjGxGGIHBRbW6p7eMug8JDnigWmZEm6x0WhlCp4WXvzTIUn93GTtI6TV2amJI50ViZYmt0uyzQkBgDGcyjFFVPgMlB7YPt6dYAwgO/HJ1XPZ1qN4a9W3j5h6n9KAErjpmT2K4Ko/UyWIVF+pmHkVeUwni31WeO2BPgIEB5ZsG/nlG0Hgs50iCg/HXXJnjeiSzsuTKzGlRBWLpe6ErGWqTCXM4qOADRpBPDhcfr1rLH7zFZBtfehHYQjv3XlCSf8k0sadZ2GhDSwhGXtMZCwUw764rl/9OmtHlyM6orGCCbCP0EGHYHFXALwil0JECnmjfSLdi29nGxTy6YuD7ihh4obdTEKlCZmynuGsyM530dElObBLq2CePZksGP2AsmihFRIBY3Y9M5HNJOz9DUARQlu6RMqpAJb9JTTMugRzqOX/UwzJyGUub/+68czfzK+chRy5yMsdglRzYjGm3Xsko4VZ9yq2PeSwUjiCdbiBw9PWn+No7WlQArY4dr9fao8euPY0AENTZ1nE7rZS4uNLcIPigoa3CuF8KInQIa02Vhwu+4Zg6tE4EwfzkxCcOJJon/3n59aPkWm9R+o35Wjc1KgluaPpXGVv7ojDfHYYMqmF30YkWYIADe4eBOrOOI0jv+dB4XURfPmWLfs5xYa+F3QaH05PPQfN8qNs14JAVy9hFe7mRymdf8mtdDadbWArp49b4CRzgK6EfiM/KEnBVOxCWCsDkO5fkrkCMGLCXmT7zq/Bpzey9iPVYL09vTq9kcRrrbBSJ3AXqaYEGJO7UJQNc1dSsgUag8Vz/8uRsZyN7xoWRYmzQ+zEIKj1L2ZSWNmhPzFOpm3AigoWLTL6L5eqRFYNFFR3q6zaUhFMrkzFSMC0GCSqGSIb3DQEJFDEgHh4AYQBuAGQAcgBvAGkAZABkAGUAYgB1AGcAawBlAHkwIQYJKoZIhvcNAQkVMRQEElRpbWUgMTc5NDAyNTc2MzczOTCCBDEGCSqGSIb3DQEHBqCCBCIwggQeAgEAMIIEFwYJKoZIhvcNAQcBMGYGCSqGSIb3DQEFDTBZMDgGCSqGSIb3DQEFDDArBBSui1DPk02J3xK6kpQcvVcih5yeBAICJxACASAwDAYIKoZIhvcNAgkFADAdBglghkgBZQMEASoEEIq5N47z7Wu7kcwlmZCGCY2AggOg6j8hhktPuoP0z77+btmyjHXvots6bADL8kRK43SEbHqYwBVHaIVrC7h9FvPkkdVxrj801GBO9ARokP1IyPPAnyvr4imzySXc9mbI2H5S/qy2ORhc9ijOsa0VRDHGyoIa9em12FZmKTCLtcB4yK2zhxnU5QOlJx3N59Lw0wNre0vKysMXJ6wz67F3llvJKRCkkOpwBS4b4hw01FVLYe0PZXTouCM29eS4Q1HISR+Quf7IlqrWCip49qKL/IezTE1Ybe5wlg7f/I5PlTkjcrM0aAZ7UZ4t8oeadEaSUpgM6Z6/IVppIB/+tclMqIiX1bk8G7bTansuNRHEry0lTTvQdqJNMyhve0rAOix+BIk01zIGHQvgkuU11H/AfowcQJsj/n/W6GZMQBplzjSo7zUk829fM+EBR44O2Gz7zBMyyDiaR3hdB7aFx7/4tiu9xljrxT0fSbLoSVOAFJLYeUL2xTkGKbA7xWhW6beWi/lAoLA/I7r1ik/57I6aTUVTQM6XgT0hSHOViEKJ72GqxYDc0A5k+x5TsNWhYtfMVe17RrCmZ7G4miHKFM2AwuJ6Qk9KIQXu+CASmkcwomSwSHnHBZQQ36RxA4zQQKFaEqM3c6BfVCOVDEdgSpjm0bpmfDD/M3DWK1iEq/+zu+ETCC660YJLPc98WZaiQZesHCQdIJO4K+tjUzA8G6oRA3wrkqp/HCL/FLsdoTJIg7FnRl93O2rg5soUvyEHQMe/W/+PO4hzanookkmn04Ll4jqDw7Rz3UnyXLmTEwAesTz77t5d+Fs8q1QWxkP5vX4KxduOzpvGZcwNAbGYiNZGbp1NLREzRRxw24CdqTiZnlZhic6CwpWI5GpkfvLyBy9RF+vcMo2V6ehUFNzqDTP0ofRtsWPbOMlTO7nf7TyjtuVNZMrBDogC8gea28Gxmfbl0SGD7lzdgMvuDXbsTo5gMyeSkLC25bnDt/yD6N5SAaFJu5NbYldc3vGuDvm1vIV5zZSQy2/sOOvSe86y6T4RFfz/QaQvvPQaiKLTIrtyVvZWeNQLkdF42yViLKQmBsLR0YoRz2+Mj5KIuPk4t20J6LMTo7dZkxJx0CExWZTWVyAqxF9GbHMedco+ogk8cCpbplrpKnuklMP8DF5B8XkIBQ+uV26FbLWKrScA9YTYlz9Ix840Cvre93T9iT7CQtbz0irnl3zS9U32pCqfBNOJbHWZCY1Gfhlvd3sP81x9gvxhVpT3JTBNMDEwDQYJYIZIAWUDBAIBBQAEIMHCNTkZjg2Sz9lgsRTz1r75M6xjVpmx51ZyHNVa4kV7BBRhQWEne6O84AhaAJNol3RNKAVmngICJxA=" | base64 -d > ~/.android/debug.keystore
-
-      - name: Build APK
-        working-directory: android
+      - name: Build Debug APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug
 
-      - name: Rename APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk MusicNova.apk
-
-      - uses: actions/upload-artifact@v4
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
-          name: MusicNova-APK
-          path: MusicNova.apk
+          name: Music-Nova-Native-APK
+          path: app/build/outputs/apk/debug/*.apk
