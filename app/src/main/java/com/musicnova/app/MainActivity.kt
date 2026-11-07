@@ -1,4 +1,3 @@
-
 package com.musicnova.app
 
 import android.os.Bundle
@@ -17,11 +16,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.musicnova.app.data.music.InnerTubeMusicApi
 import com.musicnova.app.data.music.YouTubeMusicTrack
 import kotlinx.coroutines.launch
@@ -313,9 +315,7 @@ fun SearchScreen() {
 
         OutlinedTextField(
             value = query,
-            onValueChange = {
-                query = it
-            },
+            onValueChange = { query = it },
             modifier = Modifier.fillMaxWidth(),
             placeholder = {
                 Text("Search songs, artists...")
@@ -360,7 +360,7 @@ fun SearchScreen() {
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                if (loading) "Searching..." else "Search Songs"
+                if (loading) "Searching..." else "Search"
             )
         }
 
@@ -382,14 +382,14 @@ fun SearchScreen() {
 
         if (results.isEmpty() && !loading && error == null) {
             Text(
-                "Search songs from YouTube Music",
+                "Search songs and artists from YouTube Music",
                 color = LightPurple,
                 fontSize = 13.sp
             )
         }
 
-        results.forEach { song ->
-            SongSearchItem(song)
+        results.forEach { item ->
+            SongSearchItem(item)
         }
     }
 }
@@ -402,14 +402,54 @@ fun SongSearchItem(song: YouTubeMusicTrack) {
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            Icons.Default.MusicNote,
-            contentDescription = null,
-            tint = LightPurple,
-            modifier = Modifier.size(36.dp)
-        )
 
-        Spacer(Modifier.width(12.dp))
+        if (!song.artworkUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = song.artworkUrl,
+                contentDescription = if (song.isArtist) {
+                    "Artist profile picture"
+                } else {
+                    "Song cover"
+                },
+                modifier = Modifier
+                    .size(58.dp)
+                    .clip(
+                        if (song.isArtist) {
+                            CircleShape
+                        } else {
+                            RoundedCornerShape(12.dp)
+                        }
+                    ),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(58.dp)
+                    .clip(
+                        if (song.isArtist) {
+                            CircleShape
+                        } else {
+                            RoundedCornerShape(12.dp)
+                        }
+                    )
+                    .background(CardColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    if (song.isArtist) {
+                        Icons.Default.Person
+                    } else {
+                        Icons.Default.MusicNote
+                    },
+                    contentDescription = null,
+                    tint = LightPurple,
+                    modifier = Modifier.size(30.dp)
+                )
+            }
+        }
+
+        Spacer(Modifier.width(13.dp))
 
         Column(
             modifier = Modifier.weight(1f)
@@ -421,9 +461,22 @@ fun SongSearchItem(song: YouTubeMusicTrack) {
             )
 
             Text(
-                song.artist,
-                color = Color.LightGray,
+                if (song.isArtist) {
+                    "ARTIST"
+                } else {
+                    song.artist
+                },
+                color = LightPurple,
                 fontSize = 12.sp
+            )
+        }
+
+        if (song.isArtist) {
+            Icon(
+                Icons.Default.Person,
+                contentDescription = "Artist",
+                tint = LightPurple,
+                modifier = Modifier.size(20.dp)
             )
         }
     }
