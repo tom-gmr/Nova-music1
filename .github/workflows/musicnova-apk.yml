@@ -29,7 +29,13 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platform-tools platforms;android-37'
+          packages: 'platform-tools platforms;android-37.0 build-tools;37.0.0'
+
+      - name: Fix Android 37 platform directory
+        run: |
+          if [ -d "$ANDROID_HOME/platforms/android-37.0" ] && [ ! -e "$ANDROID_HOME/platforms/android-37" ]; then
+            ln -s "$ANDROID_HOME/platforms/android-37.0" "$ANDROID_HOME/platforms/android-37"
+          fi
 
       - name: Build APK
         run: gradle assembleDebug
@@ -40,3 +46,4 @@ jobs:
           name: Music-Nova-Native-APK
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+          
