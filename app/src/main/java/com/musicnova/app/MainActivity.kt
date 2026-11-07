@@ -70,6 +70,7 @@ fun MusicNovaApp() {
     }
 
     val playbackState by musicPlayer.playbackState.collectAsState()
+
     var playbackError by remember {
         mutableStateOf<String?>(null)
     }
@@ -239,7 +240,6 @@ fun MusicNovaApp() {
         }
     }
 }
-
 private fun YouTubeMusicTrack.toLibraryTrack() =
     LibraryTrack(
         videoId = videoId,
@@ -256,6 +256,7 @@ private fun LibraryTrack.toMusicTrack() =
         artworkUrl = artworkUrl,
         isArtist = false
     )
+
 @Composable
 fun GlassMiniPlayer(
     state: PlaybackState,
@@ -482,9 +483,7 @@ fun SearchScreen(
 
         OutlinedTextField(
             value = query,
-            onValueChange = {
-                query = it
-            },
+            onValueChange = { query = it },
             modifier = Modifier.fillMaxWidth(),
             placeholder = {
                 Text("Search songs, artists...")
@@ -614,8 +613,7 @@ fun SearchScreen(
             )
         }
     }
-
-    if (showPlaylistDialog && selectedTrack != null) {
+        if (showPlaylistDialog && selectedTrack != null) {
         AlertDialog(
             onDismissRequest = {
                 showPlaylistDialog = false
@@ -704,7 +702,8 @@ fun SearchScreen(
             textContentColor = MutedText
         )
     }
-}            
+}
+
 @Composable
 fun SongSearchItem(
     song: YouTubeMusicTrack,
@@ -728,14 +727,47 @@ fun SongSearchItem(
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AsyncImage(
-            model = song.artworkUrl,
-            contentDescription = song.title,
-            modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(10.dp)),
-            contentScale = ContentScale.Crop
-        )
+        if (song.isArtist) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(Purple.copy(alpha = 0.22f))
+                    .border(
+                        1.dp,
+                        LightPurple.copy(alpha = 0.65f),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!song.artworkUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = song.artworkUrl,
+                        contentDescription = "${song.title} artist photo",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.MusicNote,
+                        contentDescription = "Artist",
+                        tint = LightPurple,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
+            }
+        } else {
+            AsyncImage(
+                model = song.artworkUrl,
+                contentDescription = song.title,
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(10.dp)),
+                contentScale = ContentScale.Crop
+            )
+        }
 
         Spacer(Modifier.width(12.dp))
 
@@ -752,9 +784,9 @@ fun SongSearchItem(
             Spacer(Modifier.height(4.dp))
 
             Text(
-                if (song.isArtist) "Artist" else song.artist,
-                color = MutedText,
-                fontSize = 12.sp,
+                if (song.isArtist) "ARTIST" else song.artist,
+                color = if (song.isArtist) LightPurple else MutedText,
+                fontSize = 11.sp,
                 maxLines = 1
             )
         }
@@ -912,4 +944,4 @@ fun ProfileOption(
             )
         }
     }
-}           
+}
