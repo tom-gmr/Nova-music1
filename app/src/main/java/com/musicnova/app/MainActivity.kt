@@ -1,3 +1,4 @@
+
 package com.musicnova.app
 
 import android.os.Bundle
@@ -20,12 +21,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.musicnova.app.data.music.InnerTubeMusicApi
+import com.musicnova.app.data.music.StreamExtraction
 import com.musicnova.app.data.music.YouTubeMusicTrack
+import com.musicnova.app.playback.MusicPlayer
 import kotlinx.coroutines.launch
 
 private val Black = Color(0xFF08070D)
@@ -45,6 +49,17 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MusicNovaApp() {
     var selectedTab by remember { mutableStateOf("Home") }
+
+    val context = LocalContext.current
+    val musicPlayer = remember(context) {
+        MusicPlayer(context)
+    }
+
+    DisposableEffect(musicPlayer) {
+        onDispose {
+            musicPlayer.release()
+        }
+    }
 
     MaterialTheme(
         colorScheme = darkColorScheme(
@@ -106,7 +121,7 @@ fun MusicNovaApp() {
                 ) {
                     when (selectedTab) {
                         "Home" -> HomeScreen()
-                        "Search" -> SearchScreen()
+                        "Search" -> SearchScreen(musicPlayer)
                         "Library" -> SimpleScreen("Your Library")
                         "Profile" -> SimpleScreen("Your Profile")
                     }
@@ -287,7 +302,7 @@ fun DiscoverCard(
 }
 
 @Composable
-fun SearchScreen() {
+fun SearchScreen(musicPlayer: MusicPlayer) {
     var query by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -296,7 +311,20 @@ fun SearchScreen() {
         mutableStateOf<List<YouTubeMusicTrack>>(emptyList())
     }
 
+    var loadingVideoId by remember {
+        mutableStateOf<String?>(null)
+    }
+
+    var playingTitle by remember {
+        mutableStateOf<String?>(null)
+    }
+
+    var playbackMessage by remember {
+        mutableStateOf<String?>(null)
+    }
+
     val api = remember { InnerTubeMusicApi() }
+    val streamExtraction = remember { StreamExtraction() }
     val scope = rememberCoroutineScope()
 
     Column(
@@ -388,21 +416,107 @@ fun SearchScreen() {
             )
         }
 
+        if (playingTitle != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        CardColor,
+                        RoundedCornerShape(16.dp)
+                    )
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.GraphicEq,
+                    contentDescription = null,
+                    tint = LightPurple
+                )
+
+                Spacer(Modifier.width(10.dp))
+
+                Column {
+                    Text(
+                        "Now playing",
+                        color = LightPurple,
+                        fontSize = 11.sp
+                    )
+
+                    Text(
+                        playingTitle.orEmpty(),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+        }
+
+        playbackMessage?.let {
+            Text(
+                text = it,
+                color = if (it.startsWith("Unable")) {
+                    Color.Red
+                } else {
+                    LightPurple
+                },
+                fontSize = 12.sp
+            )
+
+            Spacer(Modifier.height(8.dp))
+        }
+
         results.forEach { item ->
-            SongSearchItem(item)
+            SongSearchItem(
+                song = item,
+                isLoading = loadingVideoId == item.videoId,
+                onPlay = {
+                    if (!item.isArtist && loadingVideoId == null) {
+                        scope.launch {
+                            loadingVideoId = item.videoId
+                            playbackMessage = "Resolving audio stream..."
+
+                            try {
+                                val stream =
+                                    streamExtraction.resolve(item)
+
+                                musicPlayer.play(
+                                    streamUrl = stream.url,
+                                    title = item.title,
+                                    artist = item.artist,
+                                    artworkUrl = item.artworkUrl,
+                                    requestHeaders = stream.requestHeaders
+                                )
+
+                                playingTitle = item.title
+                                playbackMessage = "Playback started"
+                            } catch (e: Exception) {
+                                playbackMessage =
+                                    "Unable to play: ${e.message ?: "Unknown error"}"
+                            } finally {
+                                loadingVideoId = null
+                            }
+                        }
+                    }
+                }
+            )
         }
     }
 }
 
 @Composable
-fun SongSearchItem(song: YouTubeMusicTrack) {
+fun SongSearchItem(
+    song: YouTubeMusicTrack,
+    isLoading: Boolean,
+    onPlay: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-
         if (!song.artworkUrl.isNullOrBlank()) {
             AsyncImage(
                 model = song.artworkUrl,
@@ -478,6 +592,26 @@ fun SongSearchItem(song: YouTubeMusicTrack) {
                 tint = LightPurple,
                 modifier = Modifier.size(20.dp)
             )
+        } else {
+            IconButton(
+                onClick = onPlay,
+                enabled = !isLoading
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(23.dp),
+                        color = LightPurple,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.PlayCircleFilled,
+                        contentDescription = "Play ${song.title}",
+                        tint = LightPurple,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -561,4 +695,5 @@ fun FloatingNavigation(
         }
     }
 }
+
 
