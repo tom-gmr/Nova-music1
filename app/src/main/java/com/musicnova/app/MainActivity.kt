@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -18,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -30,6 +32,7 @@ import com.musicnova.app.data.music.InnerTubeMusicApi
 import com.musicnova.app.data.music.StreamExtraction
 import com.musicnova.app.data.music.YouTubeMusicTrack
 import com.musicnova.app.playback.MusicPlayer
+import com.musicnova.app.playback.PlaybackState
 import kotlinx.coroutines.launch
 
 private val Black = Color(0xFF08070D)
@@ -54,6 +57,8 @@ fun MusicNovaApp() {
     val musicPlayer = remember(context) {
         MusicPlayer(context)
     }
+
+    val playbackState by musicPlayer.playbackState.collectAsState()
 
     DisposableEffect(musicPlayer) {
         onDispose {
@@ -117,7 +122,13 @@ fun MusicNovaApp() {
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .padding(bottom = 85.dp)
+                        .padding(
+                            bottom = if (playbackState.hasMedia) {
+                                175.dp
+                            } else {
+                                85.dp
+                            }
+                        )
                 ) {
                     when (selectedTab) {
                         "Home" -> HomeScreen()
@@ -126,6 +137,25 @@ fun MusicNovaApp() {
                         "Profile" -> SimpleScreen("Your Profile")
                     }
                 }
+            }
+
+            if (playbackState.hasMedia) {
+                GlassMiniPlayer(
+                    state = playbackState,
+                    onPlayPause = {
+                        musicPlayer.togglePlayPause()
+                    },
+                    onStop = {
+                        musicPlayer.stop()
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(
+                            start = 18.dp,
+                            end = 18.dp,
+                            bottom = 94.dp
+                        )
+                )
             }
 
             FloatingNavigation(
@@ -138,6 +168,136 @@ fun MusicNovaApp() {
                         end = 18.dp,
                         bottom = 18.dp
                     )
+            )
+        }
+    }
+}
+
+@Composable
+fun GlassMiniPlayer(
+    state: PlaybackState,
+    onPlayPause: () -> Unit,
+    onStop: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 22.dp,
+                shape = RoundedCornerShape(24.dp),
+                ambientColor = Purple.copy(alpha = 0.35f),
+                spotColor = Purple.copy(alpha = 0.35f)
+            )
+            .clip(RoundedCornerShape(24.dp))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xDD302443),
+                        Color(0xCC171421),
+                        Color(0xDD251B38)
+                    )
+                )
+            )
+            .border(
+                width = 1.dp,
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.38f),
+                        LightPurple.copy(alpha = 0.22f),
+                        Color.White.copy(alpha = 0.10f)
+                    )
+                ),
+                shape = RoundedCornerShape(24.dp)
+            )
+            .padding(
+                horizontal = 12.dp,
+                vertical = 11.dp
+            ),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (!state.artworkUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = state.artworkUrl,
+                contentDescription = "Now playing artwork",
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(13.dp)),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(Purple.copy(alpha = 0.25f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.MusicNote,
+                    contentDescription = null,
+                    tint = LightPurple
+                )
+            }
+        }
+
+        Spacer(Modifier.width(11.dp))
+
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = state.title,
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
+
+            Text(
+                text = state.artist.ifBlank { "Unknown artist" },
+                color = LightPurple,
+                fontSize = 11.sp,
+                maxLines = 1
+            )
+
+            Text(
+                text = if (state.isPlaying) "NOW PLAYING" else "PAUSED",
+                color = Color.White.copy(alpha = 0.55f),
+                fontSize = 8.sp,
+                letterSpacing = 1.sp
+            )
+        }
+
+        IconButton(
+            onClick = onPlayPause,
+            modifier = Modifier.size(42.dp)
+        ) {
+            Icon(
+                imageVector = if (state.isPlaying) {
+                    Icons.Default.PauseCircleFilled
+                } else {
+                    Icons.Default.PlayCircleFilled
+                },
+                contentDescription = if (state.isPlaying) {
+                    "Pause song"
+                } else {
+                    "Play song"
+                },
+                tint = Color.White,
+                modifier = Modifier.size(31.dp)
+            )
+        }
+
+        IconButton(
+            onClick = onStop,
+            modifier = Modifier.size(42.dp)
+        ) {
+            Icon(
+                Icons.Default.StopCircle,
+                contentDescription = "Stop song",
+                tint = LightPurple,
+                modifier = Modifier.size(29.dp)
             )
         }
     }
@@ -315,10 +475,6 @@ fun SearchScreen(musicPlayer: MusicPlayer) {
         mutableStateOf<String?>(null)
     }
 
-    var playingTitle by remember {
-        mutableStateOf<String?>(null)
-    }
-
     var playbackMessage by remember {
         mutableStateOf<String?>(null)
     }
@@ -416,43 +572,6 @@ fun SearchScreen(musicPlayer: MusicPlayer) {
             )
         }
 
-        if (playingTitle != null) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        CardColor,
-                        RoundedCornerShape(16.dp)
-                    )
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Default.GraphicEq,
-                    contentDescription = null,
-                    tint = LightPurple
-                )
-
-                Spacer(Modifier.width(10.dp))
-
-                Column {
-                    Text(
-                        "Now playing",
-                        color = LightPurple,
-                        fontSize = 11.sp
-                    )
-
-                    Text(
-                        playingTitle.orEmpty(),
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(12.dp))
-        }
-
         playbackMessage?.let {
             Text(
                 text = it,
@@ -489,7 +608,6 @@ fun SearchScreen(musicPlayer: MusicPlayer) {
                                     requestHeaders = stream.requestHeaders
                                 )
 
-                                playingTitle = item.title
                                 playbackMessage = "Playback started"
                             } catch (e: Exception) {
                                 playbackMessage =
@@ -558,142 +676,4 @@ fun SongSearchItem(
                     },
                     contentDescription = null,
                     tint = LightPurple,
-                    modifier = Modifier.size(30.dp)
-                )
-            }
-        }
-
-        Spacer(Modifier.width(13.dp))
-
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                song.title,
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                if (song.isArtist) {
-                    "ARTIST"
-                } else {
-                    song.artist
-                },
-                color = LightPurple,
-                fontSize = 12.sp
-            )
-        }
-
-        if (song.isArtist) {
-            Icon(
-                Icons.Default.Person,
-                contentDescription = "Artist",
-                tint = LightPurple,
-                modifier = Modifier.size(20.dp)
-            )
-        } else {
-            IconButton(
-                onClick = onPlay,
-                enabled = !isLoading
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(23.dp),
-                        color = LightPurple,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Icon(
-                        Icons.Default.PlayCircleFilled,
-                        contentDescription = "Play ${song.title}",
-                        tint = LightPurple,
-                        modifier = Modifier.size(30.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun SimpleScreen(title: String) {
-    Column {
-        Text(
-            title,
-            color = Color.White,
-            fontSize = 25.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(Modifier.height(18.dp))
-
-        Text(
-            "Your Music Nova experience starts here.",
-            color = Color.LightGray
-        )
-    }
-}
-
-@Composable
-fun FloatingNavigation(
-    selectedTab: String,
-    onSelect: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val tabs = listOf(
-        "Home" to Icons.Default.Home,
-        "Search" to Icons.Default.Search,
-        "Library" to Icons.Default.LibraryMusic,
-        "Profile" to Icons.Default.Person
-    )
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(
-                Color(0xFF211A30).copy(alpha = 0.97f),
-                CircleShape
-            )
-            .padding(
-                vertical = 12.dp,
-                horizontal = 8.dp
-            ),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        tabs.forEach { (name, icon) ->
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .clickable {
-                        onSelect(name)
-                    }
-                    .padding(horizontal = 8.dp)
-            ) {
-                Icon(
-                    icon,
-                    contentDescription = name,
-                    tint = if (selectedTab == name) {
-                        LightPurple
-                    } else {
-                        Color.Gray
-                    },
-                    modifier = Modifier.size(23.dp)
-                )
-
-                Text(
-                    name,
-                    color = if (selectedTab == name) {
-                        LightPurple
-                    } else {
-                        Color.Gray
-                    },
-                    fontSize = 10.sp
-                )
-            }
-        }
-    }
-}
-
-
+                    
