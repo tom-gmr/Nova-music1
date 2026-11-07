@@ -294,7 +294,7 @@ fun GlassMiniPlayer(
             modifier = Modifier.size(42.dp)
         ) {
             Icon(
-                Icons.Default.StopCircle,
+                imageVector = Icons.Default.StopCircle,
                 contentDescription = "Stop song",
                 tint = LightPurple,
                 modifier = Modifier.size(29.dp)
@@ -475,6 +475,10 @@ fun SearchScreen(musicPlayer: MusicPlayer) {
         mutableStateOf<String?>(null)
     }
 
+    var playingTitle by remember {
+        mutableStateOf<String?>(null)
+    }
+
     var playbackMessage by remember {
         mutableStateOf<String?>(null)
     }
@@ -572,6 +576,43 @@ fun SearchScreen(musicPlayer: MusicPlayer) {
             )
         }
 
+        if (playingTitle != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        CardColor,
+                        RoundedCornerShape(16.dp)
+                    )
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.GraphicEq,
+                    contentDescription = null,
+                    tint = LightPurple
+                )
+
+                Spacer(Modifier.width(10.dp))
+
+                Column {
+                    Text(
+                        "Now playing",
+                        color = LightPurple,
+                        fontSize = 11.sp
+                    )
+
+                    Text(
+                        playingTitle.orEmpty(),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+        }
+
         playbackMessage?.let {
             Text(
                 text = it,
@@ -608,6 +649,7 @@ fun SearchScreen(musicPlayer: MusicPlayer) {
                                     requestHeaders = stream.requestHeaders
                                 )
 
+                                playingTitle = item.title
                                 playbackMessage = "Playback started"
                             } catch (e: Exception) {
                                 playbackMessage =
@@ -640,40 +682,4 @@ fun SongSearchItem(
                 model = song.artworkUrl,
                 contentDescription = if (song.isArtist) {
                     "Artist profile picture"
-                } else {
-                    "Song cover"
-                },
-                modifier = Modifier
-                    .size(58.dp)
-                    .clip(
-                        if (song.isArtist) {
-                            CircleShape
-                        } else {
-                            RoundedCornerShape(12.dp)
-                        }
-                    ),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(58.dp)
-                    .clip(
-                        if (song.isArtist) {
-                            CircleShape
-                        } else {
-                            RoundedCornerShape(12.dp)
-                        }
-                    )
-                    .background(CardColor),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    if (song.isArtist) {
-                        Icons.Default.Person
-                    } else {
-                        Icons.Default.MusicNote
-                    },
-                    contentDescription = null,
-                    tint = LightPurple,
-                    
+  
