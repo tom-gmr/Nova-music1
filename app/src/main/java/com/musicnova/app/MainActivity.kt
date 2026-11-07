@@ -55,6 +55,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MusicNovaApp() {
     var selectedTab by remember { mutableStateOf("Home") }
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -195,13 +196,47 @@ fun MusicNovaApp() {
                             libraryStore = libraryStore
                         )
 
-                        "Library" -> SimpleScreen("Your Library")
+                        "Library" -> LibraryScreen(
+                            libraryStore = libraryStore,
+                            onPlay = { track ->
+                                scope.launch {
+                                    try {
+                                        val song = YouTubeMusicTrack(
+                                            videoId = track.videoId,
+                                            title = track.title,
+                                            artist = track.artist,
+                                            artworkUrl = track.artworkUrl,
+                                            isArtist = false
+                                        )
 
-                        "Profile" -> SimpleScreen("Your Profile")
+                                        val stream =
+                                            streamExtraction.resolve(song)
+
+                                        musicPlayer.play(
+                                            streamUrl = stream.url,
+                                            title = track.title,
+                                            artist = track.artist,
+                                            artworkUrl = track.artworkUrl,
+                                            requestHeaders =
+                                                stream.requestHeaders
+                                        )
+
+                                        libraryStore.addRecentlyPlayed(track)
+                                    } catch (e: Exception) {
+                                        homePlaybackError =
+                                            "Unable to play: ${e.message ?: "Try again"}"
+                                    }
+                                }
+                            }
+                        )
+
+                        "Profile" -> ProfileScreen()
                     }
                 }
             }
 
+            // Playing: mini-player replaces navigation completely.
+            // Not playing: flat bottom navigation is displayed.
             if (playbackState.hasMedia) {
                 GlassMiniPlayer(
                     state = playbackState,
@@ -360,6 +395,59 @@ fun GlassMiniPlayer(
 }
 
 @Composable
+fun FlatNavigation(
+    selectedTab: String,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val tabs = listOf(
+        Triple("Home", Icons.Default.Home, "Home"),
+        Triple("Search", Icons.Default.Search, "Search"),
+        Triple("Library", Icons.Default.LibraryMusic, "Library"),
+        Triple("Profile", Icons.Default.Person, "Profile")
+    )
+
+    Row(
+        modifier = modifier
+            .background(Black),
+        horizontalArrangement = Arrangement.SpaceAround,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        tabs.forEach { (label, icon, tab) ->
+            val selected = selectedTab == tab
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onSelect(tab) }
+                    .padding(vertical = 7.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = if (selected) LightPurple else MutedText,
+                    modifier = Modifier.size(23.dp)
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                Text(
+                    text = label,
+                    color = if (selected) LightPurple else MutedText,
+                    fontSize = 10.sp,
+                    fontWeight = if (selected) {
+                        FontWeight.SemiBold
+                    } else {
+                        FontWeight.Normal
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun SearchScreen(
     musicPlayer: MusicPlayer,
     libraryStore: LibraryStore
@@ -374,6 +462,19 @@ fun SearchScreen(
 
     var loadingVideoId by remember {
         mutableStateOf<String?>(null)
+    }
+
+    var libraryRefresh by remember { mutableIntStateOf(0) }
+    var selectedTrack by remember {
+        mutableStateOf<LibraryTrack?>(null)
+    }
+
+    var showPlaylistDialog by remember {
+        mutableStateOf(false)
+    }
+
+    var newPlaylistName by remember {
+        mutableStateOf("")
     }
 
     val api = remember { InnerTubeMusicApi() }
@@ -447,7 +548,11 @@ fun SearchScreen(
         }
 
         error?.let {
-            Text(it, color = Color(0xFFFF9B9B), fontSize = 13.sp)
+            Text(
+                it,
+                color = Color(0xFFFF9B9B),
+                fontSize = 13.sp
+            )
         }
 
         if (results.isEmpty() && !loading && error == null) {
@@ -459,9 +564,16 @@ fun SearchScreen(
         }
 
         results.forEach { item ->
+            val liked = if (item.isArtist) {
+                false
+            } else {
+                libraryStore.isLiked(item.videoId)
+            }
+
             SongSearchItem(
                 song = item,
                 isLoading = loadingVideoId == item.videoId,
+                isLiked = liked,
                 onPlay = {
                     if (!item.isArtist && loadingVideoId == null) {
                         scope.launch {
@@ -475,135 +587,5 @@ fun SearchScreen(
                                     title = item.title,
                                     artist = item.artist,
                                     artworkUrl = item.artworkUrl,
-                                    requestHeaders = stream.requestHeaders
-                                )
-
-                                libraryStore.addRecentlyPlayed(
-                                    LibraryTrack(
-                                        videoId = item.videoId,
-                                        title = item.title,
-                                        artist = item.artist,
-                                        artworkUrl = item.artworkUrl
-                                    )
-                                )
-                            } catch (e: Exception) {
-                                error = "Unable to play: ${e.message}"
-                            } finally {
-                                loadingVideoId = null
-                            }
-                        }
-                    }
-                }
-            )
-        }
-    }
-}
-
-@Composable
-fun SongSearchItem(
-    song: YouTubeMusicTrack,
-    isLoading: Boolean,
-    onPlay: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (!song.artworkUrl.isNullOrBlank()) {
-            AsyncImage(
-                model = song.artworkUrl,
-                contentDescription = if (song.isArtist) {
-                    "Artist profile picture"
-                } else {
-                    "Song cover"
-                },
-                modifier = Modifier
-                    .size(58.dp)
-                    .clip(
-                        if (song.isArtist) CircleShape
-                        else RoundedCornerShape(12.dp)
-                    ),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(58.dp)
-                    .clip(
-                        if (song.isArtist) CircleShape
-                        else RoundedCornerShape(12.dp)
-                    )
-                    .background(CardColor),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = if (song.isArtist) {
-                        Icons.Default.Person
-                    } else {
-                        Icons.Default.MusicNote
-                    },
-                    contentDescription = null,
-                    tint = LightPurple,
-                    modifier = Modifier.size(30.dp)
-                )
-            }
-        }
-
-        Spacer(Modifier.width(13.dp))
-
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                song.title,
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1
-            )
-
-            Text(
-                if (song.isArtist) "ARTIST" else song.artist,
-                color = LightPurple,
-                fontSize = 12.sp,
-                maxLines = 1
-            )
-        }
-
-        if (song.isArtist) {
-            Icon(
-                Icons.Default.Person,
-                contentDescription = "Artist",
-                tint = LightPurple,
-                modifier = Modifier.size(22.dp)
-            )
-        } else {
-            IconButton(
-                onClick = onPlay,
-                enabled = !isLoading
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(23.dp),
-                        color = LightPurple,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Icon(
-                        Icons.Default.PlayCircleFilled,
-                        contentDescription = "Play song",
-                        tint = LightPurple,
-                        modifier = Modifier.size(30.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun SimpleScreen(title: String) {
-    Column {
-        Text(
+                                    requestHeaders = stream.requestH
            
