@@ -1,4 +1,3 @@
-
 package com.musicnova.app
 
 import android.os.Bundle
@@ -58,15 +57,27 @@ fun MusicNovaApp() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    val musicPlayer = remember(context) { MusicPlayer(context) }
-    val libraryStore = remember(context) { LibraryStore(context) }
-    val streamExtraction = remember { StreamExtraction() }
+    val musicPlayer = remember(context) {
+        MusicPlayer(context)
+    }
+
+    val libraryStore = remember(context) {
+        LibraryStore(context)
+    }
+
+    val streamExtraction = remember {
+        StreamExtraction()
+    }
 
     val playbackState by musicPlayer.playbackState.collectAsState()
-    var playbackError by remember { mutableStateOf<String?>(null) }
+    var playbackError by remember {
+        mutableStateOf<String?>(null)
+    }
 
     DisposableEffect(musicPlayer) {
-        onDispose { musicPlayer.release() }
+        onDispose {
+            musicPlayer.release()
+        }
     }
 
     fun playTrack(track: YouTubeMusicTrack) {
@@ -74,8 +85,10 @@ fun MusicNovaApp() {
 
         scope.launch {
             playbackError = null
+
             try {
                 val stream = streamExtraction.resolve(track)
+
                 musicPlayer.play(
                     streamUrl = stream.url,
                     title = track.title,
@@ -83,9 +96,13 @@ fun MusicNovaApp() {
                     artworkUrl = track.artworkUrl,
                     requestHeaders = stream.requestHeaders
                 )
-                libraryStore.addRecentlyPlayed(track.toLibraryTrack())
+
+                libraryStore.addRecentlyPlayed(
+                    track.toLibraryTrack()
+                )
             } catch (e: Exception) {
-                playbackError = "Unable to play: ${e.message ?: "Try again"}"
+                playbackError =
+                    "Unable to play: ${e.message ?: "Try again"}"
             }
         }
     }
@@ -111,21 +128,30 @@ fun MusicNovaApp() {
             ) {
                 Spacer(Modifier.height(28.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
                         "MUSIC",
                         color = Color.White,
                         fontSize = 25.sp,
                         fontWeight = FontWeight.Light
                     )
+
                     Text(
                         " NOVA",
                         color = LightPurple,
                         fontSize = 25.sp,
                         fontWeight = FontWeight.Bold
                     )
+
                     Spacer(Modifier.weight(1f))
-                    IconButton(onClick = { selectedTab = "Profile" }) {
+
+                    IconButton(
+                        onClick = {
+                            selectedTab = "Profile"
+                        }
+                    ) {
                         Icon(
                             Icons.Default.AccountCircle,
                             contentDescription = "Profile",
@@ -144,6 +170,7 @@ fun MusicNovaApp() {
                         .padding(bottom = 86.dp)
                 ) {
                     Column(Modifier.fillMaxSize()) {
+
                         playbackError?.let {
                             Text(
                                 it,
@@ -155,7 +182,9 @@ fun MusicNovaApp() {
 
                         when (selectedTab) {
                             "Home" -> RecommendationsHomeScreen(
-                                onPlay = { playTrack(it) }
+                                onPlay = {
+                                    playTrack(it)
+                                }
                             )
 
                             "Search" -> SearchScreen(
@@ -179,41 +208,54 @@ fun MusicNovaApp() {
             if (playbackState.hasMedia) {
                 GlassMiniPlayer(
                     state = playbackState,
-                    onPlayPause = { musicPlayer.togglePlayPause() },
-                    onStop = { musicPlayer.stop() },
+                    onPlayPause = {
+                        musicPlayer.togglePlayPause()
+                    },
+                    onStop = {
+                        musicPlayer.stop()
+                    },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(horizontal = 18.dp, vertical = 18.dp)
+                        .padding(
+                            horizontal = 18.dp,
+                            vertical = 18.dp
+                        )
                 )
             } else {
                 FlatNavigation(
                     selectedTab = selectedTab,
-                    onSelect = { selectedTab = it },
+                    onSelect = {
+                        selectedTab = it
+                    },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(
+                            horizontal = 16.dp,
+                            vertical = 12.dp
+                        )
                 )
             }
         }
     }
 }
 
-private fun YouTubeMusicTrack.toLibraryTrack() = LibraryTrack(
-    videoId = videoId,
-    title = title,
-    artist = artist,
-    artworkUrl = artworkUrl
-)
+private fun YouTubeMusicTrack.toLibraryTrack() =
+    LibraryTrack(
+        videoId = videoId,
+        title = title,
+        artist = artist,
+        artworkUrl = artworkUrl
+    )
 
-private fun LibraryTrack.toMusicTrack() = YouTubeMusicTrack(
-    videoId = videoId,
-    title = title,
-    artist = artist,
-    artworkUrl = artworkUrl,
-    isArtist = false
-)
-
+private fun LibraryTrack.toMusicTrack() =
+    YouTubeMusicTrack(
+        videoId = videoId,
+        title = title,
+        artist = artist,
+        artworkUrl = artworkUrl,
+        isArtist = false
+    )
 @Composable
 fun GlassMiniPlayer(
     state: PlaybackState,
@@ -278,12 +320,14 @@ fun GlassMiniPlayer(
                 fontWeight = FontWeight.Bold,
                 maxLines = 1
             )
+
             Text(
                 state.artist.ifBlank { "Unknown artist" },
                 color = LightPurple,
                 fontSize = 11.sp,
                 maxLines = 1
             )
+
             Text(
                 if (state.isPlaying) "NOW PLAYING" else "PAUSED",
                 color = Color.White.copy(alpha = 0.55f),
@@ -292,17 +336,26 @@ fun GlassMiniPlayer(
             )
         }
 
-        IconButton(onClick = onPlayPause, modifier = Modifier.size(42.dp)) {
+        IconButton(
+            onClick = onPlayPause,
+            modifier = Modifier.size(42.dp)
+        ) {
             Icon(
-                if (state.isPlaying) Icons.Default.PauseCircleFilled
-                else Icons.Default.PlayCircleFilled,
+                if (state.isPlaying) {
+                    Icons.Default.PauseCircleFilled
+                } else {
+                    Icons.Default.PlayCircleFilled
+                },
                 contentDescription = "Play or pause",
                 tint = Color.White,
                 modifier = Modifier.size(31.dp)
             )
         }
 
-        IconButton(onClick = onStop, modifier = Modifier.size(42.dp)) {
+        IconButton(
+            onClick = onStop,
+            modifier = Modifier.size(42.dp)
+        ) {
             Icon(
                 Icons.Default.StopCircle,
                 contentDescription = "Stop song",
@@ -333,10 +386,13 @@ fun FlatNavigation(
     ) {
         tabs.forEach { (label, icon, tab) ->
             val selected = selectedTab == tab
+
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .clickable { onSelect(tab) }
+                    .clickable {
+                        onSelect(tab)
+                    }
                     .padding(vertical = 7.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -346,164 +402,23 @@ fun FlatNavigation(
                     tint = if (selected) LightPurple else MutedText,
                     modifier = Modifier.size(23.dp)
                 )
+
                 Spacer(Modifier.height(4.dp))
+
                 Text(
                     label,
                     color = if (selected) LightPurple else MutedText,
                     fontSize = 10.sp,
-                    fontWeight = if (selected) FontWeight.SemiBold
-                    else FontWeight.Normal
+                    fontWeight = if (selected) {
+                        FontWeight.SemiBold
+                    } else {
+                        FontWeight.Normal
+                    }
                 )
             }
         }
     }
 }
-
-{
-    var query by remember { mutableStateOf("") }
-    var loading by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var results by remember {
-        mutableStateOf<List<YouTubeMusicTrack>>(emptyList())
-    }
-    var loadingVideoId by remember { mutableStateOf<String?>(null) }
-    var libraryRefresh by remember { mutableIntStateOf(0) }
-    var selectedTrack by remember { mutableStateOf<LibraryTrack?>(null) }
-    var showPlaylistDialog by remember { mutableStateOf(false) }
-    var newPlaylistName by remember { mutableStateOf("") }
-
-    val api = remember { InnerTubeMusicApi() }
-    val streamExtraction = remember { StreamExtraction() }
-    val scope = rememberCoroutineScope()
-
-    val likedIds = remember(libraryRefresh) {
-        libraryStore.getLikedSongs().map { it.videoId }.toSet()
-    }
-    val playlists = remember(libraryRefresh) {
-        libraryStore.getPlaylists()
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
-        Text(
-            "Search Music",
-            color = Color.White,
-            fontSize = 25.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(Modifier.height(18.dp))
-
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Search songs, artists...") },
-            leadingIcon = {
-                Icon(Icons.Default.Search, contentDescription = null)
-            },
-            singleLine = true,
-            shape = RoundedCornerShape(18.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                focusedBorderColor = Purple,
-                unfocusedBorderColor = Color.Gray
-            )
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        Button(
-            onClick = {
-                if (query.isNotBlank() && !loading) {
-                    scope.launch {
-                        loading = true
-                        error = null
-                        results = emptyList()
-                        try {
-                            results = api.searchSongs(query)
-                        } catch (e: Exception) {
-                            error = e.message ?: "Search failed"
-                        } finally {
-                            loading = false
-                        }
-                    }
-                }
-            },
-            enabled = query.isNotBlank() && !loading,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(if (loading) "Searching..." else "Search")
-        }
-
-        Spacer(Modifier.height(18.dp))
-
-        if (loading) {
-            CircularProgressIndicator(color = LightPurple)
-        }
-
-        error?.let {
-            Text(it, color = Color(0xFFFF9B9B), fontSize = 13.sp)
-        }
-
-        if (results.isEmpty() && !loading && error == null) {
-            Text(
-                "Search songs and artists from YouTube Music",
-                color = LightPurple,
-                fontSize = 13.sp
-            )
-        }
-
-        results.forEach { item ->
-            SongSearchItem(
-                song = item,
-                isLoading = loadingVideoId == item.videoId,
-                isLiked = !item.isArtist && item.videoId in likedIds,
-                onPlay = {
-                    if (!item.isArtist && loadingVideoId == null) {
-                        scope.launch {
-                            loadingVideoId = item.videoId
-                            error = null
-                            try {
-                                val stream = streamExtraction.resolve(item)
-                                musicPlayer.play(
-                                    streamUrl = stream.url,
-                                    title = item.title,
-                                    artist = item.artist,
-                                    artworkUrl = item.artworkUrl,
-                                    requestHeaders = stream.requestHeaders
-                                )
-                                libraryStore.addRecentlyPlayed(
-                                    item.toLibraryTrack()
-                                )
-                            } catch (e: Exception) {
-                                error = "Unable to play: ${e.message ?: "Try again"}"
-                            } finally {
-                                loadingVideoId = null
-                            }
-                        }
-                    }
-                },
-                onLike = {
-                    if (!item.isArtist) {
-                        libraryStore.toggleLike(item.toLibraryTrack())
-                        libraryRefresh++
-                    }
-                },
-                onAddPlaylist = {
-                    if (!item.isArtist) {
-                        selectedTrack = item.toLibraryTrack()
-                        showPlaylistDialog = true
-                    }
-                }
-            )
-        }
-    }
-    
 @Composable
 fun SearchScreen(
     musicPlayer: MusicPlayer,
@@ -512,22 +427,41 @@ fun SearchScreen(
     var query by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+
     var results by remember {
         mutableStateOf<List<YouTubeMusicTrack>>(emptyList())
     }
-    var loadingVideoId by remember { mutableStateOf<String?>(null) }
-    var libraryRefresh by remember { mutableIntStateOf(0) }
-    var selectedTrack by remember { mutableStateOf<LibraryTrack?>(null) }
-    var showPlaylistDialog by remember { mutableStateOf(false) }
-    var newPlaylistName by remember { mutableStateOf("") }
+
+    var loadingVideoId by remember {
+        mutableStateOf<String?>(null)
+    }
+
+    var libraryRefresh by remember {
+        mutableIntStateOf(0)
+    }
+
+    var selectedTrack by remember {
+        mutableStateOf<LibraryTrack?>(null)
+    }
+
+    var showPlaylistDialog by remember {
+        mutableStateOf(false)
+    }
+
+    var newPlaylistName by remember {
+        mutableStateOf("")
+    }
 
     val api = remember { InnerTubeMusicApi() }
     val streamExtraction = remember { StreamExtraction() }
     val scope = rememberCoroutineScope()
 
     val likedIds = remember(libraryRefresh) {
-        libraryStore.getLikedSongs().map { it.videoId }.toSet()
+        libraryStore.getLikedSongs()
+            .map { it.videoId }
+            .toSet()
     }
+
     val playlists = remember(libraryRefresh) {
         libraryStore.getPlaylists()
     }
@@ -548,11 +482,18 @@ fun SearchScreen(
 
         OutlinedTextField(
             value = query,
-            onValueChange = { query = it },
+            onValueChange = {
+                query = it
+            },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Search songs, artists...") },
+            placeholder = {
+                Text("Search songs, artists...")
+            },
             leadingIcon = {
-                Icon(Icons.Default.Search, contentDescription = null)
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = null
+                )
             },
             singleLine = true,
             shape = RoundedCornerShape(18.dp),
@@ -573,6 +514,7 @@ fun SearchScreen(
                         loading = true
                         error = null
                         results = emptyList()
+
                         try {
                             results = api.searchSongs(query)
                         } catch (e: Exception) {
@@ -586,17 +528,25 @@ fun SearchScreen(
             enabled = query.isNotBlank() && !loading,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (loading) "Searching..." else "Search")
+            Text(
+                if (loading) "Searching..." else "Search"
+            )
         }
 
         Spacer(Modifier.height(18.dp))
 
         if (loading) {
-            CircularProgressIndicator(color = LightPurple)
+            CircularProgressIndicator(
+                color = LightPurple
+            )
         }
 
         error?.let {
-            Text(it, color = Color(0xFFFF9B9B), fontSize = 13.sp)
+            Text(
+                it,
+                color = Color(0xFFFF9B9B),
+                fontSize = 13.sp
+            )
         }
 
         if (results.isEmpty() && !loading && error == null) {
@@ -611,38 +561,50 @@ fun SearchScreen(
             SongSearchItem(
                 song = item,
                 isLoading = loadingVideoId == item.videoId,
-                isLiked = !item.isArtist && item.videoId in likedIds,
+                isLiked = !item.isArtist &&
+                    item.videoId in likedIds,
+
                 onPlay = {
                     if (!item.isArtist && loadingVideoId == null) {
                         scope.launch {
                             loadingVideoId = item.videoId
                             error = null
+
                             try {
-                                val stream = streamExtraction.resolve(item)
+                                val stream =
+                                    streamExtraction.resolve(item)
+
                                 musicPlayer.play(
                                     streamUrl = stream.url,
                                     title = item.title,
                                     artist = item.artist,
                                     artworkUrl = item.artworkUrl,
-                                    requestHeaders = stream.requestHeaders
+                                    requestHeaders =
+                                        stream.requestHeaders
                                 )
+
                                 libraryStore.addRecentlyPlayed(
                                     item.toLibraryTrack()
                                 )
                             } catch (e: Exception) {
-                                error = "Unable to play: ${e.message ?: "Try again"}"
+                                error =
+                                    "Unable to play: ${e.message ?: "Try again"}"
                             } finally {
                                 loadingVideoId = null
                             }
                         }
                     }
                 },
+
                 onLike = {
                     if (!item.isArtist) {
-                        libraryStore.toggleLike(item.toLibraryTrack())
+                        libraryStore.toggleLike(
+                            item.toLibraryTrack()
+                        )
                         libraryRefresh++
                     }
                 },
+
                 onAddPlaylist = {
                     if (!item.isArtist) {
                         selectedTrack = item.toLibraryTrack()
@@ -652,13 +614,15 @@ fun SearchScreen(
             )
         }
     }
-    
+
     if (showPlaylistDialog && selectedTrack != null) {
         AlertDialog(
             onDismissRequest = {
                 showPlaylistDialog = false
             },
-            title = { Text("Add to playlist") },
+            title = {
+                Text("Add to playlist")
+            },
             text = {
                 Column {
                     if (playlists.isEmpty()) {
@@ -691,8 +655,12 @@ fun SearchScreen(
 
                     OutlinedTextField(
                         value = newPlaylistName,
-                        onValueChange = { newPlaylistName = it },
-                        label = { Text("New playlist name") },
+                        onValueChange = {
+                            newPlaylistName = it
+                        },
+                        label = {
+                            Text("New playlist name")
+                        },
                         singleLine = true
                     )
                 }
@@ -701,13 +669,16 @@ fun SearchScreen(
                 TextButton(
                     onClick = {
                         val name = newPlaylistName.trim()
-                        if (name.isNotBlank() &&
+
+                        if (
+                            name.isNotBlank() &&
                             libraryStore.createPlaylist(name)
                         ) {
                             libraryStore.addToPlaylist(
                                 name,
                                 selectedTrack!!
                             )
+
                             newPlaylistName = ""
                             libraryRefresh++
                             showPlaylistDialog = false
@@ -719,10 +690,12 @@ fun SearchScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    showPlaylistDialog = false
-                    newPlaylistName = ""
-                }) {
+                TextButton(
+                    onClick = {
+                        showPlaylistDialog = false
+                        newPlaylistName = ""
+                    }
+                ) {
                     Text("Cancel")
                 }
             },
@@ -731,8 +704,7 @@ fun SearchScreen(
             textContentColor = MutedText
         )
     }
-}
-
+}            
 @Composable
 fun SongSearchItem(
     song: YouTubeMusicTrack,
@@ -745,55 +717,44 @@ fun SongSearchItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 8.dp)
+            .background(
+                CardColor,
+                RoundedCornerShape(16.dp)
+            )
+            .clickable {
+                if (!song.isArtist) onPlay()
+            }
+            .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (!song.artworkUrl.isNullOrBlank()) {
-            AsyncImage(
-                model = song.artworkUrl,
-                contentDescription = song.title,
-                modifier = Modifier
-                    .size(54.dp)
-                    .clip(
-                        if (song.isArtist) CircleShape
-                        else RoundedCornerShape(12.dp)
-                    ),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(54.dp)
-                    .clip(
-                        if (song.isArtist) CircleShape
-                        else RoundedCornerShape(12.dp)
-                    )
-                    .background(CardColor),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    if (song.isArtist) Icons.Default.Person
-                    else Icons.Default.MusicNote,
-                    contentDescription = null,
-                    tint = LightPurple
-                )
-            }
-        }
+        AsyncImage(
+            model = song.artworkUrl,
+            contentDescription = song.title,
+            modifier = Modifier
+                .size(56.dp)
+                .clip(RoundedCornerShape(10.dp)),
+            contentScale = ContentScale.Crop
+        )
 
         Spacer(Modifier.width(12.dp))
 
-        Column(Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
             Text(
                 song.title,
                 color = Color.White,
-                fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1
             )
+
+            Spacer(Modifier.height(4.dp))
+
             Text(
                 if (song.isArtist) "Artist" else song.artist,
                 color = MutedText,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 maxLines = 1
             )
         }
@@ -803,8 +764,8 @@ fun SongSearchItem(
                 Icon(
                     if (isLiked) Icons.Default.Favorite
                     else Icons.Default.FavoriteBorder,
-                    contentDescription = "Like song",
-                    tint = if (isLiked) LightPurple else MutedText
+                    contentDescription = "Like",
+                    tint = if (isLiked) Purple else Color.White
                 )
             }
 
@@ -828,10 +789,9 @@ fun SongSearchItem(
                     )
                 } else {
                     Icon(
-                        Icons.Default.PlayCircleFilled,
-                        contentDescription = "Play song",
-                        tint = LightPurple,
-                        modifier = Modifier.size(27.dp)
+                        Icons.Default.PlayArrow,
+                        contentDescription = "Play",
+                        tint = Color.White
                     )
                 }
             }
@@ -845,57 +805,58 @@ fun ProfileScreen() {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
+            .padding(20.dp)
     ) {
         Text(
             "Your Profile",
             color = Color.White,
-            fontSize = 27.sp,
+            fontSize = 26.sp,
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(24.dp))
 
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(22.dp))
+                .size(88.dp)
+                .clip(CircleShape)
                 .background(
                     Brush.linearGradient(
-                        listOf(
-                            Color(0xFF30283C),
-                            Color(0xFF1B1822)
-                        )
+                        listOf(Purple, LightPurple)
                     )
-                )
-                .padding(24.dp),
+                ),
             contentAlignment = Alignment.Center
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    Icons.Default.AccountCircle,
-                    contentDescription = null,
-                    tint = LightPurple,
-                    modifier = Modifier.size(72.dp)
-                )
-
-                Spacer(Modifier.height(12.dp))
-
-                Text(
-                    "Music Nova",
-                    color = Color.White,
-                    fontSize = 21.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Text(
-                    "Your personal music space",
-                    color = MutedText,
-                    fontSize = 12.sp
-                )
-            }
+            Icon(
+                Icons.Default.Person,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(46.dp)
+            )
         }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(16.dp))
+
+        Text(
+            "Music Nova User",
+            color = Color.White,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Text(
+            "Your music, your world.",
+            color = MutedText,
+            fontSize = 13.sp
+        )
+
+        Spacer(Modifier.height(28.dp))
+
+        ProfileOption(
+            icon = Icons.Default.Person,
+            title = "Account",
+            subtitle = "Your profile details"
+        )
 
         ProfileOption(
             icon = Icons.Default.Settings,
@@ -906,13 +867,13 @@ fun ProfileScreen() {
         ProfileOption(
             icon = Icons.Default.Info,
             title = "About Music Nova",
-            subtitle = "Your music, your world"
+            subtitle = "Music for every moment"
         )
     }
 }
 
 @Composable
-private fun ProfileOption(
+fun ProfileOption(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String
@@ -920,17 +881,19 @@ private fun ProfileOption(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
-            .clip(RoundedCornerShape(15.dp))
-            .background(CardColor)
+            .padding(vertical = 7.dp)
+            .background(
+                CardColor,
+                RoundedCornerShape(16.dp)
+            )
+            .clickable { }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             icon,
             contentDescription = null,
-            tint = LightPurple,
-            modifier = Modifier.size(25.dp)
+            tint = LightPurple
         )
 
         Spacer(Modifier.width(14.dp))
@@ -939,17 +902,14 @@ private fun ProfileOption(
             Text(
                 title,
                 color = Color.White,
-                fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold
             )
+
             Text(
                 subtitle,
                 color = MutedText,
-                fontSize = 11.sp
+                fontSize = 12.sp
             )
         }
     }
-}
-
-            
-           
+}           
