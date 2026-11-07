@@ -72,10 +72,7 @@ fun MusicNovaApp() {
     }
 
     val playbackState by musicPlayer.playbackState.collectAsState()
-
-    var homePlaybackError by remember {
-        mutableStateOf<String?>(null)
-    }
+    var playbackError by remember { mutableStateOf<String?>(null) }
 
     DisposableEffect(musicPlayer) {
         onDispose {
@@ -123,19 +120,19 @@ fun MusicNovaApp() {
 
                     Spacer(Modifier.weight(1f))
 
-                    Icon(
-                        Icons.Default.AccountCircle,
-                        contentDescription = "Profile",
-                        tint = LightPurple,
-                        modifier = Modifier
-                            .size(30.dp)
-                            .clickable {
-                                selectedTab = "Profile"
-                            }
-                    )
+                    IconButton(
+                        onClick = { selectedTab = "Profile" }
+                    ) {
+                        Icon(
+                            Icons.Default.AccountCircle,
+                            contentDescription = "Profile",
+                            tint = LightPurple,
+                            modifier = Modifier.size(29.dp)
+                        )
+                    }
                 }
 
-                Spacer(Modifier.height(22.dp))
+                Spacer(Modifier.height(18.dp))
 
                 Box(
                     modifier = Modifier
@@ -143,100 +140,87 @@ fun MusicNovaApp() {
                         .fillMaxWidth()
                         .padding(bottom = 86.dp)
                 ) {
-                    when (selectedTab) {
-                        "Home" -> {
-                            Column {
-                                homePlaybackError?.let { message ->
-                                    Text(
-                                        message,
-                                        color = Color(0xFFFF9B9B),
-                                        fontSize = 12.sp,
-                                        modifier = Modifier.padding(bottom = 8.dp)
-                                    )
-                                }
-
-                                RecommendationsHomeScreen(
-                                    onPlay = { song ->
-                                        scope.launch {
-                                            homePlaybackError = null
-
-                                            try {
-                                                val stream =
-                                                    streamExtraction.resolve(song)
-
-                                                musicPlayer.play(
-                                                    streamUrl = stream.url,
-                                                    title = song.title,
-                                                    artist = song.artist,
-                                                    artworkUrl = song.artworkUrl,
-                                                    requestHeaders =
-                                                        stream.requestHeaders
-                                                )
-
-                                                libraryStore.addRecentlyPlayed(
-                                                    LibraryTrack(
-                                                        videoId = song.videoId,
-                                                        title = song.title,
-                                                        artist = song.artist,
-                                                        artworkUrl = song.artworkUrl
-                                                    )
-                                                )
-                                            } catch (e: Exception) {
-                                                homePlaybackError =
-                                                    "Unable to play: ${e.message ?: "Try again"}"
-                                            }
-                                        }
-                                    }
-                                )
-                            }
+                    Column(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        playbackError?.let {
+                            Text(
+                                text = it,
+                                color = Color(0xFFFF9B9B),
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
                         }
 
-                        "Search" -> SearchScreen(
-                            musicPlayer = musicPlayer,
-                            libraryStore = libraryStore
-                        )
+                        when (selectedTab) {
+                            "Home" -> RecommendationsHomeScreen(
+                                onPlay = { song ->
+                                    scope.launch {
+                                        playbackError = null
+                                        try {
+                                            val stream =
+                                                streamExtraction.resolve(song)
 
-                        "Library" -> LibraryScreen(
-                            libraryStore = libraryStore,
-                            onPlay = { track ->
-                                scope.launch {
-                                    try {
-                                        val song = YouTubeMusicTrack(
-                                            videoId = track.videoId,
-                                            title = track.title,
-                                            artist = track.artist,
-                                            artworkUrl = track.artworkUrl,
-                                            isArtist = false
-                                        )
+                                            musicPlayer.play(
+                                                streamUrl = stream.url,
+                                                title = song.title,
+                                                artist = song.artist,
+                                                artworkUrl = song.artworkUrl,
+                                                requestHeaders =
+                                                    stream.requestHeaders
+                                            )
 
-                                        val stream =
-                                            streamExtraction.resolve(song)
-
-                                        musicPlayer.play(
-                                            streamUrl = stream.url,
-                                            title = track.title,
-                                            artist = track.artist,
-                                            artworkUrl = track.artworkUrl,
-                                            requestHeaders =
-                                                stream.requestHeaders
-                                        )
-
-                                        libraryStore.addRecentlyPlayed(track)
-                                    } catch (e: Exception) {
-                                        homePlaybackError =
-                                            "Unable to play: ${e.message ?: "Try again"}"
+                                            libraryStore.addRecentlyPlayed(
+                                                song.toLibraryTrack()
+                                            )
+                                        } catch (e: Exception) {
+                                            playbackError =
+                                                "Unable to play: ${e.message ?: "Try again"}"
+                                        }
                                     }
                                 }
-                            }
-                        )
+                            )
 
-                        "Profile" -> ProfileScreen()
+                            "Search" -> SearchScreen(
+                                musicPlayer = musicPlayer,
+                                libraryStore = libraryStore
+                            )
+
+                            "Library" -> LibraryScreen(
+                                libraryStore = libraryStore,
+                                onPlay = { track ->
+                                    scope.launch {
+                                        playbackError = null
+                                        try {
+                                            val song = track.toMusicTrack()
+                                            val stream =
+                                                streamExtraction.resolve(song)
+
+                                            musicPlayer.play(
+                                                streamUrl = stream.url,
+                                                title = track.title,
+                                                artist = track.artist,
+                                                artworkUrl = track.artworkUrl,
+                                                requestHeaders =
+                                                    stream.requestHeaders
+                                            )
+
+                                            libraryStore.addRecentlyPlayed(track)
+                                        } catch (e: Exception) {
+                                            playbackError =
+                                                "Unable to play: ${e.message ?: "Try again"}"
+                                        }
+                                    }
+                                }
+                            )
+
+                            "Profile" -> ProfileScreen()
+                        }
                     }
                 }
             }
 
-            // Playing: mini-player replaces navigation completely.
-            // Not playing: flat bottom navigation is displayed.
+            // The Liquid Glass player replaces navigation while media exists.
             if (playbackState.hasMedia) {
                 GlassMiniPlayer(
                     state = playbackState,
@@ -249,9 +233,8 @@ fun MusicNovaApp() {
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(
-                            start = 18.dp,
-                            end = 18.dp,
-                            bottom = 18.dp
+                            horizontal = 18.dp,
+                            vertical = 18.dp
                         )
                 )
             } else {
@@ -270,6 +253,23 @@ fun MusicNovaApp() {
         }
     }
 }
+
+private fun YouTubeMusicTrack.toLibraryTrack() =
+    LibraryTrack(
+        videoId = videoId,
+        title = title,
+        artist = artist,
+        artworkUrl = artworkUrl
+    )
+
+private fun LibraryTrack.toMusicTrack() =
+    YouTubeMusicTrack(
+        videoId = videoId,
+        title = title,
+        artist = artist,
+        artworkUrl = artworkUrl,
+        isArtist = false
+    )
 
 @Composable
 fun GlassMiniPlayer(
@@ -408,8 +408,7 @@ fun FlatNavigation(
     )
 
     Row(
-        modifier = modifier
-            .background(Black),
+        modifier = modifier.background(Black),
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -480,6 +479,15 @@ fun SearchScreen(
     val api = remember { InnerTubeMusicApi() }
     val streamExtraction = remember { StreamExtraction() }
     val scope = rememberCoroutineScope()
+
+    // Re-read liked songs and playlists after a library change.
+    val likedIds = remember(libraryRefresh) {
+        libraryStore.getLikedSongs().map { it.videoId }.toSet()
+    }
+
+    val playlists = remember(libraryRefresh) {
+        libraryStore.getPlaylists()
+    }
 
     Column(
         modifier = Modifier
@@ -564,11 +572,7 @@ fun SearchScreen(
         }
 
         results.forEach { item ->
-            val liked = if (item.isArtist) {
-                false
-            } else {
-                libraryStore.isLiked(item.videoId)
-            }
+            val liked = !item.isArtist && item.videoId in likedIds
 
             SongSearchItem(
                 song = item,
@@ -578,6 +582,7 @@ fun SearchScreen(
                     if (!item.isArtist && loadingVideoId == null) {
                         scope.launch {
                             loadingVideoId = item.videoId
+                            error = null
 
                             try {
                                 val stream = streamExtraction.resolve(item)
@@ -587,5 +592,11 @@ fun SearchScreen(
                                     title = item.title,
                                     artist = item.artist,
                                     artworkUrl = item.artworkUrl,
-                                    requestHeaders = stream.requestH
+                                    requestHeaders = stream.requestHeaders
+                                )
+
+                                libraryStore.addRecentlyPlayed(
+                                    item.toLibraryTrack()
+                                )
+                            } catc
            
