@@ -29,16 +29,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.musicnova.app.data.music.InnerTubeMusicApi
+import com.musicnova.app.data.music.LibraryStore
+import com.musicnova.app.data.music.LibraryTrack
 import com.musicnova.app.data.music.StreamExtraction
 import com.musicnova.app.data.music.YouTubeMusicTrack
 import com.musicnova.app.playback.MusicPlayer
 import com.musicnova.app.playback.PlaybackState
 import kotlinx.coroutines.launch
 
-private val Black = Color(0xFF08070D)
-private val Purple = Color(0xFF8B5CF6)
-private val LightPurple = Color(0xFFC4B5FD)
-private val CardColor = Color(0xFF191622)
+private val Black = Color(0xFF0D0B12)
+private val Purple = Color(0xFF9277B8)
+private val LightPurple = Color(0xFFC9B9E5)
+private val CardColor = Color(0xFF1B1822)
+private val MutedText = Color(0xFFAAA4B5)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,12 +56,25 @@ class MainActivity : ComponentActivity() {
 fun MusicNovaApp() {
     var selectedTab by remember { mutableStateOf("Home") }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     val musicPlayer = remember(context) {
         MusicPlayer(context)
     }
 
+    val libraryStore = remember(context) {
+        LibraryStore(context)
+    }
+
+    val streamExtraction = remember {
+        StreamExtraction()
+    }
+
     val playbackState by musicPlayer.playbackState.collectAsState()
+
+    var homePlaybackError by remember {
+        mutableStateOf<String?>(null)
+    }
 
     DisposableEffect(musicPlayer) {
         onDispose {
@@ -70,7 +86,9 @@ fun MusicNovaApp() {
         colorScheme = darkColorScheme(
             background = Black,
             surface = CardColor,
-            primary = Purple
+            primary = Purple,
+            onBackground = Color.White,
+            onSurface = Color.White
         )
     ) {
         Box(
@@ -107,7 +125,7 @@ fun MusicNovaApp() {
                     Icon(
                         Icons.Default.AccountCircle,
                         contentDescription = "Profile",
-                        tint = Color.White,
+                        tint = LightPurple,
                         modifier = Modifier
                             .size(30.dp)
                             .clickable {
@@ -116,20 +134,69 @@ fun MusicNovaApp() {
                     )
                 }
 
-                Spacer(Modifier.height(26.dp))
+                Spacer(Modifier.height(22.dp))
 
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .padding(
-                            bottom = if (playbackState.hasMedia) 175.dp else 85.dp
-                        )
+                        .padding(bottom = 86.dp)
                 ) {
                     when (selectedTab) {
-                        "Home" -> HomeScreen()
-                        "Search" -> SearchScreen(musicPlayer)
+                        "Home" -> {
+                            Column {
+                                homePlaybackError?.let { message ->
+                                    Text(
+                                        message,
+                                        color = Color(0xFFFF9B9B),
+                                        fontSize = 12.sp,
+                                        modifier = Modifier.padding(bottom = 8.dp)
+                                    )
+                                }
+
+                                RecommendationsHomeScreen(
+                                    onPlay = { song ->
+                                        scope.launch {
+                                            homePlaybackError = null
+
+                                            try {
+                                                val stream =
+                                                    streamExtraction.resolve(song)
+
+                                                musicPlayer.play(
+                                                    streamUrl = stream.url,
+                                                    title = song.title,
+                                                    artist = song.artist,
+                                                    artworkUrl = song.artworkUrl,
+                                                    requestHeaders =
+                                                        stream.requestHeaders
+                                                )
+
+                                                libraryStore.addRecentlyPlayed(
+                                                    LibraryTrack(
+                                                        videoId = song.videoId,
+                                                        title = song.title,
+                                                        artist = song.artist,
+                                                        artworkUrl = song.artworkUrl
+                                                    )
+                                                )
+                                            } catch (e: Exception) {
+                                                homePlaybackError =
+                                                    "Unable to play: ${e.message ?: "Try again"}"
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                        }
+
+                        "Search" -> SearchScreen(
+                            musicPlayer = musicPlayer,
+                            libraryStore = libraryStore
+                        )
+
                         "Library" -> SimpleScreen("Your Library")
+
                         "Profile" -> SimpleScreen("Your Profile")
                     }
                 }
@@ -149,22 +216,22 @@ fun MusicNovaApp() {
                         .padding(
                             start = 18.dp,
                             end = 18.dp,
-                            bottom = 94.dp
+                            bottom = 18.dp
+                        )
+                )
+            } else {
+                FlatNavigation(
+                    selectedTab = selectedTab,
+                    onSelect = { selectedTab = it },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(
+                            horizontal = 16.dp,
+                            vertical = 12.dp
                         )
                 )
             }
-
-            FloatingNavigation(
-                selectedTab = selectedTab,
-                onSelect = { selectedTab = it },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(
-                        start = 18.dp,
-                        end = 18.dp,
-                        bottom = 18.dp
-                    )
-            )
         }
     }
 }
@@ -180,18 +247,18 @@ fun GlassMiniPlayer(
         modifier = modifier
             .fillMaxWidth()
             .shadow(
-                elevation = 22.dp,
-                shape = RoundedCornerShape(24.dp),
-                ambientColor = Purple.copy(alpha = 0.35f),
-                spotColor = Purple.copy(alpha = 0.35f)
+                elevation = 20.dp,
+                shape = RoundedCornerShape(23.dp),
+                ambientColor = Purple.copy(alpha = 0.22f),
+                spotColor = Purple.copy(alpha = 0.22f)
             )
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(23.dp))
             .background(
                 Brush.linearGradient(
                     colors = listOf(
-                        Color(0xDD302443),
-                        Color(0xCC171421),
-                        Color(0xDD251B38)
+                        Color(0xE52D2738),
+                        Color(0xE51B1923),
+                        Color(0xE52A2434)
                     )
                 )
             )
@@ -199,14 +266,14 @@ fun GlassMiniPlayer(
                 1.dp,
                 Brush.linearGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.38f),
-                        LightPurple.copy(alpha = 0.22f),
-                        Color.White.copy(alpha = 0.10f)
+                        Color.White.copy(alpha = 0.34f),
+                        LightPurple.copy(alpha = 0.18f),
+                        Color.White.copy(alpha = 0.08f)
                     )
                 ),
-                RoundedCornerShape(24.dp)
+                RoundedCornerShape(23.dp)
             )
-            .padding(horizontal = 12.dp, vertical = 11.dp),
+            .padding(horizontal = 11.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (!state.artworkUrl.isNullOrBlank()) {
@@ -223,7 +290,7 @@ fun GlassMiniPlayer(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(13.dp))
-                    .background(Purple.copy(alpha = 0.25f)),
+                    .background(Purple.copy(alpha = 0.22f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -283,7 +350,7 @@ fun GlassMiniPlayer(
             modifier = Modifier.size(42.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.StopCircle,
+                Icons.Default.StopCircle,
                 contentDescription = "Stop song",
                 tint = LightPurple,
                 modifier = Modifier.size(29.dp)
@@ -293,159 +360,10 @@ fun GlassMiniPlayer(
 }
 
 @Composable
-fun HomeScreen() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
-        Text(
-            "FEEL THE SOUND",
-            color = Color.White,
-            fontSize = 29.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
-
-        Text(
-            "Your music. Your universe.",
-            color = LightPurple,
-            fontSize = 14.sp
-        )
-
-        Spacer(Modifier.height(22.dp))
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(175.dp)
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            Color(0xFF5425A8),
-                            Color(0xFF241044),
-                            Color(0xFF111019)
-                        )
-                    ),
-                    RoundedCornerShape(28.dp)
-                )
-                .padding(22.dp)
-        ) {
-            Column(
-                modifier = Modifier.align(Alignment.CenterStart)
-            ) {
-                Text(
-                    "YOUR WORLD.",
-                    color = Color.White,
-                    fontSize = 25.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Text(
-                    "YOUR MUSIC.",
-                    color = LightPurple,
-                    fontSize = 25.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                Text(
-                    "Discover your next favourite sound",
-                    color = Color.White.copy(alpha = 0.75f),
-                    fontSize = 12.sp
-                )
-            }
-        }
-
-        Spacer(Modifier.height(26.dp))
-
-        Text(
-            "Discover",
-            color = Color.White,
-            fontSize = 21.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(Modifier.height(14.dp))
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            DiscoverCard(
-                "Trending",
-                "Popular sounds",
-                Modifier.weight(1f)
-            )
-
-            DiscoverCard(
-                "New Releases",
-                "Fresh music",
-                Modifier.weight(1f)
-            )
-        }
-
-        Spacer(Modifier.height(25.dp))
-
-        Text(
-            "Your Music Space",
-            color = Color.White,
-            fontSize = 21.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(CardColor, RoundedCornerShape(22.dp))
-                .padding(18.dp)
-        ) {
-            Text(
-                "Your music library and playlists will appear here.",
-                color = Color.LightGray,
-                fontSize = 14.sp
-            )
-        }
-    }
-}
-
-@Composable
-fun DiscoverCard(
-    title: String,
-    subtitle: String,
-    modifier: Modifier = Modifier
+fun SearchScreen(
+    musicPlayer: MusicPlayer,
+    libraryStore: LibraryStore
 ) {
-    Column(
-        modifier = modifier
-            .background(CardColor, RoundedCornerShape(20.dp))
-            .padding(16.dp)
-    ) {
-        Icon(
-            Icons.Default.MusicNote,
-            contentDescription = null,
-            tint = LightPurple,
-            modifier = Modifier.size(27.dp)
-        )
-
-        Spacer(Modifier.height(13.dp))
-
-        Text(
-            title,
-            color = Color.White,
-            fontWeight = FontWeight.Bold
-        )
-
-        Text(
-            subtitle,
-            color = Color.Gray,
-            fontSize = 11.sp
-        )
-    }
-}
-
-@Composable
-fun SearchScreen(musicPlayer: MusicPlayer) {
     var query by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -529,7 +447,7 @@ fun SearchScreen(musicPlayer: MusicPlayer) {
         }
 
         error?.let {
-            Text(it, color = Color.Red, fontSize = 13.sp)
+            Text(it, color = Color(0xFFFF9B9B), fontSize = 13.sp)
         }
 
         if (results.isEmpty() && !loading && error == null) {
@@ -558,6 +476,15 @@ fun SearchScreen(musicPlayer: MusicPlayer) {
                                     artist = item.artist,
                                     artworkUrl = item.artworkUrl,
                                     requestHeaders = stream.requestHeaders
+                                )
+
+                                libraryStore.addRecentlyPlayed(
+                                    LibraryTrack(
+                                        videoId = item.videoId,
+                                        title = item.title,
+                                        artist = item.artist,
+                                        artworkUrl = item.artworkUrl
+                                    )
                                 )
                             } catch (e: Exception) {
                                 error = "Unable to play: ${e.message}"
@@ -632,13 +559,15 @@ fun SongSearchItem(
             Text(
                 song.title,
                 color = Color.White,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
             )
 
             Text(
                 if (song.isArtist) "ARTIST" else song.artist,
                 color = LightPurple,
-                fontSize = 12.sp
+                fontSize = 12.sp,
+                maxLines = 1
             )
         }
 
@@ -677,73 +606,4 @@ fun SongSearchItem(
 fun SimpleScreen(title: String) {
     Column {
         Text(
-            title,
-            color = Color.White,
-            fontSize = 25.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(Modifier.height(18.dp))
-
-        Text(
-            "Your Music Nova experience starts here.",
-            color = Color.LightGray
-        )
-    }
-}
-
-@Composable
-fun FloatingNavigation(
-    selectedTab: String,
-    onSelect: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val tabs = listOf(
-        "Home" to Icons.Default.Home,
-        "Search" to Icons.Default.Search,
-        "Library" to Icons.Default.LibraryMusic,
-        "Profile" to Icons.Default.Person
-    )
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(
-                Color(0xFF211A30).copy(alpha = 0.97f),
-                CircleShape
-            )
-            .padding(vertical = 12.dp, horizontal = 8.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        tabs.forEach { (name, icon) ->
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .clickable { onSelect(name) }
-                    .padding(horizontal = 8.dp)
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = name,
-                    tint = if (selectedTab == name) {
-                        LightPurple
-                    } else {
-                        Color.Gray
-                    },
-                    modifier = Modifier.size(23.dp)
-                )
-
-                Text(
-                    name,
-                    color = if (selectedTab == name) {
-                        LightPurple
-                    } else {
-                        Color.Gray
-                    },
-                    fontSize = 10.sp
-                )
-            }
-        }
-    }
-}
+           
