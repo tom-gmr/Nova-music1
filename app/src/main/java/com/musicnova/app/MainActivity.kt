@@ -359,11 +359,7 @@ fun FlatNavigation(
     }
 }
 
-@Composable
-fun SearchScreen(
-    musicPlayer: MusicPlayer,
-    libraryStore: LibraryStore
-) {
+{
     var query by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
