@@ -1,12 +1,25 @@
+
 package com.musicnova.app.playback
 
 import android.content.Context
 import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+data class PlaybackState(
+    val title: String = "",
+    val artist: String = "",
+    val artworkUrl: String? = null,
+    val isPlaying: Boolean = false,
+    val hasMedia: Boolean = false
+)
 
 class MusicPlayer(context: Context) {
 
@@ -23,8 +36,26 @@ class MusicPlayer(context: Context) {
             )
             .build()
 
+    private val _playbackState =
+        MutableStateFlow(PlaybackState())
+
+    val playbackState: StateFlow<PlaybackState> =
+        _playbackState.asStateFlow()
+
     val exoPlayer: ExoPlayer
         get() = player
+
+    init {
+        player.addListener(object : Player.Listener {
+
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                _playbackState.value =
+                    _playbackState.value.copy(
+                        isPlaying = isPlaying
+                    )
+            }
+        })
+    }
 
     fun play(
         streamUrl: String,
@@ -40,7 +71,9 @@ class MusicPlayer(context: Context) {
             "Valid HTTP(S) audio URL required"
         }
 
-        httpDataSourceFactory.setDefaultRequestProperties(requestHeaders)
+        httpDataSourceFactory.setDefaultRequestProperties(
+            requestHeaders
+        )
 
         val metadata = MediaMetadata.Builder()
             .setTitle(title)
@@ -58,14 +91,46 @@ class MusicPlayer(context: Context) {
             .setMediaMetadata(metadata)
             .build()
 
+        _playbackState.value = PlaybackState(
+            title = title,
+            artist = artist,
+            artworkUrl = artworkUrl,
+            isPlaying = true,
+            hasMedia = true
+        )
+
         player.setMediaItem(mediaItem)
         player.prepare()
         player.play()
     }
 
-    fun pause() = player.pause()
+    fun pause() {
+        player.pause()
+        _playbackState.value =
+            _playbackState.value.copy(isPlaying = false)
+    }
 
-    fun resume() = player.play()
+    fun resume() {
+        if (_playbackState.value.hasMedia) {
+            player.play()
+            _playbackState.value =
+                _playbackState.value.copy(isPlaying = true)
+        }
+    }
+
+    fun togglePlayPause() {
+        if (player.isPlaying) {
+            pause()
+        } else {
+            resume()
+        }
+    }
+
+    fun stop() {
+        player.stop()
+        player.clearMediaItems()
+        _playbackState.value = PlaybackState()
+    }
 
     fun seekTo(positionMs: Long) {
         player.seekTo(positionMs.coerceAtLeast(0L))
@@ -73,5 +138,8 @@ class MusicPlayer(context: Context) {
 
     fun isPlaying(): Boolean = player.isPlaying
 
-    fun release() = player.release()
+    fun release() {
+        player.release()
+    }
 }
+
