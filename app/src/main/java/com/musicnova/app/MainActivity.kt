@@ -137,7 +137,7 @@ fun MusicNovaApp() {
         }
     )
 } else {
-    } else {        Column(
+         Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 20.dp)
