@@ -23,6 +23,7 @@ import coil.compose.AsyncImage
 import com.musicnova.app.playback.MusicPlayer
 import com.musicnova.app.playback.PlaybackState
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.border
 
 private val PlayerBackground = Color(0xFF100D17)
 private val PlayerSurface = Color(0xFF211B2B)
