@@ -34,8 +34,12 @@ private val SearchMuted = Color(0xFFAAA4B5)
 @Composable
 fun NovaSearchScreen(
     libraryStore: LibraryStore,
-    onPlay: (YouTubeMusicTrack) -> Unit
-) {
+    onPlay: (YouTubeMusicTrack) -> Unit,
+    onPlayQueue: (
+        tracks: List<YouTubeMusicTrack>,
+        selectedTrack: YouTubeMusicTrack
+    ) -> Unit
+){
     val api = remember { InnerTubeMusicApi() }
     val scope = rememberCoroutineScope()
 
@@ -235,8 +239,13 @@ fun NovaSearchScreen(
                         isLiked = !track.isArtist &&
                             libraryStore.isLiked(track.videoId),
                         onPlay = {
-                            if (!track.isArtist) onPlay(track)
-                        },
+               if (!track.isArtist) {
+              val queueTracks = results.filter {
+            !it.isArtist && it.videoId.isNotBlank()
+        }
+        onPlayQueue(queueTracks, track)
+    }
+},
                         onLike = {
                             if (!track.isArtist) {
                                 libraryStore.toggleLike(track.toSearchLibraryTrack())
