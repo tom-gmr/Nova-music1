@@ -418,6 +418,7 @@ private fun formatPlayerTime(milliseconds: Long): String {
 }
 
 // FLOATING BOTTOM NAVIGATION
+// FLOATING BOTTOM NAVIGATION — Glass Style
 
 @Composable
 fun NovaBottomNavigation(
@@ -432,12 +433,27 @@ fun NovaBottomNavigation(
         Triple("Profile", Icons.Default.Person, "Profile")
     )
 
+    val shape = RoundedCornerShape(26.dp)
+
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(23.dp))
-            .background(Color(0xFF1C1824))
-            .padding(horizontal = 7.dp, vertical = 9.dp),
+            .clip(shape)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFF292333),
+                        Color(0xFF1C1825),
+                        Color(0xFF15121C)
+                    )
+                )
+            )
+            .border(
+                1.dp,
+                Color.White.copy(alpha = 0.10f),
+                shape
+            )
+            .padding(horizontal = 7.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -447,13 +463,13 @@ fun NovaBottomNavigation(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(18.dp))
                     .clickable {
                         onSelect(item.first)
                     }
                     .background(
                         if (isSelected)
-                            Color(0xFF382C49)
+                            Color(0xFF40334F).copy(alpha = 0.85f)
                         else
                             Color.Transparent
                     )
@@ -470,7 +486,7 @@ fun NovaBottomNavigation(
                     modifier = Modifier.size(22.dp)
                 )
 
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(5.dp))
 
                 Text(
                     text = item.first,
