@@ -1,318 +1,343 @@
-
 package com.musicnova.app
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.shape.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.PlayCircleFilled
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.*
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.*
 import coil.compose.AsyncImage
-import com.musicnova.app.data.music.InnerTubeMusicApi
-import com.musicnova.app.data.music.LibraryStore
-import com.musicnova.app.data.music.LibraryTrack
-import com.musicnova.app.data.music.YouTubeMusicTrack
+import com.musicnova.app.data.music.*
 import kotlinx.coroutines.launch
 
-private val HomeBackground = Color(0xFF0D0B12)
-private val HomeCard = Color(0xFF1B1822)
-private val HomeAccent = Color(0xFFB9A2E8)
-private val HomeMuted = Color(0xFFAAA4B5)
+private val NovaBlack = Color(0xFF08060D)
+private val NovaPurple = Color(0xFF8438D5)
+private val NovaPink = Color(0xFFE052C5)
+private val NovaLavender = Color(0xFFC9A7FF)
+private val NovaText = Color(0xFFF8F3FF)
+private val NovaMuted = Color(0xFFC5B7D8)
 
+private val NovaGlass = Color(0x55FFFFFF)
+private val NovaBorder = Color(0x66FFFFFF)
+
+private val HeroGradient = Brush.linearGradient(
+    colors = listOf(
+        Color(0xFF762A91),
+        Color(0xFF7539DB),
+        Color(0xFFE34FC3)
+    )
+)
+
+private val ScreenGradient = Brush.verticalGradient(
+    colors = listOf(
+        NovaBlack,
+        Color(0xFF21102F),
+        Color(0xFF55265F)
+    )
+)
 @Composable
 fun RecommendationsHomeScreen(
     onPlay: (YouTubeMusicTrack) -> Unit
 ) {
     val context = LocalContext.current
-
     val libraryStore = remember(context) {
         LibraryStore(context)
     }
-
-    val api = remember {
-        InnerTubeMusicApi()
-    }
-
+    val api = remember { InnerTubeMusicApi() }
     val scope = rememberCoroutineScope()
 
     var recommendations by remember {
         mutableStateOf<List<YouTubeMusicTrack>>(emptyList())
     }
-
     var trending by remember {
         mutableStateOf<List<YouTubeMusicTrack>>(emptyList())
     }
-
-    var popularArtists by remember {
-        mutableStateOf<List<YouTubeMusicTrack>>(emptyList())
-    }
-
     var recentlyPlayed by remember {
         mutableStateOf<List<LibraryTrack>>(emptyList())
     }
 
-    var loading by remember {
-        mutableStateOf(true)
-    }
+    var refreshing by remember { mutableStateOf(false) }
 
-    var error by remember {
-        mutableStateOf<String?>(null)
-    }
-    
-    fun loadRecommendations() {
+    fun loadMusic() {
         scope.launch {
-            loading = true
-            error = null
-
+            refreshing = true
             try {
                 recentlyPlayed = libraryStore.getRecentlyPlayed()
+                val liked = libraryStore.getLikedSongs()
 
-                val likedSongs = libraryStore.getLikedSongs()
-
-                val seeds = (likedSongs + recentlyPlayed)
+                val seeds = (liked + recentlyPlayed)
                     .distinctBy { it.videoId }
                     .take(5)
 
                 val results = mutableListOf<YouTubeMusicTrack>()
 
-                if (seeds.isNotEmpty()) {
-                    seeds.forEach { seed ->
-                        val query = "songs like ${seed.title} by ${seed.artist}"
-
-                        val songs = api.searchSongs(query, 15)
-
+                if (seeds.isEmpty()) {
+                    results.addAll(
+                        api.searchSongs("popular trending songs India", 30)
+                    )
+                } else {
+                    seeds.forEach {
                         results.addAll(
-                            songs.filterNot { it.isArtist }
+                            api.searchSongs(
+                                "songs like ${it.title} by ${it.artist}", 10
+                            )
                         )
                     }
-                } else {
-                    val songs = api.searchSongs(
-                        "popular trending songs India",
-                        30
-                    )
-
-                    results.addAll(
-                        songs.filterNot { it.isArtist }
-                    )
                 }
-                
-                val excludedIds = (likedSongs + recentlyPlayed)
+                                val excluded = (liked + recentlyPlayed)
                     .map { it.videoId }
                     .toSet()
 
                 recommendations = results
+                    .filterNot { it.isArtist }
                     .distinctBy { it.videoId }
-                    .filterNot { it.videoId in excludedIds }
+                    .filterNot { it.videoId in excluded }
                     .take(15)
 
                 trending = api.searchSongs(
-                    "trending hit songs India",
-                    20
+                    "trending hit songs India", 20
                 )
                     .filterNot { it.isArtist }
                     .distinctBy { it.videoId }
                     .take(12)
 
-                popularArtists = api.searchSongs(
-                    "popular Indian music artists",
-                    20
-                )
-                    .filter { it.isArtist }
-                    .distinctBy { it.title }
-                    .take(10)
-
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
-                error = e.message ?: "Unable to load music"
+                android.util.Log.e(
+                    "MusicNova",
+                    "Recommendations loading failed",
+                    e
+                )
             } finally {
-                loading = false
+                refreshing = false
             }
         }
     }
 
     LaunchedEffect(Unit) {
-        loadRecommendations()
+        loadMusic()
     }
-    
-    Column(
+        Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(HomeBackground)
+            .background(ScreenGradient)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .padding(bottom = 100.dp)
     ) {
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(Modifier.height(18.dp))
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 22.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
                 Text(
                     "MUSIC NOVA",
-                    color = HomeAccent,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
+                    color = NovaText,
+                    fontSize = 23.sp,
+                    fontWeight = FontWeight.ExtraBold
                 )
-
                 Text(
-                    "Discover your sound",
-                    color = Color.White,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold
+                    "FEEL EVERY MOMENT",
+                    color = NovaMuted,
+                    fontSize = 10.sp,
+                    letterSpacing = 3.sp
                 )
             }
 
-            IconButton(
-                onClick = { loadRecommendations() }
+            Icon(
+                Icons.Default.NotificationsNone,
+                contentDescription = "Notifications",
+                tint = NovaText,
+                modifier = Modifier.size(26.dp)
+            )
+        }
+
+        Spacer(Modifier.height(25.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .height(205.dp)
+                .clip(RoundedCornerShape(28.dp))
+                .background(HeroGradient)
+                .padding(22.dp)
+        ) {
+            Column(
+                modifier = Modifier.align(Alignment.CenterStart)
             ) {
-                Icon(
-                    Icons.Default.Refresh,
-                    contentDescription = "Refresh",
-                    tint = HomeAccent
-                )
-            }
-        }
-
-        if (loading) {
-            LinearProgressIndicator(
-                modifier = Modifier.fillMaxWidth(),
-                color = HomeAccent
-            )
-        }
-
-        error?.let {
-            Text(
-                text = it,
-                color = Color.Red,
-                fontSize = 13.sp
-            )
-        }
-        
-        if (recommendations.isNotEmpty()) {
-            MusicSection(
-                title = "Recommended for you",
-                songs = recommendations,
-                onPlay = onPlay
-            )
-        }
-
-        if (trending.isNotEmpty()) {
-            MusicSection(
-                title = "Trending music",
-                songs = trending,
-                onPlay = onPlay
-            )
-        }
-
-        if (popularArtists.isNotEmpty()) {
-            MusicSection(
-                title = "Popular Artists",
-                songs = popularArtists,
-                onPlay = onPlay
-            )
-        }
-
-        if (recentlyPlayed.isNotEmpty()) {
-            Text(
-                "Recently Played",
-                color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            recentlyPlayed.forEach { song ->
                 Text(
-                    text = "${song.title} • ${song.artist}",
-                    color = HomeMuted,
-                    modifier = Modifier.padding(vertical = 6.dp)
+                    "YOUR WORLD.",
+                    color = Color.White,
+                    fontSize = 25.sp,
+                    fontWeight = FontWeight.Black
+                )
+                Text(
+                    "YOUR MUSIC.",
+                    color = Color.White,
+                    fontSize = 25.sp,
+                    fontWeight = FontWeight.Black
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "Discover your next favourite sound",
+                    color = Color.White.copy(alpha = 0.85f),
+                    fontSize = 12.sp
                 )
             }
+
+            Icon(
+                Icons.Default.GraphicEq,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.75f),
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .size(95.dp)
+            )
         }
+                Spacer(Modifier.height(28.dp))
 
-        Spacer(modifier = Modifier.height(30.dp))
-    }
-}
-
-@Composable
-private fun MusicSection(
-    title: String,
-    songs: List<YouTubeMusicTrack>,
-    onPlay: (YouTubeMusicTrack) -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
         Text(
-            text = title,
-            color = Color.White,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold
+            "Suggested for You",
+            color = NovaText,
+            fontSize = 21.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 20.dp)
         )
 
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(
-                items = songs,
-                key = { it.videoId }
-            ) { song ->
+        Spacer(Modifier.height(14.dp))
 
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 18.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            items(recommendations) { track ->
                 Column(
                     modifier = Modifier
                         .width(150.dp)
-                        .clickable { onPlay(song) }
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(NovaGlass)
+                        .clickable { onPlay(track) }
+                        .padding(10.dp)
                 ) {
                     AsyncImage(
-                        model = song.artworkUrl,
-                        contentDescription = song.title,
+                        model = track.thumbnail,
+                        contentDescription = track.title,
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(150.dp)
-                            .clip(RoundedCornerShape(16.dp)),
-                        contentScale = ContentScale.Crop
+                            .height(135.dp)
+                            .clip(RoundedCornerShape(15.dp))
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(Modifier.height(10.dp))
 
                     Text(
-                        text = song.title,
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        track.title,
+                        color = NovaText,
+                        fontWeight = FontWeight.Bold,
                         maxLines = 1
                     )
 
                     Text(
-                        text = song.artist,
-                        color = HomeMuted,
+                        track.artist,
+                        color = NovaMuted,
                         fontSize = 12.sp,
                         maxLines = 1
                     )
                 }
             }
         }
+
+        Spacer(Modifier.height(28.dp))
+
+        Text(
+            "Trending Now",
+            color = NovaText,
+            fontSize = 21.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 20.dp)
+        )
+
+        Spacer(Modifier.height(14.dp))
+                LazyRow(
+            contentPadding = PaddingValues(horizontal = 18.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            items(trending) { track ->
+                Column(
+                    modifier = Modifier
+                        .width(150.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(NovaGlass)
+                        .clickable { onPlay(track) }
+                        .padding(10.dp)
+                ) {
+                    AsyncImage(
+                        model = track.thumbnail,
+                        contentDescription = track.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(135.dp)
+                            .clip(RoundedCornerShape(15.dp))
+                    )
+
+                    Spacer(Modifier.height(10.dp))
+
+                    Text(
+                        track.title,
+                        color = NovaText,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+
+                    Text(
+                        track.artist,
+                        color = NovaMuted,
+                        fontSize = 12.sp,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(25.dp))
+
+        Text(
+            "Made for your mood",
+            color = NovaText,
+            fontSize = 21.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 20.dp)
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        Text(
+            "Fresh music, selected for you.",
+            color = NovaMuted,
+            fontSize = 13.sp,
+            modifier = Modifier.padding(horizontal = 20.dp)
+        )
+
+        Spacer(Modifier.height(20.dp))
     }
 }
 
