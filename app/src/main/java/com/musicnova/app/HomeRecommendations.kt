@@ -240,66 +240,95 @@ fun RecommendationsHomeScreen(
             }
         }
 
-        // FEATURED CARD
+        
+        // FEATURED CARD — NOVA / LASTWAVE INSPIRED HERO
         item(key = "featured") {
+            val featured = recommendations.firstOrNull()
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(top = 22.dp)
-                    .height(205.dp)
-                    .clip(RoundedCornerShape(28.dp))
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .height(238.dp)
+                    .clip(RoundedCornerShape(30.dp))
                     .background(
                         Brush.linearGradient(
-                            listOf(
-                                Color(0xFF55436D),
-                                Color(0xFF30263D),
-                                Color(0xFF191620)
+                            colors = listOf(
+                                Color(0xFF514064),
+                                Color(0xFF30243D),
+                                Color(0xFF17131F)
                             )
                         )
                     )
-                    .padding(20.dp)
             ) {
-                Column(Modifier.fillMaxSize()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(190.dp)
+                        .align(Alignment.TopEnd)
+                        .offset(x = 55.dp, y = (-55).dp)
+                        .clip(CircleShape)
+                        .background(
+                            HomeLavender.copy(alpha = 0.10f)
+                        )
+                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(20.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Icon(
-                            Icons.Default.AutoAwesome,
+                            Icons.Default.GraphicEq,
                             contentDescription = null,
                             tint = HomeLavender,
-                            modifier = Modifier.size(15.dp)
+                            modifier = Modifier.size(17.dp)
                         )
-                        Spacer(Modifier.width(7.dp))
+
+                        Spacer(Modifier.width(8.dp))
+
                         Text(
-                            "MADE FOR YOUR TASTE",
+                            "MUSIC NOVA  •  YOUR UNIVERSE",
                             color = HomeLavender,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.3.sp
+                            letterSpacing = 1.5.sp
                         )
                     }
 
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(17.dp))
 
                     Text(
-                        "Feel every\nmoment.",
+                        "FEEL THE\nSOUND.",
                         color = Color.White,
-                        fontSize = 30.sp,
-                        lineHeight = 34.sp,
-                        fontWeight = FontWeight.ExtraBold
+                        fontSize = 35.sp,
+                        lineHeight = 39.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-1).sp
+                    )
+
+                    Spacer(Modifier.height(5.dp))
+
+                    Text(
+                        "Discover your next favourite track.",
+                        color = Color.White.copy(alpha = 0.72f),
+                        fontSize = 11.sp
                     )
 
                     Spacer(Modifier.weight(1f))
-
-                    val featured = recommendations.firstOrNull()
 
                     if (featured != null) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Color.White.copy(alpha = 0.12f))
+                                .clip(RoundedCornerShape(19.dp))
+                                .background(
+                                    Color.White.copy(alpha = 0.11f)
+                                )
                                 .clickable { onPlay(featured) }
-                                .padding(9.dp),
+                                .padding(10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             AsyncImage(
@@ -307,19 +336,23 @@ fun RecommendationsHomeScreen(
                                 contentDescription = featured.title,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
-                                    .size(42.dp)
-                                    .clip(RoundedCornerShape(11.dp))
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(13.dp))
                             )
 
-                            Spacer(Modifier.width(10.dp))
+                            Spacer(Modifier.width(11.dp))
 
-                            Column(Modifier.weight(1f)) {
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
                                 Text(
-                                    "DAILY DISCOVERY",
+                                    "TODAY'S DISCOVERY",
                                     color = HomeLavender,
                                     fontSize = 8.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp
                                 )
+
                                 Text(
                                     featured.title,
                                     color = Color.White,
@@ -328,25 +361,27 @@ fun RecommendationsHomeScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
+
                                 Text(
                                     featured.artist,
                                     color = HomeMuted,
                                     fontSize = 10.sp,
-                                    maxLines = 1
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
 
                             Icon(
                                 Icons.Default.PlayCircleFilled,
-                                contentDescription = "Play",
+                                contentDescription = "Play discovery",
                                 tint = HomeLavender,
-                                modifier = Modifier.size(30.dp)
+                                modifier = Modifier.size(34.dp)
                             )
                         }
                     } else {
                         Text(
-                            if (refreshing) "Finding music for you..."
-                            else "Refresh to discover music",
+                            if (refreshing) "Discovering music..."
+                            else "Your next favourite song awaits.",
                             color = HomeMuted,
                             fontSize = 11.sp
                         )
@@ -354,6 +389,8 @@ fun RecommendationsHomeScreen(
                 }
             }
         }
+        
+        
 
         // RECOMMENDATIONS HEADER
         item(key = "recommendation_header") {
