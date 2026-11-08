@@ -1,4 +1,3 @@
-
 package com.musicnova.app.data.music
 
 import java.io.IOException
@@ -61,7 +60,7 @@ class StreamExtraction(
 
         // Fallback attempt: NewPipe
         try {
-            return extractor.resolveAudioStream(videoId)
+            return resolveWithNewPipe(videoId)
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
@@ -77,5 +76,30 @@ class StreamExtraction(
             throw failure
         }
     }
-}
 
+    /**
+     * Direct NewPipe fallback.
+     * This will be used when the current playback stream fails.
+     */
+    suspend fun resolveWithNewPipe(
+        videoId: String
+    ): ResolvedAudioStream {
+
+        if (videoId.isBlank()) {
+            throw IOException(
+                "YouTube video ID is empty"
+            )
+        }
+
+        return try {
+            extractor.resolveAudioStream(videoId)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            throw IOException(
+                "NewPipe fallback stream failed.",
+                error
+            )
+        }
+    }
+}
