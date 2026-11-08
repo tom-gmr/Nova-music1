@@ -32,6 +32,8 @@ private val PlayerMuted = Color(0xFFAAA4B5)
 
 // MINI PLAYER
 
+// MINI PLAYER — LastWave-inspired glass dock
+
 @Composable
 fun NovaGlassMiniPlayer(
     state: PlaybackState,
@@ -40,76 +42,125 @@ fun NovaGlassMiniPlayer(
     onExpand: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
+    val shape = RoundedCornerShape(26.dp)
+
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
+            .clip(shape)
             .background(
-                Brush.horizontalGradient(
-                    listOf(
-                        Color(0xFF30263F),
-                        Color(0xFF191520),
-                        Color(0xFF292035)
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFF332A42),
+                        Color(0xFF211B2B),
+                        Color(0xFF17141F)
                     )
                 )
             )
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = 0.12f),
+                shape = shape
+            )
             .clickable { onExpand() }
-            .padding(horizontal = 13.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically
     ) {
-        AsyncImage(
-            model = state.artworkUrl,
-            contentDescription = "Album artwork",
+        Row(
             modifier = Modifier
-                .size(49.dp)
-                .clip(RoundedCornerShape(13.dp))
-                .background(PlayerSurface)
-        )
-
-        Spacer(Modifier.width(12.dp))
-
-        Column(
-            modifier = Modifier.weight(1f)
+                .fillMaxWidth()
+                .padding(
+                    start = 12.dp,
+                    end = 9.dp,
+                    top = 10.dp,
+                    bottom = 10.dp
+                ),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = state.title.ifBlank { "Unknown track" },
-                color = Color.White,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+            AsyncImage(
+                model = state.artworkUrl,
+                contentDescription = "Album artwork",
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(PlayerSurface)
             )
 
-            Text(
-                text = state.artist.ifBlank { "Unknown artist" },
-                color = PlayerMuted,
-                fontSize = 11.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 13.dp)
+            ) {
+                Text(
+                    text = state.title.ifBlank { "Unknown track" },
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                Text(
+                    text = state.artist.ifBlank { "Unknown artist" },
+                    color = PlayerMuted,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Surface(
+                onClick = onPlayPause,
+                shape = CircleShape,
+                color = PlayerPurple,
+                contentColor = Color.White,
+                modifier = Modifier.size(46.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = if (state.isPlaying)
+                            Icons.Default.Pause
+                        else
+                            Icons.Default.PlayArrow,
+                        contentDescription = "Play or pause",
+                        modifier = Modifier.size(25.dp)
+                    )
+                }
+            }
+
+            IconButton(
+                onClick = onStop,
+                modifier = Modifier
+                    .padding(start = 3.dp)
+                    .size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Stop playback",
+                    tint = PlayerMuted,
+                    modifier = Modifier.size(21.dp)
+                )
+            }
         }
 
-        IconButton(onClick = onPlayPause) {
-            Icon(
-                imageVector = if (state.isPlaying)
-                    Icons.Default.Pause
-                else
-                    Icons.Default.PlayArrow,
-                contentDescription = "Play or pause",
-                tint = PlayerLavender,
-                modifier = Modifier.size(29.dp)
-            )
-        }
-
-        IconButton(onClick = onStop) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Stop playback",
-                tint = PlayerMuted
-            )
-        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(2.dp)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            Color.Transparent,
+                            PlayerLavender.copy(alpha = 0.42f),
+                            PlayerPurple.copy(alpha = 0.58f),
+                            Color.Transparent
+                        )
+                    )
+                )
+        )
     }
 }
+
 
 // FULL PLAYER
 
