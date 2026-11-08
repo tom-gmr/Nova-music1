@@ -165,12 +165,12 @@ fun MusicNovaApp() {
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth()
+                            .padding(bottom = 88.dp)
                     ) {
                         Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 18.dp)
-                        ) {
+                   modifier = Modifier.fillMaxSize()
+                  ) {
+                        
 
                             playbackError?.let { message ->
                                 Text(
