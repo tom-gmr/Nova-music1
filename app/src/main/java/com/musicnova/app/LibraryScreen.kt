@@ -4,9 +4,9 @@ package com.musicnova.app
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -23,107 +23,100 @@ import coil.compose.AsyncImage
 import com.musicnova.app.data.music.LibraryStore
 import com.musicnova.app.data.music.LibraryTrack
 
-private val LibraryCard = Color(0xFF1B1822)
-private val LibraryAccent = Color(0xFFC9B9E5)
-private val LibraryMuted = Color(0xFFAAA4B5)
+private val LibBackground = Color(0xFF09080D)
+private val LibCard = Color(0xFF191620)
+private val LibAccent = Color(0xFFC9B9E5)
+private val LibMuted = Color(0xFFAAA4B5)
 
 @Composable
 fun LibraryScreen(
     libraryStore: LibraryStore,
     onPlay: (LibraryTrack) -> Unit
 ) {
-    var selectedSection by remember { mutableStateOf("Liked Songs") }
+    var section by remember { mutableStateOf("Liked Songs") }
     var selectedPlaylist by remember { mutableStateOf<String?>(null) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var playlistName by remember { mutableStateOf("") }
-    var refreshKey by remember { mutableStateOf(0) }
+    var refreshKey by remember { mutableIntStateOf(0) }
 
     val likedSongs = remember(refreshKey) {
         libraryStore.getLikedSongs()
     }
-
     val recentSongs = remember(refreshKey) {
         libraryStore.getRecentlyPlayed()
     }
-
     val playlists = remember(refreshKey) {
         libraryStore.getPlaylists()
     }
-
-    val currentPlaylist = remember(refreshKey, selectedPlaylist) {
-        playlists.firstOrNull { it.name == selectedPlaylist }
+    val currentPlaylist = playlists.firstOrNull {
+        it.name == selectedPlaylist
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .background(LibBackground)
+            .padding(horizontal = 18.dp)
     ) {
+        Spacer(Modifier.height(14.dp))
+
         if (selectedPlaylist != null) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = { selectedPlaylist = null }
-                ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { selectedPlaylist = null }) {
                     Icon(
                         Icons.Default.ArrowBack,
                         contentDescription = "Back",
-                        tint = LibraryAccent
+                        tint = LibAccent
                     )
                 }
 
-                Column {
+                Column(Modifier.weight(1f)) {
                     Text(
-                        selectedPlaylist ?: "",
+                        selectedPlaylist.orEmpty(),
                         color = Color.White,
-                        fontSize = 22.sp,
+                        fontSize = 21.sp,
                         fontWeight = FontWeight.Bold
                     )
-
                     Text(
                         "${currentPlaylist?.tracks?.size ?: 0} songs",
-                        color = LibraryMuted,
-                        fontSize = 11.sp
+                        color = LibMuted,
+                        fontSize = 12.sp
                     )
                 }
 
-                Spacer(Modifier.weight(1f))
-
-                IconButton(
-                    onClick = {
-                        selectedPlaylist?.let {
-                            libraryStore.deletePlaylist(it)
-                        }
-                        selectedPlaylist = null
-                        refreshKey++
-                    }
-                ) {
+                IconButton(onClick = {
+                    selectedPlaylist?.let { libraryStore.deletePlaylist(it) }
+                    selectedPlaylist = null
+                    refreshKey++
+                }) {
                     Icon(
                         Icons.Default.DeleteOutline,
                         contentDescription = "Delete playlist",
-                        tint = LibraryMuted
+                        tint = LibMuted
                     )
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
             val tracks = currentPlaylist?.tracks.orEmpty()
 
             if (tracks.isEmpty()) {
-                EmptyLibraryMessage(
-                    title = "This playlist is empty",
-                    subtitle = "Add songs from Search to build your playlist."
+                LibraryEmptyState(
+                    "This playlist is empty",
+                    "Add songs from Search to build your collection."
                 )
             } else {
-                tracks.forEach { track ->
-                    LibraryTrackRow(
-                        track = track,
-                        onPlay = { onPlay(track) },
-                        trailingAction = {
-                            IconButton(
-                                onClick = {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(7.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp)
+                ) {
+                    items(tracks, key = { it.videoId }) { track ->
+                        LibrarySongRow(
+                            track = track,
+                            onPlay = { onPlay(track) },
+                            trailing = {
+                                IconButton(onClick = {
                                     selectedPlaylist?.let {
                                         libraryStore.removeFromPlaylist(
                                             it,
@@ -131,221 +124,250 @@ fun LibraryScreen(
                                         )
                                     }
                                     refreshKey++
+                                }) {
+                                    Icon(
+                                        Icons.Default.RemoveCircleOutline,
+                                        contentDescription = "Remove",
+                                        tint = LibMuted
+                                    )
                                 }
-                            ) {
-                                Icon(
-                                    Icons.Default.RemoveCircleOutline,
-                                    contentDescription = "Remove from playlist",
-                                    tint = LibraryMuted
-                                )
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
         } else {
             Text(
+                "YOUR SPACE",
+                color = LibAccent,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp
+            )
+
+            Spacer(Modifier.height(5.dp))
+
+            Text(
                 "Your Library",
                 color = Color.White,
-                fontSize = 27.sp,
+                fontSize = 29.sp,
                 fontWeight = FontWeight.Bold
             )
 
             Text(
-                "Your saved music, all in one place.",
-                color = LibraryMuted,
-                fontSize = 12.sp
+                "Your music, your collection.",
+                color = LibMuted,
+                fontSize = 13.sp
+            )
+
+            Spacer(Modifier.height(22.dp))
+
+            LibraryHeroCard(
+                likedCount = likedSongs.size,
+                recentCount = recentSongs.size
             )
 
             Spacer(Modifier.height(20.dp))
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(9.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                LibrarySectionChip(
-                    title = "Liked Songs",
-                    selected = selectedSection == "Liked Songs",
-                    onClick = { selectedSection = "Liked Songs" }
-                )
-
-                LibrarySectionChip(
-                    title = "Recent",
-                    selected = selectedSection == "Recent",
-                    onClick = { selectedSection = "Recent" }
-                )
-
-                LibrarySectionChip(
-                    title = "Playlists",
-                    selected = selectedSection == "Playlists",
-                    onClick = { selectedSection = "Playlists" }
-                )
+                listOf("Liked Songs", "Recent", "Playlists").forEach {
+                    LibraryTab(
+                        title = it,
+                        selected = section == it,
+                        modifier = Modifier.weight(1f),
+                        onClick = { section = it }
+                    )
+                }
             }
 
             Spacer(Modifier.height(18.dp))
 
-            when (selectedSection) {
+            when (section) {
                 "Liked Songs" -> {
-                    LibrarySectionHeading(
-                        title = "Liked Songs",
-                        count = likedSongs.size
+                    LibraryHeading(
+                        "Liked Songs",
+                        likedSongs.size.toString()
                     )
 
                     if (likedSongs.isEmpty()) {
-                        EmptyLibraryMessage(
-                            title = "No liked songs yet",
-                            subtitle = "Use the heart button on songs in Search to save them here."
+                        LibraryEmptyState(
+                            "No liked songs yet",
+                            "Tap the heart on a song in Search to save it here."
                         )
                     } else {
-                        likedSongs.forEach { track ->
-                            LibraryTrackRow(
-                                track = track,
-                                onPlay = { onPlay(track) },
-                                trailingAction = {
-                                    IconButton(
-                                        onClick = {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(7.dp),
+                            contentPadding = PaddingValues(bottom = 24.dp)
+                        ) {
+                            items(likedSongs, key = { it.videoId }) { track ->
+                                LibrarySongRow(
+                                    track = track,
+                                    onPlay = { onPlay(track) },
+                                    trailing = {
+                                        IconButton(onClick = {
                                             libraryStore.removeLikedSong(
                                                 track.videoId
                                             )
                                             refreshKey++
+                                        }) {
+                                            Icon(
+                                                Icons.Default.Favorite,
+                                                contentDescription = "Unlike",
+                                                tint = LibAccent
+                                            )
                                         }
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Favorite,
-                                            contentDescription = "Unlike song",
-                                            tint = LibraryAccent
-                                        )
                                     }
-                                }
-                            )
+                                )
+                            }
                         }
                     }
                 }
 
                 "Recent" -> {
-                    LibrarySectionHeading(
-                        title = "Recently Played",
-                        count = recentSongs.size
+                    LibraryHeading(
+                        "Recently Played",
+                        recentSongs.size.toString()
                     )
 
                     if (recentSongs.isEmpty()) {
-                        EmptyLibraryMessage(
-                            title = "Nothing played yet",
-                            subtitle = "Songs you play will appear here."
+                        LibraryEmptyState(
+                            "Nothing played yet",
+                            "Your listening history will appear here."
                         )
                     } else {
-                        recentSongs.forEach { track ->
-                            LibraryTrackRow(
-                                track = track,
-                                onPlay = { onPlay(track) }
-                            )
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(7.dp),
+                            contentPadding = PaddingValues(bottom = 24.dp)
+                        ) {
+                            items(recentSongs, key = { it.videoId }) { track ->
+                                LibrarySongRow(
+                                    track = track,
+                                    onPlay = { onPlay(track) }
+                                )
+                            }
                         }
                     }
                 }
 
                 "Playlists" -> {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        LibrarySectionHeading(
-                            title = "Your Playlists",
-                            count = playlists.size,
-                            modifier = Modifier.weight(1f)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        LibraryHeading(
+                            "Your Playlists",
+                            playlists.size.toString(),
+                            Modifier.weight(1f)
                         )
 
                         FilledTonalIconButton(
                             onClick = {
                                 playlistName = ""
                                 showCreateDialog = true
-                            }
+                            },
+                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = Color(0xFF30283C),
+                                contentColor = LibAccent
+                            )
                         ) {
                             Icon(
                                 Icons.Default.Add,
-                                contentDescription = "Create playlist",
-                                tint = LibraryAccent
+                                contentDescription = "Create playlist"
                             )
                         }
                     }
 
                     if (playlists.isEmpty()) {
-                        EmptyLibraryMessage(
-                            title = "No playlists yet",
-                            subtitle = "Create a playlist to collect your favourite music."
+                        LibraryEmptyState(
+                            "No playlists yet",
+                            "Create your first playlist."
                         )
                     } else {
-                        playlists.forEach { playlist ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 6.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(LibraryCard)
-                                    .clickable {
-                                        selectedPlaylist = playlist.name
-                                    }
-                                    .padding(15.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(9.dp),
+                            contentPadding = PaddingValues(bottom = 24.dp)
+                        ) {
+                            items(playlists, key = { it.name }) { playlist ->
+                                Row(
                                     modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(RoundedCornerShape(13.dp))
-                                        .background(Color(0xFF30283C)),
-                                    contentAlignment = Alignment.Center
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .background(LibCard)
+                                        .clickable {
+                                            selectedPlaylist = playlist.name
+                                        }
+                                        .padding(15.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(52.dp)
+                                            .clip(RoundedCornerShape(15.dp))
+                                            .background(Color(0xFF30283C)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Default.QueueMusic,
+                                            contentDescription = null,
+                                            tint = LibAccent,
+                                            modifier = Modifier.size(27.dp)
+                                        )
+                                    }
+
+                                    Spacer(Modifier.width(13.dp))
+
+                                    Column(Modifier.weight(1f)) {
+                                        Text(
+                                            playlist.name,
+                                            color = Color.White,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 14.sp
+                                        )
+                                        Text(
+                                            "${playlist.tracks.size} songs",
+                                            color = LibMuted,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+
                                     Icon(
-                                        Icons.Default.QueueMusic,
-                                        contentDescription = null,
-                                        tint = LibraryAccent,
-                                        modifier = Modifier.size(27.dp)
+                                        Icons.Default.ChevronRight,
+                                        contentDescription = "Open",
+                                        tint = LibMuted
                                     )
                                 }
-
-                                Spacer(Modifier.width(13.dp))
-
-                                Column(
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text(
-                                        playlist.name,
-                                        color = Color.White,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 14.sp
-                                    )
-
-                                    Text(
-                                        "${playlist.tracks.size} songs",
-                                        color = LibraryMuted,
-                                        fontSize = 11.sp
-                                    )
-                                }
-
-                                Icon(
-                                    Icons.Default.ChevronRight,
-                                    contentDescription = "Open playlist",
-                                    tint = LibraryMuted
-                                )
                             }
                         }
                     }
                 }
             }
         }
-
-        Spacer(Modifier.height(20.dp))
     }
 
     if (showCreateDialog) {
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
             title = {
-                Text("Create playlist")
+                Text(
+                    "Create Playlist",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
             },
             text = {
                 OutlinedTextField(
                     value = playlistName,
                     onValueChange = { playlistName = it },
                     label = { Text("Playlist name") },
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = LibAccent,
+                        unfocusedBorderColor = LibMuted,
+                        focusedLabelColor = LibAccent,
+                        unfocusedLabelColor = LibMuted
+                    )
                 )
             },
             confirmButton = {
@@ -358,84 +380,158 @@ fun LibraryScreen(
                     },
                     enabled = playlistName.isNotBlank()
                 ) {
-                    Text("Create")
+                    Text("Create", color = LibAccent)
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = { showCreateDialog = false }
-                ) {
-                    Text("Cancel")
+                TextButton(onClick = {
+                    showCreateDialog = false
+                }) {
+                    Text("Cancel", color = LibMuted)
                 }
             },
-            containerColor = LibraryCard,
+            containerColor = LibCard,
             titleContentColor = Color.White,
-            textContentColor = LibraryMuted
+            textContentColor = LibMuted
         )
     }
 }
 
 @Composable
-private fun LibrarySectionChip(
+private fun LibraryHeroCard(
+    likedCount: Int,
+    recentCount: Int
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(
+                androidx.compose.ui.graphics.Brush.linearGradient(
+                    listOf(
+                        Color(0xFF30263E),
+                        Color(0xFF1C1925),
+                        Color(0xFF17151D)
+                    )
+                )
+            )
+            .padding(19.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(62.dp)
+                .clip(RoundedCornerShape(19.dp))
+                .background(Color(0xFF49395B)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Default.LibraryMusic,
+                contentDescription = null,
+                tint = LibAccent,
+                modifier = Modifier.size(32.dp)
+            )
+        }
+
+        Spacer(Modifier.width(15.dp))
+
+        Column(Modifier.weight(1f)) {
+            Text(
+                "YOUR MUSIC COLLECTION",
+                color = LibAccent,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp
+            )
+            Spacer(Modifier.height(5.dp))
+            Text(
+                "$likedCount liked • $recentCount recent",
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                "Made for your listening mood",
+                color = LibMuted,
+                fontSize = 11.sp
+            )
+        }
+
+        Icon(
+            Icons.Default.GraphicEq,
+            contentDescription = null,
+            tint = LibAccent,
+            modifier = Modifier.size(28.dp)
+        )
+    }
+}
+
+@Composable
+private fun LibraryTab(
     title: String,
     selected: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
             .background(
-                if (selected) Color(0xFF3A3048) else LibraryCard
+                if (selected) Color(0xFF3A3048) else LibCard
             )
             .clickable { onClick() }
-            .padding(horizontal = 13.dp, vertical = 9.dp)
+            .padding(vertical = 12.dp),
+        contentAlignment = Alignment.Center
     ) {
         Text(
             title,
-            color = if (selected) LibraryAccent else LibraryMuted,
+            color = if (selected) LibAccent else LibMuted,
             fontSize = 11.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
         )
     }
 }
 
 @Composable
-private fun LibrarySectionHeading(
+private fun LibraryHeading(
     title: String,
-    count: Int,
+    count: String,
     modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             title,
             color = Color.White,
-            fontSize = 19.sp,
+            fontSize = 18.sp,
             fontWeight = FontWeight.Bold
         )
-
         Spacer(Modifier.width(9.dp))
-
         Text(
-            count.toString(),
-            color = LibraryMuted,
+            count,
+            color = LibMuted,
             fontSize = 12.sp
         )
     }
 }
 
 @Composable
-private fun LibraryTrackRow(
+private fun LibrarySongRow(
     track: LibraryTrack,
     onPlay: () -> Unit,
-    trailingAction: (@Composable () -> Unit)? = null
+    trailing: (@Composable () -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
+            .clip(RoundedCornerShape(17.dp))
+            .background(LibCard)
+            .clickable { onPlay() }
+            .padding(horizontal = 11.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (!track.artworkUrl.isNullOrBlank()) {
@@ -443,33 +539,29 @@ private fun LibraryTrackRow(
                 model = track.artworkUrl,
                 contentDescription = track.title,
                 modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(11.dp)),
+                    .size(49.dp)
+                    .clip(RoundedCornerShape(12.dp)),
                 contentScale = ContentScale.Crop
             )
         } else {
             Box(
                 modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(11.dp))
-                    .background(LibraryCard),
+                    .size(49.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF30283C)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Default.MusicNote,
                     contentDescription = null,
-                    tint = LibraryAccent
+                    tint = LibAccent
                 )
             }
         }
 
         Spacer(Modifier.width(12.dp))
 
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .clickable { onPlay() }
-        ) {
+        Column(Modifier.weight(1f)) {
             Text(
                 track.title,
                 color = Color.White,
@@ -477,62 +569,58 @@ private fun LibraryTrackRow(
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1
             )
-
+            Spacer(Modifier.height(3.dp))
             Text(
                 track.artist,
-                color = LibraryMuted,
+                color = LibMuted,
                 fontSize = 11.sp,
                 maxLines = 1
             )
         }
 
-        IconButton(onClick = onPlay) {
-            Icon(
-                Icons.Default.PlayCircleFilled,
-                contentDescription = "Play song",
-                tint = LibraryAccent,
-                modifier = Modifier.size(27.dp)
-            )
-        }
+        Icon(
+            Icons.Default.PlayCircleFilled,
+            contentDescription = "Play",
+            tint = LibAccent,
+            modifier = Modifier
+                .size(27.dp)
+                .clickable { onPlay() }
+        )
 
-        trailingAction?.invoke()
+        trailing?.invoke()
     }
 }
 
 @Composable
-private fun EmptyLibraryMessage(
+private fun LibraryEmptyState(
     title: String,
     subtitle: String
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(LibraryCard)
-            .padding(20.dp),
+            .clip(RoundedCornerShape(20.dp))
+            .background(LibCard)
+            .padding(25.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
             Icons.Default.MusicNote,
             contentDescription = null,
-            tint = LibraryAccent,
-            modifier = Modifier.size(34.dp)
+            tint = LibAccent,
+            modifier = Modifier.size(36.dp)
         )
-
         Spacer(Modifier.height(10.dp))
-
         Text(
             title,
             color = Color.White,
             fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.Bold
         )
-
         Spacer(Modifier.height(5.dp))
-
         Text(
             subtitle,
-            color = LibraryMuted,
+            color = LibMuted,
             fontSize = 11.sp
         )
     }
