@@ -52,21 +52,21 @@ fun setOnPlaybackErrorListener(
 }
     val exoPlayer: ExoPlayer
         get() = player
+init {
+    player.addListener(object : Player.Listener {
 
-    init {
-        player.addListener(object : Player.Listener {
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            _playbackState.value =
+                _playbackState.value.copy(
+                    isPlaying = isPlaying
+                )
+        }
 
-            override fun onIsPlayingChanged(isPlaying: Boolean) {
-                override fun onPlayerError(error: PlaybackException) {
-    playbackErrorListener?.invoke(error)
-                }
-                _playbackState.value =
-                    _playbackState.value.copy(
-                        isPlaying = isPlaying
-                    )
-            }
-        })
-    }
+        override fun onPlayerError(error: PlaybackException) {
+            playbackErrorListener?.invoke(error)
+        }
+    })
+}
 
     fun play(
         streamUrl: String,
