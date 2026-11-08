@@ -17,7 +17,6 @@ fun NovaGlassCard(
 ) {
     Box(
         modifier = modifier
-              modifier = modifier
             .background(
                 color = Color(0xFF211C2B).copy(alpha = 0.72f),
                 shape = RoundedCornerShape(24.dp)
