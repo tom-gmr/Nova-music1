@@ -381,7 +381,24 @@ fun FlatNavigation(
     )
 
     Row(
-        modifier = modifier.background(Black),
+        modifier = modifier
+            .shadow(18.dp, RoundedCornerShape(28.dp))
+            .clip(RoundedCornerShape(28.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        Color(0xFF292033),
+                        Color(0xFF191720),
+                        Color(0xFF302039)
+                    )
+                )
+            )
+            .border(
+                1.dp,
+                Color(0x55C7A5FF),
+                RoundedCornerShape(28.dp)
+            )
+            .padding(vertical = 9.dp),
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -391,27 +408,33 @@ fun FlatNavigation(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .clickable {
-                        onSelect(tab)
-                    }
-                    .padding(vertical = 7.dp),
+                    .clickable { onSelect(tab) }
+                    .padding(vertical = 5.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Icon(
                     icon,
                     contentDescription = label,
-                    tint = if (selected) LightPurple else MutedText,
-                    modifier = Modifier.size(23.dp)
+                    tint = if (selected) {
+                        Color(0xFFE0C5FF)
+                    } else {
+                        Color(0xFF91889D)
+                    },
+                    modifier = Modifier.size(24.dp)
                 )
 
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(5.dp))
 
                 Text(
                     label,
-                    color = if (selected) LightPurple else MutedText,
+                    color = if (selected) {
+                        Color(0xFFE0C5FF)
+                    } else {
+                        Color(0xFF91889D)
+                    },
                     fontSize = 10.sp,
                     fontWeight = if (selected) {
-                        FontWeight.SemiBold
+                        FontWeight.Bold
                     } else {
                         FontWeight.Normal
                     }
