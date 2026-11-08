@@ -33,7 +33,19 @@ class MusicPlayer(context: Context) {
     private val httpDataSourceFactory =
         DefaultHttpDataSource.Factory()
             .setAllowCrossProtocolRedirects(true)
+   private val cacheSize = 100L * 1024 * 1024
 
+private val streamCache = SimpleCache(
+    File(appContext.cacheDir, "music_stream_cache"),
+    LeastRecentlyUsedCacheEvictor(cacheSize),
+    StandaloneDatabaseProvider(appContext)
+)
+
+private val cacheDataSourceFactory =
+    CacheDataSource.Factory()
+        .setCache(streamCache)
+        .setUpstreamDataSourceFactory(httpDataSourceFactory)
+        .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
     private val player: ExoPlayer =
         ExoPlayer.Builder(appContext)
             .setMediaSourceFactory(
@@ -90,19 +102,8 @@ init {
         httpDataSourceFactory.setDefaultRequestProperties(
             requestHeaders
         )
-       private val cacheSize = 100L * 1024 * 1024
+       
 
-private val streamCache = SimpleCache(
-    File(appContext.cacheDir, "music_stream_cache"),
-    LeastRecentlyUsedCacheEvictor(cacheSize),
-    StandaloneDatabaseProvider(appContext)
-)
-
-private val cacheDataSourceFactory =
-    CacheDataSource.Factory()
-        .setCache(streamCache)
-        .setUpstreamDataSourceFactory(httpDataSourceFactory)
-        .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
         val metadata = MediaMetadata.Builder()
             .setTitle(title)
             .setArtist(artist)
@@ -117,8 +118,9 @@ private val cacheDataSourceFactory =
             .setMediaId(streamUrl)
             .setUri(Uri.parse(streamUrl))
             .setMediaMetadata(metadata)
-            .build()
             .setCustomCacheKey(streamUrl)
+            .build()
+            
         _playbackState.value = PlaybackState(
             title = title,
             artist = artist,
