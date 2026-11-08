@@ -1,563 +1,404 @@
+package com.novamusic.app.ui.home
 
-package com.musicnova.app
-
+import androidx.compose.foundation.border
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
+import com.lastwave.app.R
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Headset
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import com.lastwave.app.playback.toPlayableTrack
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.text.style.TextOverflow
+import com.lastwave.app.ui.common.ArtworkImage
+import com.lastwave.app.ui.common.ExpressiveHeader
+import com.lastwave.app.ui.common.HeaderActionIcon
+import com.lastwave.app.ui.common.safeHorizontalContentPadding
+import com.lastwave.app.ui.common.adaptiveContentWidth
+import com.lastwave.app.ui.common.TrackContextMenuSheet
+import com.lastwave.app.ui.common.TrackMenuCapabilities
+import com.lastwave.app.ui.common.TrackMenuTarget
+import com.lastwave.app.ui.common.TrackMiniTrayData
+import com.lastwave.app.ui.common.TrackMiniTraySheet
+import com.lastwave.app.ui.theme.ArtworkShape
+import com.lastwave.app.ui.theme.BadgePillShape
+import com.lastwave.app.ui.theme.ExpressiveHeroShape
+import com.lastwave.app.ui.theme.ExpressivePillShape
+import com.lastwave.app.ui.theme.HeroInnerShape
+import com.lastwave.app.ui.theme.ListContainerShape
+import com.lastwave.app.ui.theme.NowPlayingCardShape
+import com.lastwave.app.ui.theme.StatPillShape
+import com.lastwave.app.ui.theme.TrackRowShape
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.Scaffold
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
+
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import com.musicnova.app.data.music.*
-import kotlinx.coroutines.launch
+import com.lastwave.app.ui.shell.FloatingNavDefaults
+import coil.compose.SubcomposeAsyncImage
+import com.lastwave.app.data.repository.HomeAlbum
+import com.lastwave.app.data.repository.HomeArtistItem
+import com.lastwave.app.data.repository.HomeSortMode
+import com.lastwave.app.data.repository.HomeTrack
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 
-private val HomeBg = Color(0xFF09080E)
-private val HomeSurface = Color(0xFF191620)
-private val HomeSurface2 = Color(0xFF211C2A)
-private val HomePurple = Color(0xFF9277B8)
-private val HomeLavender = Color(0xFFD1C1EB)
-private val HomeText = Color(0xFFF7F4FA)
-private val HomeMuted = Color(0xFFAAA4B5)
+// Immutable shapes hoisted out of composition: previously each of these was
+// constructed inline inside row/card composables, i.e. re-allocated for every
+// row on every recomposition. Rows are the hottest path while scrolling, so
+// they must not allocate.
+private val ListContainerShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+private val TrackRowShape = RoundedCornerShape(18.dp)
+private val NowPlayingCardShape = RoundedCornerShape(22.dp)
+private val ArtworkShape = RoundedCornerShape(14.dp)
+private val BadgePillShape = RoundedCornerShape(50)
+private val StatPillShape = RoundedCornerShape(20.dp)
+private val HeroInnerShape = RoundedCornerShape(24.dp)
 
+/**
+ * Faithful port of home.html/home.js's layout, top to bottom:
+ *  1. Header row — username pill (left) + live listen timer (right)
+ *  2. Stats card — big "Scrobbles" number + arrow-to-Genres, then a
+ *     Tracks / Artists / Albums row
+ *  3. Mix card — "List" title + sort dropdown (Recent / Most Played /
+ *     Last 7 Days / Last 30 Days), then the track list itself, with the
+ *     Now Playing row always pinned first when present.
+ * There's no separate "Now Playing card" — that was an earlier, simplified
+ * substitute; the real app renders it as the first row of the same list.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RecommendationsHomeScreen(
-    onPlay: (YouTubeMusicTrack) -> Unit
+fun HomeScreen(
+    onOpenSettings: () -> Unit,
+    onOpenSearch: () -> Unit,
+    onOpenDiscover: () -> Unit,
+    onOpenGenres: () -> Unit,
+    onOpenFriends: () -> Unit,
+    onOpenDownloads: () -> Unit = {},
+    viewModel: HomeViewModel = hiltViewModel(),
+    artistAlbumNavigator: com.lastwave.app.ui.navigation.ArtistAlbumNavigator = hiltViewModel<ArtistAlbumNavBridgeHome>().navigator,
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val jamViewModel: com.lastwave.app.ui.jam.LastWaveJamViewModel = hiltViewModel()
+    val jamUiState by jamViewModel.uiState.collectAsStateWithLifecycle()
+    var showJamSheet by remember { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    val libraryStore = remember(context) {
-        LibraryStore(context)
-    }
-
-    val api = remember { InnerTubeMusicApi() }
-    val scope = rememberCoroutineScope()
-
-    var recommendations by remember {
-        mutableStateOf<List<YouTubeMusicTrack>>(emptyList())
-    }
-
-    var trending by remember {
-        mutableStateOf<List<YouTubeMusicTrack>>(emptyList())
-    }
-
-    var recentlyPlayed by remember {
-        mutableStateOf<List<LibraryTrack>>(emptyList())
-    }
-
-    var refreshing by remember {
-        mutableStateOf(false)
-    }
-
-    fun loadMusic() {
-        scope.launch {
-            refreshing = true
-
-            try {
-                recentlyPlayed = libraryStore.getRecentlyPlayed()
-                val liked = libraryStore.getLikedSongs()
-
-                val seeds = (liked + recentlyPlayed)
-                    .distinctBy { it.videoId }
-                    .take(5)
-
-                val results = mutableListOf<YouTubeMusicTrack>()
-
-                if (seeds.isEmpty()) {
-                    results.addAll(
-                        api.searchSongs("popular trending songs India", 30)
-                    )
-                } else {
-                    seeds.forEach { song ->
-                        results.addAll(
-                            api.searchSongs(
-                                "songs like ${song.title} by ${song.artist}",
-                                10
-                            )
-                        )
-                    }
-                }
-
-                val excluded = (liked + recentlyPlayed)
-                    .map { it.videoId }
-                    .toSet()
-
-                recommendations = results
-                    .filterNot { it.isArtist }
-                    .distinctBy { it.videoId }
-                    .filterNot { it.videoId in excluded }
-                    .take(15)
-
-                trending = api.searchSongs(
-                    "trending hit songs India",
-                    20
-                )
-                    .filterNot { it.isArtist }
-                    .distinctBy { it.videoId }
-                    .take(12)
-
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                android.util.Log.e(
-                    "MusicNova",
-                    "Home music loading failed",
-                    e
-                )
-            } finally {
-                refreshing = false
-            }
+    LaunchedEffect(viewModel) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            viewModel.pollWhileActive()
         }
     }
 
-    LaunchedEffect(Unit) {
-        loadMusic()
-    }
+    var menuTrack by remember { mutableStateOf<HomeTrack?>(null) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(HomeBg)
-            .verticalScroll(rememberScrollState())
-            .padding(bottom = 28.dp)
-    ) {
-
-        // EXPRESSIVE HEADER
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    "MUSIC NOVA",
-                    color = HomeText,
-                    fontSize = 23.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 1.5.sp
-                )
-
-                Text(
-                    "YOUR MUSIC UNIVERSE",
-                    color = HomeMuted,
-                    fontSize = 9.sp,
-                    letterSpacing = 2.sp
+    Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        topBar = {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                ExpressiveHeader(
+                    title = "Statistics",
+                    modifier = Modifier.adaptiveContentWidth(maxWidth = 860.dp),
+                    actions = {
+                        HeaderActionIcon(Icons.Filled.Download, "Downloads", onOpenDownloads)
+                        HeaderActionIcon(Icons.Filled.Search, "Search", onOpenSearch)
+                        IconButton(onClick = onOpenSettings) {
+                            ProfileAvatar(avatarUrl = uiState.stats?.avatarUrl, modifier = Modifier.size(38.dp))
+                        }
+                    },
                 )
             }
-
-            Spacer(Modifier.weight(1f))
-
-            IconButton(
-                onClick = { loadMusic() },
-                enabled = !refreshing
+        },
+    ) { scaffoldPadding ->
+        if (uiState.isLoading) {
+            Box(
+                Modifier.fillMaxSize().padding(scaffoldPadding).safeHorizontalContentPadding(),
+                contentAlignment = Alignment.Center,
             ) {
-                if (refreshing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(21.dp),
-                        color = HomeLavender,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Icon(
-                        Icons.Default.Refresh,
-                        contentDescription = "Refresh",
-                        tint = HomeLavender
-                    )
-                }
+                com.lastwave.app.ui.common.ExpressiveLoadingIndicator(message = "Loading your listening history")
             }
+            return@Scaffold
         }
-
-        // GREETING
-
-        Column(
-            modifier = Modifier.padding(
-                start = 20.dp,
-                end = 20.dp,
-                bottom = 20.dp
-            )
-        ) {
-            Text(
-                "Discover",
-                color = HomeMuted,
-                fontSize = 15.sp
-            )
-
-            Text(
-                "Your sound.",
-                color = HomeText,
-                fontSize = 36.sp,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = (-1).sp
-            )
-        }
-
-        // FEATURED MUSIC CARD
 
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .height(250.dp)
-                .clip(RoundedCornerShape(30.dp))
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            Color(0xFF514064),
-                            Color(0xFF30263D),
-                            Color(0xFF191620)
-                        )
-                    )
-                )
+            modifier = Modifier.fillMaxSize().padding(scaffoldPadding),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(190.dp)
-                    .align(Alignment.TopEnd)
-                    .offset(x = 55.dp, y = (-55).dp)
-                    .clip(RoundedCornerShape(100.dp))
-                    .background(
-                        HomeLavender.copy(alpha = 0.09f)
-                    )
-            )
-
             Column(
-                modifier = Modifier
+                Modifier
                     .fillMaxSize()
-                    .padding(21.dp)
+                    .adaptiveContentWidth(maxWidth = 860.dp)
+                    .safeHorizontalContentPadding(),
             ) {
-                Text(
-                    "✦  MADE FOR YOU",
-                    color = HomeLavender,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.5.sp
-                )
-
-                Spacer(Modifier.height(15.dp))
-
-                Text(
-                    "Feel every\nmoment.",
-                    color = Color.White,
-                    fontSize = 34.sp,
-                    lineHeight = 37.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-
-                Spacer(Modifier.weight(1f))
-
-                recommendations.firstOrNull()?.let { track ->
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(
-                                Color.White.copy(alpha = 0.11f)
-                            )
-                            .clickable {
-                                onPlay(track)
-                            }
-                            .padding(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        AsyncImage(
-                            model = track.artworkUrl,
-                            contentDescription = track.title,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(49.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                        )
-
-                        Spacer(Modifier.width(11.dp))
-
-                        Column(
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                "YOUR DAILY DISCOVERY",
-                                color = HomeLavender,
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-
-                            Text(
-                                track.title,
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-
-                            Text(
-                                track.artist,
-                                color = HomeMuted,
-                                fontSize = 10.sp,
-                                maxLines = 1
-                            )
-                        }
-
-                        Icon(
-                            Icons.Default.PlayCircleFilled,
-                            contentDescription = "Play",
-                            tint = HomeLavender,
-                            modifier = Modifier.size(34.dp)
-                        )
-                    }
-                } ?: Text(
-                    if (refreshing) "Discovering music..." else "Refresh to discover music",
-                    color = HomeMuted,
-                    fontSize = 11.sp
-                )
-            }
-        }
-
-        Spacer(Modifier.height(30.dp))
-
-        // SUGGESTED
-
-        HomeSectionTitle(
-            "Made for your taste",
-            "Discover something new"
-        )
-
-        Spacer(Modifier.height(15.dp))
-
-        if (recommendations.isEmpty() && !refreshing) {
-            HomeEmptyMessage("No recommendations available yet.")
-        }
-
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 17.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            items(
-                recommendations,
-                key = { it.videoId }
-            ) { track ->
-                HomeMusicCard(
-                    track = track,
-                    onClick = { onPlay(track) }
-                )
-            }
-        }
-
-        Spacer(Modifier.height(30.dp))
-
-        // TRENDING
-
-        HomeSectionTitle(
-            "Trending now",
-            "What everyone is listening to"
-        )
-
-        Spacer(Modifier.height(15.dp))
-
-        if (trending.isEmpty() && !refreshing) {
-            HomeEmptyMessage("Trending songs are not available right now.")
-        }
-
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 17.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            items(
-                trending,
-                key = { it.videoId }
-            ) { track ->
-                HomeMusicCard(
-                    track = track,
-                    onClick = { onPlay(track) }
-                )
-            }
-        }
-
-        Spacer(Modifier.height(30.dp))
-
-        // RECENTLY PLAYED
-
-        HomeSectionTitle(
-            "Recently played",
-            "Pick up where you left off"
-        )
-
-        Spacer(Modifier.height(14.dp))
-
-        if (recentlyPlayed.isEmpty()) {
-            HomeEmptyMessage(
-                "Your listening history will appear here."
+            HeaderRow(
+                displayUsername = when {
+                    uiState.isViewingFriend -> uiState.viewingUsername
+                    uiState.username.isNotBlank() -> uiState.username
+                    uiState.isLocalStatsMode -> "Guest"
+                    else -> uiState.username
+                },
+                isViewingFriend = uiState.isViewingFriend,
+                onClick = onOpenFriends,
+                viewModel = viewModel,
             )
-        } else {
-            recentlyPlayed.take(8).forEach { song ->
+            Spacer(Modifier.height(2.dp))
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            horizontal = 17.dp,
-                            vertical = 5.dp
-                        )
-                        .clip(RoundedCornerShape(19.dp))
-                        .background(HomeSurface)
-                        .clickable {
-                            onPlay(
-                                YouTubeMusicTrack(
-                                    videoId = song.videoId,
-                                    title = song.title,
-                                    artist = song.artist,
-                                    artworkUrl = song.artworkUrl,
-                                    isArtist = false
-                                )
+            if (uiState.isLocalStatsMode && !uiState.isViewingFriend) {
+                LocalStatsBanner(
+                    onOpenSettings = onOpenSettings,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 8.dp),
+                )
+            }
+
+            uiState.stats?.let { stats ->
+                StatsCard(
+                    scrobbles = stats.scrobbles,
+                    trackCount = stats.trackCount,
+                    artistCount = stats.artistCount,
+                    albumCount = stats.albumCount,
+                    // Honest label: local Room aggregates are plays, not global scrobbles.
+                    headlineLabel = if (uiState.isLocalStatsMode && !uiState.isViewingFriend) "Plays" else "Scrobbles",
+                    onOpenGenres = onOpenGenres,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 0.dp),
+                )
+                Spacer(Modifier.height(12.dp))
+            }
+
+
+            PullToRefreshBox(
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = viewModel::refresh,
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+            ) {
+                val listState = rememberLazyListState()
+                LaunchedEffect(listState, uiState.allTracks.size) {
+                    snapshotFlowNearEnd(listState) { viewModel.loadNextPage() }
+                }
+
+                // Computed off the main thread in HomeViewModel — see its
+                // doc comment on `rows` for why this used to jank on every
+                // Last.fm poll tick when it ran inline here instead.
+                val rows by viewModel.rows.collectAsStateWithLifecycle()
+                val playbackQueue = remember(rows) {
+                    rows.mapNotNull { row ->
+                        (row as? HomeRow.Track)?.track?.let { track ->
+                            com.lastwave.app.playback.PlayableTrack(
+                                title = track.name,
+                                artist = track.artist,
+                                artworkUrl = track.artworkUrl,
+                                videoId = track.videoId,
                             )
                         }
-                        .padding(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    }
+                }
+                val playbackIndexByRow = remember(rows) {
+                    var nextPlaybackIndex = 0
+                    IntArray(rows.size) { rowIndex ->
+                        if (rows[rowIndex] is HomeRow.Track) nextPlaybackIndex++ else -1
+                    }
+                }
+                // Content keys without the row index. Suffixing the index made
+                // every key shift by one whenever a scrobble or now-playing row
+                // landed on top, so the list threw away and rebuilt every
+                // visible row (covers flashed, scroll jumped). Duplicates (the
+                // same track scrobbled twice in a second) get an occurrence
+                // counter instead, which stays stable as rows are prepended.
+                val rowKeys = remember(rows) {
+                    val seen = HashMap<String, Int>(rows.size)
+                    Array(rows.size) { i ->
+                        val base = when (val row = rows[i]) {
+                            is HomeRow.DateHeader -> "date_${row.label}"
+                            is HomeRow.Track -> if (row.track.isNowPlaying) {
+                                "nowplaying_${row.track.key}"
+                            } else {
+                                "track_${row.track.key}_${row.track.timestampMillis}"
+                            }
+                            is HomeRow.Album -> "album_${row.album.artist}_${row.album.name}"
+                            is HomeRow.Artist -> "artist_${row.artist.name}"
+                        }
+                        val n = seen[base] ?: 0
+                        seen[base] = n + 1
+                        if (n == 0) base else "${base}#$n"
+                    }
+                }
+                val musicPlayer = com.lastwave.app.ui.player.LocalMusicPlayer.current
+                // Long-press (deep press) on a track row opens the mini tray;
+                // the 3-dot button keeps opening the full menu sheet.
+                var miniTrayRowIndex by remember { mutableStateOf<Int?>(null) }
+
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp)
+                        .clip(ListContainerShape)
+                        .background(MaterialTheme.colorScheme.surfaceContainer),
                 ) {
-                    AsyncImage(
-                        model = song.artworkUrl,
-                        contentDescription = song.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(RoundedCornerShape(15.dp))
-                    )
-
-                    Spacer(Modifier.width(13.dp))
-
-                    Column(
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            song.title,
-                            color = HomeText,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        Text(
-                            song.artist,
-                            color = HomeMuted,
-                            fontSize = 11.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp)) {
+                        MixHeader(sortMode = uiState.sortMode, onSortModeChange = viewModel::setSortMode)
                     }
 
-                    Icon(
-                        Icons.Default.PlayArrow,
-                        contentDescription = "Play",
-                        tint = HomeLavender
-                    )
-                }
-            }
-        }
+                    LazyColumn(
+                        state = listState,
+                        contentPadding = PaddingValues(
+                            start = 8.dp,
+                            end = 8.dp,
+                            top = 0.dp,
+                            bottom = FloatingNavDefaults.contentBottomPadding(),
+                        ),
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        itemsIndexed(
+                            rows,
+                            key = { index, _ -> rowKeys.getOrNull(index) ?: index.toString() },
+                            contentType = { _, row ->
+                                when (row) {
+                                    is HomeRow.DateHeader -> "date"
+                                    is HomeRow.Track -> "track"
+                                    is HomeRow.Album -> "album"
+                                    is HomeRow.Artist -> "artist"
+                                }
+                            },
+                        ) { rowIndex, row ->
+                            Box {
+                                when (row) {
+                                    is HomeRow.DateHeader -> DateHeaderRow(row.label)
+                                    is HomeRow.Track -> TrackRow(
+                                        track = row.track,
+                                        badge = row.badge,
+                                        onClick = {
+                                            musicPlayer.playQueue(
+                                                tracks = playbackQueue,
+                                                startIndex = playbackIndexByRow.getOrElse(rowIndex) { 0 },
+                                                sourceLabel = "Home",
+                                            )
+                                        },
+                                        onLongClick = { miniTrayRowIndex = rowIndex },
+                                        onMenuClick = { menuTrack = row.track },
+                                    )
+                                    is HomeRow.Album -> AlbumRow(
+                                        album = row.album,
+                                        badge = row.badge,
+                                        onClick = {
+                                            artistAlbumNavigator.openAlbum(
+                                                title = row.album.name,
+                                                artist = row.album.artist,
+                                                browseId = "", // The room DB doesn't have browseId for HomeAlbum easily accessible here unless we added it, but HomeAlbum has no browseId field. It will search.
+                                            )
+                                        }
+                                    )
+                                    is HomeRow.Artist -> ArtistRow(
+                                        artist = row.artist,
+                                        badge = row.badge,
+                                        onClick = {
+                                            artistAlbumNavigator.openArtist(
+                                                name = row.artist.name,
+                                                browseId = "", // Will search by name
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                        }
 
-        Spacer(Modifier.height(20.dp))
-    }
-}
-
-@Composable
-private fun HomeSectionTitle(
-    title: String,
-    subtitle: String
-) {
-    Column(
-        modifier = Modifier.padding(horizontal = 20.dp)
-    ) {
-        Text(
-            title,
-            color = HomeText,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = (-0.3).sp
-        )
-
-        Spacer(Modifier.height(4.dp))
-
-        Text(
-            subtitle,
-            color = HomeMuted,
-            fontSize = 11.sp
-        )
-    }
-}
-
-@Composable
-private fun HomeMusicCard(
-    track: YouTubeMusicTrack,
-    onClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .width(154.dp)
-            .clip(RoundedCornerShape(23.dp))
-            .background(HomeSurface2)
-            .clickable { onClick() }
-            .padding(10.dp)
-    ) {
-        AsyncImage(
-            model = track.artworkUrl,
-            contentDescription = track.title,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(142.dp)
-                .clip(RoundedCornerShape(17.dp))
-        )
-
-        Spacer(Modifier.height(11.dp))
-
-        Text(
-            track.title,
-            color = HomeText,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-
-        Spacer(Modifier.height(4.dp))
-
-        Text(
-            track.artist,
-            color = HomeMuted,
-            fontSize = 10.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-@Composable
-private fun HomeEmptyMessage(message: String) {
-    Text(
-        text = message,
-        color = HomeMuted,
-        fontSize = 12.sp,
-        modifier = Modifier.padding(
-            horizontal = 20.dp,
-            vertical = 10.dp
-        )
-    )
-}
-
+                        if (rows.isEmpty()) {
+                            item(key = "empty", contentType = "empty") {
+                                Box(
+                                    Modifier
