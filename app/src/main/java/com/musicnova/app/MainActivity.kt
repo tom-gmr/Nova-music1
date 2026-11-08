@@ -185,16 +185,7 @@ fun playQueue(
 
     playTrack(selectedTrack)
 }
-MaterialTheme(
-        colorScheme = darkColorScheme(
-            primary = NovaPurple,
-            secondary = NovaLavender,
-            background = NovaBlack,
-            surface = NovaSurface,
-            onBackground = Color.White,
-            onSurface = Color.White
-        )
-    ) {
+NovaTheme {
         Box(
             modifier = Modifier
                 .fillMaxSize()
