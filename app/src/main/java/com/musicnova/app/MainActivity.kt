@@ -29,7 +29,7 @@ import com.musicnova.app.playback.MusicPlayer
 import com.musicnova.app.playback.PlaybackState
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
-
+import com.musicnova.app.playback.PlaybackQueue
 private val NovaBlack = Color(0xFF09080E)
 private val NovaSurface = Color(0xFF191620)
 private val NovaPurple = Color(0xFF9277B8)
@@ -72,6 +72,8 @@ var fallbackAttemptedVideoId by remember {
 
     val streamExtraction = remember {
         StreamExtraction()
+    } val playbackQueue = remember {
+    PlaybackQueue()
     }
 
     val playbackState by musicPlayer.playbackState.collectAsState()
@@ -158,6 +160,16 @@ fallbackAttemptedVideoId = null
             } catch (e: Exception) {
                 playbackError =
                     "Unable to play: ${e.message ?: "Please try again"}"
+            } fun playQueue(
+    tracks: List<YouTubeMusicTrack>,
+    selectedTrack: YouTubeMusicTrack
+) {
+    playbackQueue.setQueue(
+        tracks = tracks,
+        startVideoId = selectedTrack.videoId
+    )
+
+    playTrack(selectedTrack)
             }
         }
     }
