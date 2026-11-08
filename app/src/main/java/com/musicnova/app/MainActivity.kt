@@ -72,7 +72,8 @@ var fallbackAttemptedVideoId by remember {
 
     val streamExtraction = remember {
         StreamExtraction()
-    } val playbackQueue = remember {
+    } 
+    val playbackQueue = remember {
     PlaybackQueue()
     }
 
