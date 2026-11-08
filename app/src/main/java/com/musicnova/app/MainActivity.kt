@@ -122,8 +122,22 @@ fun MusicNovaApp() {
             modifier = Modifier
                 .fillMaxSize()
                 .background(Black)
-        ) {
-            Column(
+        ) { if (showFullPlayer && playbackState.hasMedia) {
+    FullPlayerScreen(
+        state = playbackState,
+        onClose = {
+            showFullPlayer = false
+        },
+        onPlayPause = {
+            musicPlayer.togglePlayPause()
+        },
+        onStop = {
+            musicPlayer.stop()
+            showFullPlayer = false
+        }
+    )
+} else {
+    } else {        Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 20.dp)
