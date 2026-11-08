@@ -382,25 +382,74 @@ Box(
         }
 
         Spacer(Modifier.height(25.dp))
-
+            
         Text(
-            "Made for your mood",
+            "Made for this morning",
             color = NovaText,
             fontSize = 21.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 20.dp)
         )
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(6.dp))
 
         Text(
-            "Fresh music, selected for you.",
+            "Your soundtrack for today.",
             color = NovaMuted,
             fontSize = 13.sp,
             modifier = Modifier.padding(horizontal = 20.dp)
         )
 
+        Spacer(Modifier.height(14.dp))
+
+        recommendations.take(5).forEach { track ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 5.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(NovaGlass)
+                    .clickable { onPlay(track) }
+                    .padding(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AsyncImage(
+                    model = track.artworkUrl,
+                    contentDescription = track.title,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(13.dp)),
+                    contentScale = ContentScale.Crop
+                )
+
+                Spacer(Modifier.width(12.dp))
+
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        track.title,
+                        color = NovaText,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                    Text(
+                        track.artist,
+                        color = NovaMuted,
+                        fontSize = 12.sp,
+                        maxLines = 1
+                    )
+                }
+
+                Icon(
+                    Icons.Default.PlayArrow,
+                    contentDescription = "Play",
+                    tint = NovaLavender,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        }
+
         Spacer(Modifier.height(20.dp))
+        
     }
 }
 
