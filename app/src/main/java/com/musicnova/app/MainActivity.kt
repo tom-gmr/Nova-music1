@@ -176,7 +176,13 @@ fun playQueue(
         startVideoId = selectedTrack.videoId
     )
 
+    // Prefetch the next song in the background
+    playbackQueue.peekNext()?.let { nextTrack ->
+        streamExtraction.prefetch(nextTrack.videoId)
+    }
+
     playTrack(selectedTrack)
+}
 } MaterialTheme(
         colorScheme = darkColorScheme(
             primary = NovaPurple,
