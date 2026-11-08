@@ -183,6 +183,247 @@ fun NovaFullPlayerScreen(
     LaunchedEffect(musicPlayer) {
         while (true) {
             val player = musicPlayer.exoPlayer
+            val total = player.duration
+            val current = player.currentPosition
+
+            duration = if (total > 0) total.toFloat() else 1f
+            currentPosition = current.coerceAtLeast(0L).toFloat()
+            delay(500)
+        }
+    }
+
+    val playerShape = RoundedCornerShape(30.dp)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFF30243F),
+                        Color(0xFF17131F),
+                        Color(0xFF09080E)
+                    )
+                )
+            )
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 22.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // TOP BAR
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, bottom = 18.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onClose) {
+                    Icon(
+                        Icons.Default.KeyboardArrowDown,
+                        contentDescription = "Close player",
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+
+                Spacer(Modifier.weight(1f))
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "NOW PLAYING",
+                        color = PlayerLavender,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.sp
+                    )
+                    Text(
+                        text = "MUSIC NOVA",
+                        color = PlayerMuted,
+                        fontSize = 9.sp,
+                        letterSpacing = 2.sp
+                    )
+                }
+
+                Spacer(Modifier.weight(1f))
+
+                IconButton(onClick = onStop) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Stop playback",
+                        tint = PlayerMuted
+                    )
+                }
+            }
+
+            Spacer(Modifier.weight(0.5f))
+
+            // PREMIUM ALBUM ARTWORK
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(0.92f)
+                    .clip(playerShape)
+                    .background(PlayerSurface)
+                    .border(
+                        1.dp,
+                        Color.White.copy(alpha = 0.15f),
+                        playerShape
+                    )
+            ) {
+                AsyncImage(
+                    model = state.artworkUrl,
+                    contentDescription = "Album artwork",
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            Spacer(Modifier.height(30.dp))
+
+            // SONG DETAILS
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = state.title.ifBlank { "Unknown track" },
+                    color = Color.White,
+                    fontSize = 23.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(Modifier.height(7.dp))
+
+                Text(
+                    text = state.artist.ifBlank { "Unknown artist" },
+                    color = PlayerMuted,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(Modifier.height(22.dp))
+
+            // PROGRESS SLIDER
+            Slider(
+                value = currentPosition.coerceIn(
+                    0f,
+                    duration.coerceAtLeast(1f)
+                ),
+                onValueChange = {
+                    currentPosition = it
+                },
+                onValueChangeFinished = {
+                    musicPlayer.seekTo(currentPosition.toLong())
+                },
+                valueRange = 0f..duration.coerceAtLeast(1f),
+                colors = SliderDefaults.colors(
+                    thumbColor = PlayerLavender,
+                    activeTrackColor = PlayerPurple,
+                    inactiveTrackColor = Color(0xFF393142)
+                )
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    formatPlayerTime(currentPosition.toLong()),
+                    color = PlayerMuted,
+                    fontSize = 11.sp
+                )
+                Text(
+                    formatPlayerTime(duration.toLong()),
+                    color = PlayerMuted,
+                    fontSize = 11.sp
+                )
+            }
+
+            Spacer(Modifier.height(25.dp))
+
+            // PLAYBACK CONTROLS
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { musicPlayer.seekTo(0L) },
+                    modifier = Modifier.size(52.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Replay,
+                        contentDescription = "Restart",
+                        tint = PlayerMuted,
+                        modifier = Modifier.size(27.dp)
+                    )
+                }
+
+                Spacer(Modifier.width(35.dp))
+
+                Surface(
+                    onClick = { musicPlayer.togglePlayPause() },
+                    modifier = Modifier.size(76.dp),
+                    shape = CircleShape,
+                    color = PlayerPurple,
+                    contentColor = Color.White
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (state.isPlaying)
+                                Icons.Default.Pause
+                            else
+                                Icons.Default.PlayArrow,
+                            contentDescription = "Play or pause",
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.width(35.dp))
+
+                IconButton(
+                    onClick = onStop,
+                    modifier = Modifier.size(52.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Stop,
+                        contentDescription = "Stop",
+                        tint = PlayerMuted,
+                        modifier = Modifier.size(27.dp)
+                    )
+                }
+            }
+
+            Spacer(Modifier.weight(0.7f))
+
+            Text(
+                text = "FEEL THE SOUND",
+                color = PlayerLavender.copy(alpha = 0.65f),
+                fontSize = 10.sp,
+                letterSpacing = 3.sp,
+                modifier = Modifier.padding(bottom = 17.dp)
+            )
+        }
+    }
+}
+
+
+
+
+    var duration by remember {
+        mutableFloatStateOf(1f)
+    }
+
+    LaunchedEffect(musicPlayer) {
+        while (true) {
+            val player = musicPlayer.exoPlayer
 
             val total = player.duration
             val current = player.currentPosition
