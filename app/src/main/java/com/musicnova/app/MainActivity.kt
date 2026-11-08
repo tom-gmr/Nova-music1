@@ -30,6 +30,7 @@ import com.musicnova.app.playback.PlaybackState
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import com.musicnova.app.playback.PlaybackQueue
+import com.musicnova.app.ui.theme.NovaTheme
 private val NovaBlack = Color(0xFF09080E)
 private val NovaSurface = Color(0xFF191620)
 private val NovaPurple = Color(0xFF9277B8)
