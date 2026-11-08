@@ -12,7 +12,8 @@ import androidx.compose.ui.*
 import androidx.compose.ui.draw.*
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
-import androidx.compose.ui.graphics.drawscope.Stroke import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
