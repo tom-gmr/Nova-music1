@@ -215,6 +215,9 @@ fun MusicNovaApp() {
                     },
                     onStop = {
                         musicPlayer.stop()
+                        onExpand = {
+    showFullPlayer = true
+},
                     },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -263,11 +266,15 @@ fun GlassMiniPlayer(
     state: PlaybackState,
     onPlayPause: () -> Unit,
     onStop: () -> Unit,
+onExpand: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .clickable {
+    onExpand()
+            }
             .shadow(20.dp, RoundedCornerShape(23.dp))
             .clip(RoundedCornerShape(23.dp))
             .background(
