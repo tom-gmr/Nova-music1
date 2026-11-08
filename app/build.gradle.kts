@@ -49,6 +49,8 @@ dependencies {
     // Music extraction
     implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.26.5")
     implementation("com.github.MetrolistGroup.innertubex:innertubex:0.11.2")
-
+        // InnerTubeX network engines
+    runtimeOnly("io.ktor:ktor-client-okhttp:3.6.0")
+    runtimeOnly("io.ktor:ktor-client-cio:3.6.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
