@@ -1,19 +1,20 @@
+
 package com.musicnova.app.data.music
 
 import java.io.IOException
+import kotlinx.coroutines.CancellationException
 
 /**
- * Connects YouTube Music search results
- * with the YouTube audio stream extractor.
+ * Resolves audio streams using InnerTubeX first
+ * and NewPipe as a fallback.
  */
 class StreamExtraction(
     private val extractor: YouTubeStreamExtractor =
-        YouTubeStreamExtractor()
+        YouTubeStreamExtractor(),
+    private val innerTubeX: InnerTubeXStreamExtractor =
+        InnerTubeXStreamExtractor()
 ) {
 
-    /**
-     * Resolves a playable audio stream for a song.
-     */
     suspend fun resolve(
         track: YouTubeMusicTrack
     ): ResolvedAudioStream {
@@ -33,9 +34,6 @@ class StreamExtraction(
         return resolve(track.videoId)
     }
 
-    /**
-     * Resolves a playable audio stream using video ID.
-     */
     suspend fun resolve(
         videoId: String
     ): ResolvedAudioStream {
@@ -46,13 +44,38 @@ class StreamExtraction(
             )
         }
 
-        return try {
-            extractor.resolveAudioStream(videoId)
+        var innerTubeError: Exception? = null
+
+        // First attempt: InnerTubeX
+        try {
+            val result = innerTubeX.resolve(videoId)
+
+            if (result != null) {
+                return result
+            }
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: Exception) {
-            throw IOException(
-                "Unable to resolve audio stream: ${error.message}",
+            innerTubeError = error
+        }
+
+        // Fallback attempt: NewPipe
+        try {
+            return extractor.resolveAudioStream(videoId)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            val failure = IOException(
+                "Both InnerTubeX and NewPipe failed to resolve the audio stream.",
                 error
             )
+
+            innerTubeError?.let {
+                failure.addSuppressed(it)
+            }
+
+            throw failure
         }
     }
 }
+
