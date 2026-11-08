@@ -171,47 +171,109 @@ fun RecommendationsHomeScreen(
 
         Spacer(Modifier.height(25.dp))
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .height(205.dp)
-                .clip(RoundedCornerShape(28.dp))
-                .background(HeroGradient)
-                .padding(22.dp)
+        
+Box(
+    modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 16.dp)
+        .height(350.dp)
+        .clip(RoundedCornerShape(30.dp))
+        .background(HeroGradient)
+        .padding(22.dp)
+) {
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.align(Alignment.CenterStart)
-            ) {
-                Text(
-                    "YOUR WORLD.",
-                    color = Color.White,
-                    fontSize = 25.sp,
-                    fontWeight = FontWeight.Black
-                )
-                Text(
-                    "YOUR MUSIC.",
-                    color = Color.White,
-                    fontSize = 25.sp,
-                    fontWeight = FontWeight.Black
-                )
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    "Discover your next favourite sound",
-                    color = Color.White.copy(alpha = 0.85f),
-                    fontSize = 12.sp
-                )
-            }
+            Text(
+                "● MusicNova",
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold
+            )
 
             Icon(
-                Icons.Default.GraphicEq,
-                contentDescription = null,
-                tint = Color.White.copy(alpha = 0.75f),
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .size(95.dp)
+                Icons.Default.Search,
+                contentDescription = "Search",
+                tint = Color.White,
+                modifier = Modifier.size(27.dp)
             )
         }
+
+        Spacer(Modifier.height(35.dp))
+
+        Text(
+            "Good morning",
+            color = Color.White,
+            fontSize = 31.sp,
+            fontWeight = FontWeight.ExtraBold
+        )
+
+        Text(
+            "Fresh songs to start your day",
+            color = Color.White.copy(alpha = 0.9f),
+            fontSize = 15.sp
+        )
+
+        Spacer(Modifier.weight(1f))
+
+        recommendations.firstOrNull()?.let { track ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(23.dp))
+                    .background(Color.White.copy(alpha = 0.20f))
+                    .clickable { onPlay(track) }
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AsyncImage(
+                    model = track.artworkUrl,
+                    contentDescription = track.title,
+                    modifier = Modifier
+                        .size(65.dp)
+                        .clip(RoundedCornerShape(15.dp)),
+                    contentScale = ContentScale.Crop
+                )
+
+                Spacer(Modifier.width(12.dp))
+
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "SUGGESTED FOR YOU",
+                        color = Color.White,
+                        fontSize = 9.sp
+                    )
+                    Text(
+                        track.title,
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                    Text(
+                        track.artist,
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 12.sp,
+                        maxLines = 1
+                    )
+                }
+
+                Icon(
+                    Icons.Default.PlayCircleFilled,
+                    contentDescription = "Play",
+                    tint = Color.White,
+                    modifier = Modifier.size(38.dp)
+                )
+            }
+        }
+    }
+}
+
                 Spacer(Modifier.height(28.dp))
 
         Text(
