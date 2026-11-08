@@ -183,7 +183,7 @@ fun playQueue(
 
     playTrack(selectedTrack)
 }
-} MaterialTheme(
+MaterialTheme(
         colorScheme = darkColorScheme(
             primary = NovaPurple,
             secondary = NovaLavender,
