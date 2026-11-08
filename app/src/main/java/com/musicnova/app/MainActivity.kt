@@ -75,9 +75,13 @@ var fallbackAttemptedVideoId by remember {
     }
 
     val playbackState by musicPlayer.playbackState.collectAsState()
+DisposableEffect(musicPlayer) {
+    onDispose {
+        musicPlayer.release()
+    }
+}
 
-    DisposableEffect(musicPlayer) {
-    DisposableEffect(musicPlayer, streamExtraction) {
+DisposableEffect(musicPlayer, streamExtraction) {
     musicPlayer.setOnPlaybackErrorListener { error ->
 
         val track = activeTrack
@@ -120,11 +124,9 @@ var fallbackAttemptedVideoId by remember {
     onDispose {
         musicPlayer.setOnPlaybackErrorListener(null)
     }
-    }
-        onDispose {
-            musicPlayer.release()
-        }
-    }
+}
+        
+    
 
     BackHandler(
         enabled = showFullPlayer
