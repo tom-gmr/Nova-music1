@@ -12,6 +12,11 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
+import androidx.media3.datasource.cache.SimpleCache
+import androidx.media3.database.StandaloneDatabaseProvider
+import java.io.File
 import androidx.media3.common.PlaybackException
 data class PlaybackState(
     val title: String = "",
@@ -32,7 +37,7 @@ class MusicPlayer(context: Context) {
     private val player: ExoPlayer =
         ExoPlayer.Builder(appContext)
             .setMediaSourceFactory(
-                DefaultMediaSourceFactory(httpDataSourceFactory)
+                DefaultMediaSourceFactory(cacheDataSourceFactory)
             )
             .build()
 
@@ -85,7 +90,19 @@ init {
         httpDataSourceFactory.setDefaultRequestProperties(
             requestHeaders
         )
+       private val cacheSize = 100L * 1024 * 1024
 
+private val streamCache = SimpleCache(
+    File(appContext.cacheDir, "music_stream_cache"),
+    LeastRecentlyUsedCacheEvictor(cacheSize),
+    StandaloneDatabaseProvider(appContext)
+)
+
+private val cacheDataSourceFactory =
+    CacheDataSource.Factory()
+        .setCache(streamCache)
+        .setUpstreamDataSourceFactory(httpDataSourceFactory)
+        .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
         val metadata = MediaMetadata.Builder()
             .setTitle(title)
             .setArtist(artist)
@@ -101,7 +118,7 @@ init {
             .setUri(Uri.parse(streamUrl))
             .setMediaMetadata(metadata)
             .build()
-
+            .setCustomCacheKey(streamUrl)
         _playbackState.value = PlaybackState(
             title = title,
             artist = artist,
