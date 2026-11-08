@@ -12,7 +12,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-
+import androidx.media3.common.PlaybackException
 data class PlaybackState(
     val title: String = "",
     val artist: String = "",
@@ -41,7 +41,15 @@ class MusicPlayer(context: Context) {
 
     val playbackState: StateFlow<PlaybackState> =
         _playbackState.asStateFlow()
+@Volatile
+private var playbackErrorListener:
+    ((PlaybackException) -> Unit)? = null
 
+fun setOnPlaybackErrorListener(
+    listener: ((PlaybackException) -> Unit)?
+) {
+    playbackErrorListener = listener
+}
     val exoPlayer: ExoPlayer
         get() = player
 
@@ -49,6 +57,9 @@ class MusicPlayer(context: Context) {
         player.addListener(object : Player.Listener {
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
+                override fun onPlayerError(error: PlaybackException) {
+    playbackErrorListener?.invoke(error)
+                }
                 _playbackState.value =
                     _playbackState.value.copy(
                         isPlaying = isPlaying
