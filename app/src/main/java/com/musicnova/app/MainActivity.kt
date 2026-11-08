@@ -35,6 +35,7 @@ import com.musicnova.app.data.music.YouTubeMusicTrack
 import com.musicnova.app.playback.MusicPlayer
 import com.musicnova.app.playback.PlaybackState
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 private val Black = Color(0xFF0D0B12)
 private val Purple = Color(0xFF9277B8)
@@ -125,6 +126,7 @@ fun MusicNovaApp() {
         ) { if (showFullPlayer && playbackState.hasMedia) {
     FullPlayerScreen(
         state = playbackState,
+        musicPlayer = musicPlayer,
         onClose = {
             showFullPlayer = false
         },
@@ -220,7 +222,157 @@ fun MusicNovaApp() {
                     }
                 }
             }
+             @Composable
+fun FullPlayerScreen(
+    state: PlaybackState,
+    musicPlayer: MusicPlayer,
+    onClose: () -> Unit,
+    onPlayPause: () -> Unit,
+    onStop: () -> Unit
+) {
+    var position by remember { mutableFloatStateOf(0f) }
+    var duration by remember { mutableLongStateOf(0L) }
 
+    LaunchedEffect(state.isPlaying) {
+        while (state.hasMedia) {
+            val playerDuration = musicPlayer.exoPlayer.duration
+
+            duration = if (playerDuration > 0) {
+                playerDuration
+            } else {
+                0L
+            }
+
+            position = musicPlayer.exoPlayer.currentPosition.toFloat()
+            delay(500)
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Black)
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier.align(Alignment.Start)
+        ) {
+            Icon(
+                Icons.Default.KeyboardArrowDown,
+                contentDescription = "Close player",
+                tint = Color.White,
+                modifier = Modifier.size(32.dp)
+            )
+        }
+
+        AsyncImage(
+            model = state.artworkUrl,
+            contentDescription = "Song artwork",
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .clip(RoundedCornerShape(24.dp)),
+            contentScale = ContentScale.Crop
+        )
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                state.title,
+                color = Color.White,
+                fontSize = 23.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2
+            )
+
+            Text(
+                state.artist,
+                color = LightPurple,
+                fontSize = 15.sp
+            )
+        }
+
+        Column {
+            Slider(
+                value = position.coerceIn(
+                    0f,
+                    duration.coerceAtLeast(1L).toFloat()
+                ),
+                onValueChange = {
+                    position = it
+                },
+                onValueChangeFinished = {
+                    musicPlayer.seekTo(position.toLong())
+                },
+                valueRange = 0f..duration.coerceAtLeast(1L).toFloat(),
+                enabled = duration > 0,
+                colors = SliderDefaults.colors(
+                    thumbColor = LightPurple,
+                    activeTrackColor = Purple,
+                    inactiveTrackColor = CardColor
+                )
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    formatPlayerTime(position.toLong()),
+                    color = MutedText,
+                    fontSize = 12.sp
+                )
+
+                Text(
+                    formatPlayerTime(duration),
+                    color = MutedText,
+                    fontSize = 12.sp
+                )
+            }
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            IconButton(onClick = onStop) {
+                Icon(
+                    Icons.Default.StopCircle,
+                    contentDescription = "Stop",
+                    tint = LightPurple,
+                    modifier = Modifier.size(34.dp)
+                )
+            }
+
+            Spacer(Modifier.width(35.dp))
+
+            IconButton(
+                onClick = onPlayPause,
+                modifier = Modifier.size(76.dp)
+            ) {
+                Icon(
+                    if (state.isPlaying) Icons.Default.PauseCircleFilled
+                    else Icons.Default.PlayCircleFilled,
+                    contentDescription = "Play or pause",
+                    tint = LightPurple,
+                    modifier = Modifier.size(70.dp)
+                )
+            }
+        }
+    }
+}
+
+private fun formatPlayerTime(milliseconds: Long): String {
+    val totalSeconds = (milliseconds / 1000).coerceAtLeast(0)
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+
+    return "%d:%02d".format(minutes, seconds)
+}
             if (playbackState.hasMedia) {
                 GlassMiniPlayer(
                     state = playbackState,
