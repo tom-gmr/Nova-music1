@@ -290,7 +290,7 @@ fun RecommendationsHomeScreen(
                         .padding(10.dp)
                 ) {
                     AsyncImage(
-                        model = track.thumbnail,
+                        model = track.artworkUrl,
                         contentDescription = track.title,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
