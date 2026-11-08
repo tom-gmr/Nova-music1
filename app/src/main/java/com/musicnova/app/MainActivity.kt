@@ -28,6 +28,7 @@ import com.musicnova.app.data.music.YouTubeMusicTrack
 import com.musicnova.app.playback.MusicPlayer
 import com.musicnova.app.playback.PlaybackState
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 
 private val NovaBlack = Color(0xFF09080E)
 private val NovaSurface = Color(0xFF191620)
@@ -50,6 +51,13 @@ fun MusicNovaApp() {
     var selectedTab by remember { mutableStateOf("Home") }
     var showFullPlayer by remember { mutableStateOf(false) }
     var playbackError by remember { mutableStateOf<String?>(null) }
+    var activeTrack by remember {
+    mutableStateOf<YouTubeMusicTrack?>(null)
+}
+
+var fallbackAttemptedVideoId by remember {
+    mutableStateOf<String?>(null)
+}
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -69,6 +77,50 @@ fun MusicNovaApp() {
     val playbackState by musicPlayer.playbackState.collectAsState()
 
     DisposableEffect(musicPlayer) {
+    DisposableEffect(musicPlayer, streamExtraction) {
+    musicPlayer.setOnPlaybackErrorListener { error ->
+
+        val track = activeTrack
+
+        if (track == null) {
+            playbackError =
+                "Playback failed: ${error.message ?: "Please try again"}"
+        } else if (fallbackAttemptedVideoId == track.videoId) {
+            playbackError =
+                "Playback failed: ${error.message ?: "Please try again"}"
+        } else {
+            fallbackAttemptedVideoId = track.videoId
+            playbackError = "Stream failed. Trying backup..."
+
+            scope.launch {
+                try {
+                    val fallback =
+                        streamExtraction.resolveWithNewPipe(track.videoId)
+
+                    musicPlayer.play(
+                        streamUrl = fallback.url,
+                        title = track.title,
+                        artist = track.artist,
+                        artworkUrl = track.artworkUrl,
+                        requestHeaders = fallback.requestHeaders
+                    )
+
+                    playbackError = null
+
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    playbackError =
+                        "Playback failed: ${e.message ?: "Please try again"}"
+                }
+            }
+        }
+    }
+
+    onDispose {
+        musicPlayer.setOnPlaybackErrorListener(null)
+    }
+    }
         onDispose {
             musicPlayer.release()
         }
@@ -82,7 +134,8 @@ fun MusicNovaApp() {
 
     fun playTrack(track: YouTubeMusicTrack) {
         if (track.isArtist || track.videoId.isBlank()) return
-
+        activeTrack = track
+fallbackAttemptedVideoId = null
         scope.launch {
             playbackError = null
 
