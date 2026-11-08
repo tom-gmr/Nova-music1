@@ -135,32 +135,39 @@ DisposableEffect(musicPlayer, streamExtraction) {
     ) {
         showFullPlayer = false
     }
+fun playTrack(track: YouTubeMusicTrack) {
+    if (track.isArtist || track.videoId.isBlank()) return
 
-    fun playTrack(track: YouTubeMusicTrack) {
-        if (track.isArtist || track.videoId.isBlank()) return
-        activeTrack = track
-fallbackAttemptedVideoId = null
-        scope.launch {
-            playbackError = null
+    activeTrack = track
+    fallbackAttemptedVideoId = null
 
-            try {
-                val stream = streamExtraction.resolve(track)
+    scope.launch {
+        playbackError = null
 
-                musicPlayer.play(
-                    streamUrl = stream.url,
-                    title = track.title,
-                    artist = track.artist,
-                    artworkUrl = track.artworkUrl,
-                    requestHeaders = stream.requestHeaders
-                )
+        try {
+            val stream = streamExtraction.resolve(track)
 
-                libraryStore.addRecentlyPlayed(
-                    track.toLibraryTrack()
-                )
-            } catch (e: Exception) {
-                playbackError =
-                    "Unable to play: ${e.message ?: "Please try again"}"
-            } fun playQueue(
+            musicPlayer.play(
+                streamUrl = stream.url,
+                title = track.title,
+                artist = track.artist,
+                artworkUrl = track.artworkUrl,
+                requestHeaders = stream.requestHeaders
+            )
+
+            libraryStore.addRecentlyPlayed(
+                track.toLibraryTrack()
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            playbackError =
+                "Unable to play: ${e.message ?: "Please try again"}"
+        }
+    }
+}
+
+fun playQueue(
     tracks: List<YouTubeMusicTrack>,
     selectedTrack: YouTubeMusicTrack
 ) {
@@ -170,11 +177,7 @@ fallbackAttemptedVideoId = null
     )
 
     playTrack(selectedTrack)
-            }
-        }
-    }
-
-    MaterialTheme(
+}
         colorScheme = darkColorScheme(
             primary = NovaPurple,
             secondary = NovaLavender,
