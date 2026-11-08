@@ -128,7 +128,7 @@ fun RecommendationsHomeScreen(
             .fillMaxSize()
             .background(HomeBg)
             .verticalScroll(rememberScrollState())
-            .padding(bottom = 115.dp)
+            .padding(bottom = 24.dp)
     ) {
 
         // HEADER
