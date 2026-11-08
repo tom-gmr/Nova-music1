@@ -214,11 +214,11 @@ fun MusicNovaApp() {
                         musicPlayer.togglePlayPause()
                     },
                     onStop = {
-                        musicPlayer.stop()
-                        onExpand = {
+    musicPlayer.stop()
+},
+onExpand = {
     showFullPlayer = true
 },
-                    },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(
