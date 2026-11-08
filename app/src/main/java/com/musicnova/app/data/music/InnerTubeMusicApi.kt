@@ -332,25 +332,56 @@ class InnerTubeMusicApi {
     }
 
     private fun thumbnailUrl(value: Any?): String? {
+    when (value) {
+        is JSONObject -> {
+            val thumbnails = value.optJSONArray("thumbnails")
 
-        when (value) {
+            if (thumbnails != null) {
+                var bestUrl: String? = null
+                var bestQuality = -1L
 
-            is JSONObject -> {
+                for (i in 0 until thumbnails.length()) {
+                    val item = thumbnails.optJSONObject(i) ?: continue
+                    val url = item.optString("url").orEmpty()
 
-                val thumbnails = value.optJSONArray("thumbnails")
+                    if (!url.startsWith("https://") &&
+                        !url.startsWith("http://")
+                    ) continue
 
-                if (thumbnails != null) {
+                    val width = item.optLong("width", 0L)
+                    val height = item.optLong("height", 0L)
+                    val quality = width * height
 
-                    for (i in thumbnails.length() - 1 downTo 0) {
-                        val url = thumbnails.optJSONObject(i)
-                            ?.optString("url")
-                            .orEmpty()
+                    if (quality > bestQuality) {
+                        bestQuality = quality
+                        bestUrl = url
+                    }
+                }
 
-                        if (url.startsWith("https://") ||
-                            url.startsWith("http://")
-                        ) {
-                            return url
-                        }
+                if (!bestUrl.isNullOrBlank()) {
+                    return bestUrl
+                }
+            }
+
+            val keys = value.keys()
+            while (keys.hasNext()) {
+                val result = thumbnailUrl(value.opt(keys.next()))
+                if (!result.isNullOrBlank()) return result
+            }
+        }
+
+        is org.json.JSONArray -> {
+            for (i in 0 until value.length()) {
+                val result = thumbnailUrl(value.opt(i))
+                if (!result.isNullOrBlank()) return result
+            }
+        }
+    }
+
+    return null
+    }
+
+                        
                     }
                 }
 
