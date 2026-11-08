@@ -177,7 +177,7 @@ fun playQueue(
     )
 
     playTrack(selectedTrack)
-}
+} MaterialTheme(
         colorScheme = darkColorScheme(
             primary = NovaPurple,
             secondary = NovaLavender,
