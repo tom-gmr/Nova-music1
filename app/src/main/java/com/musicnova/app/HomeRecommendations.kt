@@ -24,7 +24,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -59,6 +58,10 @@ fun RecommendationsHomeScreen(
         mutableStateOf<List<YouTubeMusicTrack>>(emptyList())
     }
 
+    var trending by remember {
+        mutableStateOf<List<YouTubeMusicTrack>>(emptyList())
+    }
+
     var popularArtists by remember {
         mutableStateOf<List<YouTubeMusicTrack>>(emptyList())
     }
@@ -74,40 +77,71 @@ fun RecommendationsHomeScreen(
     var error by remember {
         mutableStateOf<String?>(null)
     }
-
+    
     fun loadRecommendations() {
         scope.launch {
             loading = true
             error = null
 
             try {
-                val songs = api.searchSongs(
-                    "trending popular songs India"
-                )
+                recentlyPlayed = libraryStore.getRecentlyPlayed()
 
-                recommendations = songs
-                    .filterNot { it.isArtist }
+                val likedSongs = libraryStore.getLikedSongs()
+
+                val seeds = (likedSongs + recentlyPlayed)
                     .distinctBy { it.videoId }
+                    .take(5)
+
+                val results = mutableListOf<YouTubeMusicTrack>()
+
+                if (seeds.isNotEmpty()) {
+                    seeds.forEach { seed ->
+                        val query = "songs like ${seed.title} by ${seed.artist}"
+
+                        val songs = api.searchSongs(query, 15)
+
+                        results.addAll(
+                            songs.filterNot { it.isArtist }
+                        )
+                    }
+                } else {
+                    val songs = api.searchSongs(
+                        "popular trending songs India",
+                        30
+                    )
+
+                    results.addAll(
+                        songs.filterNot { it.isArtist }
+                    )
+                }
+                
+                val excludedIds = (likedSongs + recentlyPlayed)
+                    .map { it.videoId }
+                    .toSet()
+
+                recommendations = results
+                    .distinctBy { it.videoId }
+                    .filterNot { it.videoId in excludedIds }
                     .take(15)
 
-                val artists = api.searchSongs(
-                    "popular Indian music artists"
+                trending = api.searchSongs(
+                    "trending hit songs India",
+                    20
                 )
+                    .filterNot { it.isArtist }
+                    .distinctBy { it.videoId }
+                    .take(12)
 
-                popularArtists = artists
+                popularArtists = api.searchSongs(
+                    "popular Indian music artists",
+                    20
+                )
                     .filter { it.isArtist }
                     .distinctBy { it.title }
                     .take(10)
 
-                recentlyPlayed =
-                    libraryStore.getRecentlyPlayed()
-
-                if (recommendations.isEmpty()) {
-                    error = "No recommendations found. Try again."
-                }
-
             } catch (e: Exception) {
-                error = "Music could not load. Check your internet."
+                error = e.message ?: "Unable to load music"
             } finally {
                 loading = false
             }
@@ -117,250 +151,155 @@ fun RecommendationsHomeScreen(
     LaunchedEffect(Unit) {
         loadRecommendations()
     }
-
+    
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(HomeBackground)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-
-        Spacer(Modifier.height(12.dp))
-
-        // HEADER
-
-        Text(
-            text = "YOUR SOUND, YOUR WORLD",
-            color = HomeMuted,
-            fontSize = 11.sp,
-            letterSpacing = 2.sp,
-            fontWeight = FontWeight.Medium
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        Text(
-            text = "Discover music.",
-            color = Color.White,
-            fontSize = 29.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        Text(
-            text = "Find something that feels right.",
-            color = HomeMuted,
-            fontSize = 13.sp
-        )
-
-        Spacer(Modifier.height(22.dp))
-
-        // HERO CARD
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(165.dp)
-                .clip(RoundedCornerShape(25.dp))
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFF49385F),
-                            Color(0xFF292238),
-                            Color(0xFF17151E)
-                        )
-                    )
-                )
-                .padding(21.dp)
-        ) {
-            Column(
-                modifier = Modifier.align(Alignment.CenterStart)
-            ) {
-                Text(
-                    text = "FEEL THE SOUND",
-                    color = Color.White,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-
-                Spacer(Modifier.height(7.dp))
-
-                Text(
-                    text = "A new favourite is waiting for you.",
-                    color = Color(0xFFE0D6F0),
-                    fontSize = 12.sp
-                )
-
-                Spacer(Modifier.height(13.dp))
-
-                Text(
-                    text = "MUSIC NOVA  •  DISCOVER",
-                    color = HomeAccent,
-                    fontSize = 9.sp,
-                    letterSpacing = 1.5.sp
-                )
-            }
-        }
-
-        Spacer(Modifier.height(27.dp))
-
-        // RECOMMENDATIONS HEADER
+        Spacer(modifier = Modifier.height(12.dp))
 
         Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            Column {
                 Text(
-                    text = "Recommended for you",
-                    color = Color.White,
-                    fontSize = 20.sp,
+                    "MUSIC NOVA",
+                    color = HomeAccent,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
 
                 Text(
-                    text = "Popular music from YouTube Music",
-                    color = HomeMuted,
-                    fontSize = 11.sp
+                    "Discover your sound",
+                    color = Color.White,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
 
             IconButton(
-                onClick = { loadRecommendations() },
-                enabled = !loading
+                onClick = { loadRecommendations() }
             ) {
                 Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "Refresh recommendations",
+                    Icons.Default.Refresh,
+                    contentDescription = "Refresh",
                     tint = HomeAccent
                 )
             }
         }
 
-        Spacer(Modifier.height(13.dp))
-
-        // LOADING
-
-        if (loading && recommendations.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(125.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    color = HomeAccent,
-                    strokeWidth = 2.dp
-                )
-            }
+        if (loading) {
+            LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth(),
+                color = HomeAccent
+            )
         }
 
-        // ERROR
-
-        error?.let { message ->
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(17.dp))
-                    .background(HomeCard)
-                    .padding(16.dp)
-            ) {
-                Text(
-                    text = message,
-                    color = HomeMuted,
-                    fontSize = 12.sp
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                Text(
-                    text = "Tap refresh to try again",
-                    color = HomeAccent,
-                    fontSize = 12.sp,
-                    modifier = Modifier.clickable {
-                        loadRecommendations()
-                    }
-                )
-            }
+        error?.let {
+            Text(
+                text = it,
+                color = Color.Red,
+                fontSize = 13.sp
+            )
         }
-
-        // RECOMMENDED SONG CARDS
-
+        
         if (recommendations.isNotEmpty()) {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(13.dp)
-            ) {
-                items(
-                    items = recommendations,
-                    key = { it.videoId }
-                ) { song ->
-                    RecommendationSongCard(
-                        song = song,
-                        onClick = { onPlay(song) }
-                    )
-                }
+            MusicSection(
+                title = "Recommended for you",
+                songs = recommendations,
+                onPlay = onPlay
+            )
+        }
+
+        if (trending.isNotEmpty()) {
+            MusicSection(
+                title = "Trending music",
+                songs = trending,
+                onPlay = onPlay
+            )
+        }
+
+        if (popularArtists.isNotEmpty()) {
+            MusicSection(
+                title = "Popular Artists",
+                songs = popularArtists,
+                onPlay = onPlay
+            )
+        }
+
+        if (recentlyPlayed.isNotEmpty()) {
+            Text(
+                "Recently Played",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            recentlyPlayed.forEach { song ->
+                Text(
+                    text = "${song.title} • ${song.artist}",
+                    color = HomeMuted,
+                    modifier = Modifier.padding(vertical = 6.dp)
+                )
             }
         }
 
-        Spacer(Modifier.height(27.dp))
+        Spacer(modifier = Modifier.height(30.dp))
+    }
+}
 
-        // TRENDING MUSIC
-
+@Composable
+private fun MusicSection(
+    title: String,
+    songs: List<YouTubeMusicTrack>,
+    onPlay: (YouTubeMusicTrack) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         Text(
-            text = "Trending music",
+            text = title,
             color = Color.White,
-            fontSize = 19.sp,
+            fontSize = 20.sp,
             fontWeight = FontWeight.Bold
         )
 
-        Text(
-            text = "Explore songs people are listening to",
-            color = HomeMuted,
-            fontSize = 11.sp
-        )
-
-        Spacer(Modifier.height(13.dp))
-
-        recommendations.take(8).forEachIndexed { index, song ->
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 7.dp)
-                    .clip(RoundedCornerShape(15.dp))
-                    .background(HomeCard)
-                    .clickable {
-                        onPlay(song)
-                    }
-                    .padding(9.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-
-                Text(
-                    text = (index + 1)
-                        .toString()
-                        .padStart(2, '0'),
-                    color = HomeMuted,
-                    fontSize = 12.sp,
-                    modifier = Modifier.width(27.dp)
-                )
-
-                SongArtwork(
-                    artworkUrl = song.artworkUrl,
-                    title = song.title,
-                    size = 49.dp
-                )
-
-                Spacer(Modifier.width(11.dp))
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(
+                items = songs,
+                key = { it.videoId }
+            ) { song ->
 
                 Column(
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .width(150.dp)
+                        .clickable { onPlay(song) }
                 ) {
+                    AsyncImage(
+                        model = song.artworkUrl,
+                        contentDescription = song.title,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp)
+                            .clip(RoundedCornerShape(16.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     Text(
                         text = song.title,
                         color = Color.White,
-                        fontSize = 13.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1
                     )
@@ -368,299 +307,13 @@ fun RecommendationsHomeScreen(
                     Text(
                         text = song.artist,
                         color = HomeMuted,
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         maxLines = 1
                     )
                 }
-
-                Icon(
-                    imageVector = Icons.Default.PlayCircleFilled,
-                    contentDescription = "Play",
-                    tint = HomeAccent,
-                    modifier = Modifier.size(29.dp)
-                )
             }
-        }
-
-        Spacer(Modifier.height(27.dp))
-
-        // POPULAR ARTISTS
-
-        if (popularArtists.isNotEmpty()) {
-
-            Text(
-                text = "Popular Artists",
-                color = Color.White,
-                fontSize = 19.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = "Discover artists and their music",
-                color = HomeMuted,
-                fontSize = 11.sp
-            )
-
-            Spacer(Modifier.height(13.dp))
-
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(18.dp)
-            ) {
-                items(
-                    items = popularArtists,
-                    key = { it.title }
-                ) { artist ->
-
-                    Column(
-                        modifier = Modifier.width(105.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-
-                        if (!artist.artworkUrl.isNullOrBlank()) {
-                            AsyncImage(
-                                model = artist.artworkUrl,
-                                contentDescription = artist.title,
-                                modifier = Modifier
-                                    .size(88.dp)
-                                    .clip(CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(88.dp)
-                                    .clip(CircleShape)
-                                    .background(HomeCard),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.MusicNote,
-                                    contentDescription = null,
-                                    tint = HomeAccent,
-                                    modifier = Modifier.size(35.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(Modifier.height(9.dp))
-
-                        Text(
-                            text = artist.title,
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1
-                        )
-
-                        Text(
-                            text = "Artist",
-                            color = HomeMuted,
-                            fontSize = 10.sp
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(27.dp))
-
-        // RECENTLY PLAYED
-
-        Text(
-            text = "Recently Played",
-            color = Color.White,
-            fontSize = 19.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        Text(
-            text = "Continue where you left off",
-            color = HomeMuted,
-            fontSize = 11.sp
-        )
-
-        Spacer(Modifier.height(13.dp))
-
-        if (recentlyPlayed.isEmpty()) {
-
-            Text(
-                text = "Your recently played songs will appear here.",
-                color = HomeMuted,
-                fontSize = 12.sp
-            )
-
-        } else {
-
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(13.dp)
-            ) {
-                items(
-                    items = recentlyPlayed.take(10),
-                    key = { it.videoId }
-                ) { track ->
-
-                    Column(
-                        modifier = Modifier
-                            .width(125.dp)
-                            .clickable {
-                                onPlay(
-                                    YouTubeMusicTrack(
-                                        videoId = track.videoId,
-                                        title = track.title,
-                                        artist = track.artist,
-                                        artworkUrl = track.artworkUrl
-                                    )
-                                )
-                            }
-                    ) {
-
-                        SongArtwork(
-                            artworkUrl = track.artworkUrl,
-                            title = track.title,
-                            size = 125.dp
-                        )
-
-                        Spacer(Modifier.height(8.dp))
-
-                        Text(
-                            text = track.title,
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1
-                        )
-
-                        Text(
-                            text = track.artist,
-                            color = HomeMuted,
-                            fontSize = 10.sp,
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(27.dp))
-
-        // MUSIC SPACE CARD
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(HomeCard)
-                .padding(18.dp)
-        ) {
-            Column {
-                Text(
-                    text = "Your Music Space",
-                    color = Color.White,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(Modifier.height(6.dp))
-
-                Text(
-                    text = "Your favourites, playlists and music journey — all in one place.",
-                    color = HomeMuted,
-                    fontSize = 12.sp
-                )
-            }
-        }
-
-        Spacer(Modifier.height(25.dp))
-    }
-}
-
-// SONG ARTWORK
-
-@Composable
-private fun SongArtwork(
-    artworkUrl: String?,
-    title: String,
-    size: Dp
-) {
-    if (!artworkUrl.isNullOrBlank()) {
-
-        AsyncImage(
-            model = artworkUrl,
-            contentDescription = title,
-            modifier = Modifier
-                .size(size)
-                .clip(RoundedCornerShape(14.dp)),
-            contentScale = ContentScale.Crop
-        )
-
-    } else {
-
-        Box(
-            modifier = Modifier
-                .size(size)
-                .clip(RoundedCornerShape(14.dp))
-                .background(HomeCard),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.MusicNote,
-                contentDescription = null,
-                tint = HomeAccent,
-                modifier = Modifier.size(35.dp)
-            )
         }
     }
 }
 
-// RECOMMENDATION SONG CARD
-
-@Composable
-private fun RecommendationSongCard(
-    song: YouTubeMusicTrack,
-    onClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .width(145.dp)
-            .clickable {
-                onClick()
-            }
-    ) {
-
-        Box {
-            SongArtwork(
-                artworkUrl = song.artworkUrl,
-                title = song.title,
-                size = 145.dp
-            )
-
-            Icon(
-                imageVector = Icons.Default.PlayCircleFilled,
-                contentDescription = "Play",
-                tint = Color.White,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp)
-                    .size(31.dp)
-            )
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        Text(
-            text = song.title,
-            color = Color.White,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1
-        )
-
-        Text(
-            text = song.artist,
-            color = HomeMuted,
-            fontSize = 10.sp,
-            maxLines = 1
-        )
-    }
-}
-
+    
