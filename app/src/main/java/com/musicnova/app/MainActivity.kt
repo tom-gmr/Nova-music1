@@ -268,12 +268,15 @@ fun playQueue(
                                     }
 
                                     "Search" -> {
-                                        NovaSearchScreen(
-                                            libraryStore = libraryStore,
-                                            onPlay = { track ->
-                                                playTrack(track)
-                                            }
-                                        )
+    NovaSearchScreen(
+        libraryStore = libraryStore,
+        onPlay = { track ->
+            playTrack(track)
+        },
+        onPlayQueue = { tracks, selectedTrack ->
+            playQueue(tracks, selectedTrack)
+        }
+    )
                                     }
 
                                     "Library" -> {
