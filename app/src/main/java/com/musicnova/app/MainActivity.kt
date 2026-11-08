@@ -54,6 +54,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MusicNovaApp() {
     var selectedTab by remember { mutableStateOf("Home") }
+    var showFullPlayer by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
