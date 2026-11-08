@@ -128,7 +128,7 @@ fun MusicNovaApp() {
                     .padding(horizontal = 20.dp)
             ) { if (selectedTab != "Home") {
                 Spacer(Modifier.height(28.dp))
-            }
+            
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -163,7 +163,7 @@ fun MusicNovaApp() {
                 }
 
                 Spacer(Modifier.height(18.dp))
-
+            }
                 Box(
                     modifier = Modifier
                         .weight(1f)
