@@ -1,4 +1,3 @@
-
 package com.musicnova.app
 
 import android.os.Bundle
@@ -8,7 +7,6 @@ import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.*
@@ -27,16 +25,18 @@ import com.musicnova.app.data.music.StreamExtraction
 import com.musicnova.app.data.music.YouTubeMusicTrack
 import com.musicnova.app.playback.MusicPlayer
 import com.musicnova.app.playback.PlaybackState
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.CancellationException
 import com.musicnova.app.playback.PlaybackQueue
 import com.musicnova.app.ui.theme.NovaTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+
 private val NovaBlack = Color(0xFF09080E)
 private val NovaSurface = Color(0xFF191620)
 private val NovaPurple = Color(0xFF9277B8)
 private val NovaLavender = Color(0xFFC9B9E5)
 private val NovaMuted = Color(0xFFAAA4B5)
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,14 +52,16 @@ class MainActivity : ComponentActivity() {
 fun MusicNovaApp() {
     var selectedTab by remember { mutableStateOf("Home") }
     var showFullPlayer by remember { mutableStateOf(false) }
+    var currentBrowseId by remember { mutableStateOf<String?>(null) }
     var playbackError by remember { mutableStateOf<String?>(null) }
-    var activeTrack by remember {
-    mutableStateOf<YouTubeMusicTrack?>(null)
-}
 
-var fallbackAttemptedVideoId by remember {
-    mutableStateOf<String?>(null)
-}
+    var activeTrack by remember {
+        mutableStateOf<YouTubeMusicTrack?>(null)
+    }
+
+    var fallbackAttemptedVideoId by remember {
+        mutableStateOf<String?>(null)
+    }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -74,133 +76,141 @@ var fallbackAttemptedVideoId by remember {
 
     val streamExtraction = remember {
         StreamExtraction()
-    } 
+    }
+
     val playbackQueue = remember {
-    PlaybackQueue()
+        PlaybackQueue()
     }
 
     val playbackState by musicPlayer.playbackState.collectAsState()
-DisposableEffect(musicPlayer) {
-    onDispose {
-        musicPlayer.release()
-    }
-}
 
-DisposableEffect(musicPlayer, streamExtraction) {
-    musicPlayer.setOnPlaybackErrorListener { error ->
-
-        val track = activeTrack
-
-        if (track == null) {
-            playbackError =
-                "Playback failed: ${error.message ?: "Please try again"}"
-        } else if (fallbackAttemptedVideoId == track.videoId) {
-            playbackError =
-                "Playback failed: ${error.message ?: "Please try again"}"
-        } else {
-            fallbackAttemptedVideoId = track.videoId
-            playbackError = "Stream failed. Trying backup..."
-
-            scope.launch {
-                try {
-                    val fallback =
-                        streamExtraction.resolveWithNewPipe(track.videoId)
-
-                    musicPlayer.play(
-                        streamUrl = fallback.url,
-                        title = track.title,
-                        artist = track.artist,
-                        artworkUrl = track.artworkUrl,
-                        requestHeaders = fallback.requestHeaders
-                    )
-
-                    playbackError = null
-
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    playbackError =
-                        "Playback failed: ${e.message ?: "Please try again"}"
-                }
-            }
+    DisposableEffect(musicPlayer) {
+        onDispose {
+            musicPlayer.release()
         }
     }
 
-    onDispose {
-        musicPlayer.setOnPlaybackErrorListener(null)
+    DisposableEffect(musicPlayer, streamExtraction) {
+        musicPlayer.setOnPlaybackErrorListener { error ->
+
+            val track = activeTrack
+
+            if (track == null) {
+                playbackError =
+                    "Playback failed: ${error.message ?: "Please try again"}"
+            } else if (fallbackAttemptedVideoId == track.videoId) {
+                playbackError =
+                    "Playback failed: ${error.message ?: "Please try again"}"
+            } else {
+                fallbackAttemptedVideoId = track.videoId
+                playbackError = "Stream failed. Trying backup..."
+
+                scope.launch {
+                    try {
+                        val fallback =
+                            streamExtraction.resolveWithNewPipe(track.videoId)
+
+                        musicPlayer.play(
+                            streamUrl = fallback.url,
+                            title = track.title,
+                            artist = track.artist,
+                            artworkUrl = track.artworkUrl,
+                            requestHeaders = fallback.requestHeaders
+                        )
+
+                        playbackError = null
+
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        playbackError =
+                            "Playback failed: ${e.message ?: "Please try again"}"
+                    }
+                }
+            }
+        }
+
+        onDispose {
+            musicPlayer.setOnPlaybackErrorListener(null)
+        }
     }
-}
-        
-    
 
     BackHandler(
         enabled = showFullPlayer
     ) {
         showFullPlayer = false
     }
-fun playTrack(track: YouTubeMusicTrack) {
-    if (track.isArtist || track.videoId.isBlank()) return
 
-    activeTrack = track
-    fallbackAttemptedVideoId = null
+    BackHandler(
+        enabled = currentBrowseId != null && !showFullPlayer
+    ) {
+        currentBrowseId = null
+    }
 
-    scope.launch {
-        playbackError = null
+    fun playTrack(track: YouTubeMusicTrack) {
+        if (track.isArtist || track.videoId.isBlank()) return
 
-        try {
-            val stream = streamExtraction.resolve(track)
+        activeTrack = track
+        fallbackAttemptedVideoId = null
 
-            musicPlayer.play(
-                streamUrl = stream.url,
-                title = track.title,
-                artist = track.artist,
-                artworkUrl = track.artworkUrl,
-                requestHeaders = stream.requestHeaders
-            )
+        scope.launch {
+            playbackError = null
 
-            libraryStore.addRecentlyPlayed(
-                track.toLibraryTrack()
-            )
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            playbackError =
-                "Unable to play: ${e.message ?: "Please try again"}"
+            try {
+                val stream = streamExtraction.resolve(track)
+
+                musicPlayer.play(
+                    streamUrl = stream.url,
+                    title = track.title,
+                    artist = track.artist,
+                    artworkUrl = track.artworkUrl,
+                    requestHeaders = stream.requestHeaders
+                )
+
+                libraryStore.addRecentlyPlayed(
+                    track.toLibraryTrack()
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                playbackError =
+                    "Unable to play: ${e.message ?: "Please try again"}"
+            }
         }
     }
-}
 
-fun playQueue(
-    tracks: List<YouTubeMusicTrack>,
-    selectedTrack: YouTubeMusicTrack
-) {
-    playbackQueue.setQueue(
-        tracks = tracks,
-        startVideoId = selectedTrack.videoId
-    )
+    fun playQueue(
+        tracks: List<YouTubeMusicTrack>,
+        selectedTrack: YouTubeMusicTrack
+    ) {
+        playbackQueue.setQueue(
+            tracks = tracks,
+            startVideoId = selectedTrack.videoId
+        )
 
-    // Prefetch the next song in the background
-    playbackQueue.peekNext()?.let { nextTrack ->
-        streamExtraction.prefetch(nextTrack.videoId)
+        playbackQueue.peekNext()?.let { nextTrack ->
+            streamExtraction.prefetch(nextTrack.videoId)
+        }
+
+        playTrack(selectedTrack)
     }
 
-    playTrack(selectedTrack)
-}
-fun playNextTrack() {
-    val nextTrack = playbackQueue.next() ?: return
+    fun playNextTrack() {
+        val nextTrack = playbackQueue.next() ?: return
 
-    playbackQueue.peekNext()?.let { track ->
-        streamExtraction.prefetch(track.videoId)
+        playbackQueue.peekNext()?.let { track ->
+            streamExtraction.prefetch(track.videoId)
+        }
+
+        playTrack(nextTrack)
     }
 
-    playTrack(nextTrack)
-}
+    fun playPreviousTrack() {
+        val previousTrack = playbackQueue.previous() ?: return
+        playTrack(previousTrack)
+    }
 
-fun playPreviousTrack() {
-    val previousTrack = playbackQueue.previous() ?: return
-    playTrack(previousTrack)
-}
-NovaTheme {
+    NovaTheme {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -225,12 +235,13 @@ NovaTheme {
                     onStop = {
                         musicPlayer.stop()
                         showFullPlayer = false
-                    } ,onNext = {
-                     playNextTrack()
-},
-                   onPrevious = {
-                playPreviousTrack()
-}
+                    },
+                    onNext = {
+                        playNextTrack()
+                    },
+                    onPrevious = {
+                        playPreviousTrack()
+                    }
                 )
 
             } else {
@@ -241,7 +252,7 @@ NovaTheme {
                         .statusBarsPadding()
                 ) {
 
-                    if (selectedTab != "Home") {
+                    if (selectedTab != "Home" && currentBrowseId == null) {
                         NovaTopHeader(
                             selectedTab = selectedTab,
                             onProfileClick = {
@@ -257,9 +268,8 @@ NovaTheme {
                             .padding(bottom = 88.dp)
                     ) {
                         Column(
-                   modifier = Modifier.fillMaxSize()
-                  ) {
-                        
+                            modifier = Modifier.fillMaxSize()
+                        ) {
 
                             playbackError?.let { message ->
                                 Text(
@@ -272,53 +282,74 @@ NovaTheme {
                                 )
                             }
 
-                            AnimatedContent(
-                                targetState = selectedTab,
-                                label = "NovaScreenTransition"
-                            ) { tab ->
-
-                                when (tab) {
-                                    "Home" -> {
-                                        RecommendationsHomeScreen(
-                                            onPlay = { track ->
-                                                playTrack(track)
-                                            }
-                                        )
+                            if (currentBrowseId != null) {
+                                BrowseScreen(
+                                    browseId = currentBrowseId!!,
+                                    onBack = {
+                                        currentBrowseId = null
+                                    },
+                                    onPlay = { track ->
+                                        playTrack(track)
+                                    },
+                                    onBrowse = { nextBrowseId ->
+                                        currentBrowseId = nextBrowseId
                                     }
+                                )
+                            } else {
+                                AnimatedContent(
+                                    targetState = selectedTab,
+                                    label = "NovaScreenTransition"
+                                ) { tab ->
 
-                                    "Search" -> {
-    NovaSearchScreen(
-        libraryStore = libraryStore,
-        onPlay = { track ->
-            playTrack(track)
-        },
-        onPlayQueue = { tracks, selectedTrack ->
-            playQueue(tracks, selectedTrack)
-        }
-    )
-                                    }
+                                    when (tab) {
+                                        "Home" -> {
+                                            RecommendationsHomeScreen(
+                                                onPlay = { track ->
+                                                    playTrack(track)
+                                                },
+                                                onBrowse = { browseId ->
+                                                    currentBrowseId = browseId
+                                                }
+                                            )
+                                        }
 
-                                    "Library" -> {
-                                        LibraryScreen(
-                                            libraryStore = libraryStore,
-                                            onPlay = { track ->
-                                                playTrack(
-                                                    track.toMusicTrack()
-                                                )
-                                            }
-                                        )
-                                    }
+                                        "Search" -> {
+                                            NovaSearchScreen(
+                                                libraryStore = libraryStore,
+                                                onPlay = { track ->
+                                                    playTrack(track)
+                                                },
+                                                onPlayQueue = { tracks, selectedTrack ->
+                                                    playQueue(tracks, selectedTrack)
+                                                }
+                                            )
+                                        }
 
-                                    "Profile" -> {
-                                        NovaProfileScreen()
-                                    }
+                                        "Library" -> {
+                                            LibraryScreen(
+                                                libraryStore = libraryStore,
+                                                onPlay = { track ->
+                                                    playTrack(
+                                                        track.toMusicTrack()
+                                                    )
+                                                }
+                                            )
+                                        }
 
-                                    else -> {
-                                        RecommendationsHomeScreen(
-                                            onPlay = { track ->
-                                                playTrack(track)
-                                            }
-                                        )
+                                        "Profile" -> {
+                                            NovaProfileScreen()
+                                        }
+
+                                        else -> {
+                                            RecommendationsHomeScreen(
+                                                onPlay = { track ->
+                                                    playTrack(track)
+                                                },
+                                                onBrowse = { browseId ->
+                                                    currentBrowseId = browseId
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -326,8 +357,6 @@ NovaTheme {
                     }
                 }
 
-                // Playing song: mini-player replaces navigation.
-                // No song: floating navigation is visible.
                 if (playbackState.hasMedia) {
                     NovaGlassMiniPlayer(
                         state = playbackState,
@@ -351,7 +380,10 @@ NovaTheme {
                 } else {
                     NovaBottomNavigation(
                         selectedTab = selectedTab,
-                        onSelect = { selectedTab = it },
+                        onSelect = {
+                            currentBrowseId = null
+                            selectedTab = it
+                        },
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .navigationBarsPadding()
@@ -432,4 +464,3 @@ private fun LibraryTrack.toMusicTrack(): YouTubeMusicTrack {
         isArtist = false
     )
 }
-
