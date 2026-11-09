@@ -31,12 +31,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import com.musicnova.app.playback.PlaybackQueue
 import com.musicnova.app.ui.theme.NovaTheme
+import dagger.hilt.android.AndroidEntryPoint
 private val NovaBlack = Color(0xFF09080E)
 private val NovaSurface = Color(0xFF191620)
 private val NovaPurple = Color(0xFF9277B8)
 private val NovaLavender = Color(0xFFC9B9E5)
 private val NovaMuted = Color(0xFFAAA4B5)
-
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
