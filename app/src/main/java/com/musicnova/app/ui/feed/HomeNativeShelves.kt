@@ -1,32 +1,20 @@
 
 package com.musicnova.app.ui.feed
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.musicnova.app.data.music.HomeShelf
 import com.musicnova.app.data.music.HomeShelfItem
 import com.musicnova.app.data.music.YouTubeMusicTrack
-
-private val ShelfBackground = Color(0xFF17141E)
-private val ShelfCardBackground = Color(0xFF211B2B)
-private val ShelfText = Color(0xFFF7F4FA)
-private val ShelfMuted = Color(0xFFAAA4B5)
-private val ShelfAccent = Color(0xFFD1C1EB)
+import com.musicnova.app.ui.feed.cards.*
 
 @Composable
 fun HomeNativeShelves(
@@ -34,69 +22,40 @@ fun HomeNativeShelves(
     onPlay: (YouTubeMusicTrack) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier.fillMaxWidth()
-    ) {
-        shelves.forEachIndexed { index, shelf ->
+    Column(modifier = modifier.fillMaxWidth()) {
+        shelves.forEach { shelf ->
             if (shelf.items.isNotEmpty()) {
+                val tracks = shelf.items
+                    .filterIsInstance<HomeShelfItem.Track>()
+                    .map { it.track }
+
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 25.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(
-                            horizontal = 20.dp
-                        )
-                    ) {
-                        Text(
-                            text = shelf.title,
-                            color = ShelfText,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        shelf.subtitle?.takeIf {
-                            it.isNotBlank()
-                        }?.let {
-                            Spacer(Modifier.height(3.dp))
-                            Text(
-                                text = it,
-                                color = ShelfMuted,
-                                fontSize = 11.sp,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        shelf.strapline?.takeIf {
-                            it.isNotBlank()
-                        }?.let {
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = it,
-                                color = ShelfAccent,
-                                fontSize = 10.sp,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(13.dp))
+                    ShelfHeaderV2(
+                        title = shelf.title,
+                        eyebrow = shelf.strapline,
+                        subtitle = shelf.subtitle,
+                        onShuffle = if (tracks.isNotEmpty()) {
+                            { onPlay(tracks.shuffled().first()) }
+                        } else null
+                    )
 
                     LazyRow(
                         contentPadding = PaddingValues(
                             horizontal = 16.dp
                         ),
-                        horizontalArrangement =
-                            Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(
+                            CardTokens.cardGap
+                        ),
+                        modifier = Modifier.padding(top = 12.dp)
                     ) {
                         items(shelf.items) { item ->
-                            HomeNativeShelfCard(
+                            NativeShelfCard(
                                 item = item,
+                                shelf = shelf,
                                 onPlay = onPlay
                             )
                         }
@@ -108,109 +67,157 @@ fun HomeNativeShelves(
 }
 
 @Composable
-private fun HomeNativeShelfCard(
+private fun NativeShelfCard(
     item: HomeShelfItem,
+    shelf: HomeShelf,
     onPlay: (YouTubeMusicTrack) -> Unit
 ) {
-    val title: String
-    val subtitle: String
-    val artwork: String?
-    val playableTrack: YouTubeMusicTrack?
+    when (selectCardVariant(item, shelf)) {
 
-    when (item) {
-        is HomeShelfItem.Track -> {
-            title = item.track.title
-            subtitle = item.track.artist
-            artwork = item.cardData?.largeArtworkUrl
-                ?: item.track.artworkUrl
-            playableTrack = item.track
-        }
-
-        is HomeShelfItem.Playlist -> {
-            title = item.playlist.title
-            subtitle = item.playlist.author
-                ?: item.playlist.trackCountText
-                ?: "Playlist"
-            artwork = item.cardData?.largeArtworkUrl
-                ?: item.collageArtworkUrls.firstOrNull()
-                ?: item.playlist.artworkUrl
-            playableTrack = item.previewSongs.firstOrNull()
-        }
-
-        is HomeShelfItem.PodcastEpisode -> {
-            title = item.title
-            subtitle = item.showName
-                ?: item.subtitle
-                ?: "Podcast episode"
-            artwork = item.cardData?.largeArtworkUrl
-                ?: item.artworkUrl
-                ?: item.thumbnailUrls.firstOrNull()
-
-            playableTrack = item.videoId.takeIf {
-                it.isNotBlank()
-            }?.let {
-                YouTubeMusicTrack(
-                    videoId = it,
-                    title = item.title,
-                    artist = item.showName
-                        ?: "Podcast",
-                    artworkUrl = artwork,
-                    isArtist = false
+        HomeCardVariant.FEATURED -> {
+            val track = (item as? HomeShelfItem.Track)?.track
+            if (track != null) {
+                ShelfFeaturedCard(
+                    title = track.title,
+                    artist = listOfNotNull(
+                        track.artist.takeIf { it.isNotBlank() },
+                        item.cardData?.playsText
+                    ).joinToString(" • "),
+                    artworkUrl = item.cardData?.largeArtworkUrl
+                        ?: track.artworkUrl,
+                    caption = item.caption,
+                    onClick = { onPlay(track) }
                 )
             }
         }
 
-        is HomeShelfItem.PodcastShow -> {
-            title = item.title
-            subtitle = item.author ?: "Podcast"
-            artwork = item.cardData?.largeArtworkUrl
-                ?: item.artworkUrl
-            playableTrack = null
+        HomeCardVariant.COMMUNITY -> {
+            val playlist = item as HomeShelfItem.Playlist
+            val preview = playlist.previewSongs
+
+            ShelfCommunityPlaylistCard(
+                playlistId = playlist.playlist.id,
+                title = playlist.playlist.title,
+                subtitle = listOfNotNull(
+                    playlist.playlist.author,
+                    item.cardData?.viewsText,
+                    playlist.playlist.trackCountText
+                ).joinToString(" • "),
+                collageUrls = playlist.collageArtworkUrls,
+                songs = preview,
+                artworkUrl = item.cardData?.largeArtworkUrl
+                    ?: playlist.playlist.artworkUrl,
+                onClick = {
+                    preview.firstOrNull()?.let(onPlay)
+                },
+                onPlayClick = {
+                    preview.firstOrNull()?.let(onPlay)
+                },
+                onSongClick = onPlay
+            )
         }
-    }
 
-    Column(
-        modifier = Modifier
-            .width(148.dp)
-            .clip(RoundedCornerShape(19.dp))
-            .background(ShelfBackground)
-            .clickable(
-                enabled = playableTrack != null
-            ) {
-                playableTrack?.let(onPlay)
+        HomeCardVariant.WIDE -> {
+            val title: String
+            val subtitle: String
+            val artwork: String?
+            val playable: YouTubeMusicTrack?
+
+            when (item) {
+                is HomeShelfItem.Track -> {
+                    title = item.track.title
+                    subtitle = item.track.artist
+                    artwork = item.cardData?.largeArtworkUrl
+                        ?: item.track.artworkUrl
+                    playable = item.track
+                }
+
+                is HomeShelfItem.Playlist -> {
+                    title = item.playlist.title
+                    subtitle = item.playlist.author
+                        ?: item.playlist.trackCountText.orEmpty()
+                    artwork = item.cardData?.largeArtworkUrl
+                        ?: item.playlist.artworkUrl
+                    playable = item.previewSongs.firstOrNull()
+                }
+
+                else -> return
             }
-            .padding(9.dp)
-    ) {
-        AsyncImage(
-            model = artwork,
-            contentDescription = title,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(138.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(ShelfCardBackground)
-        )
 
-        Spacer(Modifier.height(9.dp))
+            ShelfWideCard(
+                title = title,
+                infoLine = subtitle,
+                artworkUrl = artwork,
+                onClick = { playable?.let(onPlay) }
+            )
+        }
 
-        Text(
-            text = title,
-            color = ShelfText,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
+        HomeCardVariant.PODCAST_EPISODE -> {
+            val episode = item as HomeShelfItem.PodcastEpisode
 
-        Spacer(Modifier.height(4.dp))
+            val track = YouTubeMusicTrack(
+                videoId = episode.videoId,
+                title = episode.title,
+                artist = episode.showName ?: "Podcast",
+                artworkUrl = episode.cardData?.largeArtworkUrl
+                    ?: episode.artworkUrl
+                    ?: episode.thumbnailUrls.firstOrNull(),
+                isArtist = false
+            )
 
-        Text(
-            text = subtitle,
-            color = ShelfMuted,
-            fontSize = 10.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+            ShelfPodcastEpisodeCard(
+                title = episode.title,
+                infoLine = episode.showName
+                    ?: episode.subtitle.orEmpty(),
+                artworkUrl = track.artworkUrl,
+                durationText = episode.durationText,
+                progressPercentage = episode.progressFraction,
+                onClick = { onPlay(track) }
+            )
+        }
+
+        HomeCardVariant.SQUARE -> {
+            val title: String
+            val subtitle: String
+            val artwork: String?
+            val playable: YouTubeMusicTrack?
+
+            when (item) {
+                is HomeShelfItem.Track -> {
+                    title = item.track.title
+                    subtitle = item.track.artist
+                    artwork = item.cardData?.largeArtworkUrl
+                        ?: item.track.artworkUrl
+                    playable = item.track
+                }
+
+                is HomeShelfItem.Playlist -> {
+                    title = item.playlist.title
+                    subtitle = item.playlist.author
+                        ?: item.playlist.trackCountText.orEmpty()
+                    artwork = item.cardData?.largeArtworkUrl
+                        ?: item.collageArtworkUrls.firstOrNull()
+                        ?: item.playlist.artworkUrl
+                    playable = item.previewSongs.firstOrNull()
+                }
+
+                is HomeShelfItem.PodcastShow -> {
+                    title = item.title
+                    subtitle = item.author ?: "Podcast"
+                    artwork = item.cardData?.largeArtworkUrl
+                        ?: item.artworkUrl
+                    playable = null
+                }
+
+                is HomeShelfItem.PodcastEpisode -> return
+            }
+
+            ShelfSquareCard(
+                title = title,
+                infoLine = subtitle,
+                artworkUrl = artwork,
+                onClick = { playable?.let(onPlay) }
+            )
+        }
     }
 }
