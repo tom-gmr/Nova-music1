@@ -32,7 +32,7 @@ private fun rememberShimmerPulse(): Float {
     )
     return pulse
 }
-
+@Composable
 private fun Modifier.shimmer(pulse: Float, radius: Dp): Modifier =
     clip(RoundedCornerShape(radius))
         .background(
