@@ -1,7 +1,9 @@
+
 package com.musicnova.app.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.musicnova.app.data.music.HomePage
 import com.musicnova.app.data.music.LibraryTrack
 import com.musicnova.app.data.music.MusicRepository
 import com.musicnova.app.data.music.YouTubeMusicTrack
@@ -20,6 +22,7 @@ data class MusicUiState(
     val trending: List<YouTubeMusicTrack> = emptyList(),
     val recentlyPlayed: List<LibraryTrack> = emptyList(),
     val likedCount: Int = 0,
+    val nativeHomePage: HomePage? = null,
     val searchResults: List<YouTubeMusicTrack> = emptyList(),
     val searchError: String? = null,
     val error: String? = null
@@ -53,6 +56,7 @@ class MusicViewModel @Inject constructor(
                     trending = data.trending,
                     recentlyPlayed = data.recentlyPlayed,
                     likedCount = data.likedCount,
+                    nativeHomePage = data.nativeHomePage,
                     error = null
                 )
             } catch (e: CancellationException) {
@@ -115,6 +119,7 @@ class MusicViewModel @Inject constructor(
                         trending = data.trending,
                         recentlyPlayed = data.recentlyPlayed,
                         likedCount = data.likedCount,
+                        nativeHomePage = data.nativeHomePage,
                         error = null
                     )
                 } catch (e: CancellationException) {
