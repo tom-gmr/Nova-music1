@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.musicnova.app.data.music.YouTubeMusicTrack
+import androidx.compose.ui.graphics.compositeOver
 
 @Composable
 fun ShelfCommunityPlaylistCard(
@@ -56,7 +57,7 @@ fun ShelfCommunityPlaylistCard(
     val background by animateColorAsState(
         targetValue = MaterialTheme.colorScheme.primary
             .copy(alpha = 0.10f)
-            .let { tint -> androidx.compose.ui.graphics.compositeOver(tint, defaultSurface) },
+            .let { tint -> tint.compositeOver(defaultSurface) },
         animationSpec = tween(300),
         label = "communityPlaylistTint"
     )
