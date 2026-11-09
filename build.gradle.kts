@@ -5,3 +5,10 @@ plugins {
     id("com.google.devtools.ksp") version "2.3.10" apply false
     id("com.google.dagger.hilt.android") version "2.59.2" apply false
 }
+subprojects {
+    configurations.configureEach {
+        resolutionStrategy {
+            force("org.jetbrains.kotlin:kotlin-metadata-jvm:2.4.0")
+        }
+    }
+}
