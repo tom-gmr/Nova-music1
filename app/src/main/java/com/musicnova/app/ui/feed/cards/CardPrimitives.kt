@@ -36,6 +36,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material3.Icon
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -97,12 +100,23 @@ internal fun CardArtwork(
                 .fillMaxSize()
                 .clip(RoundedCornerShape(cornerRadius))
         ) {
-            AsyncImage(
-                model = artworkUrl,
-                contentDescription = "$title by $subtitle",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+            if (artworkUrl.isNullOrBlank()) {
+                Icon(
+                    imageVector = Icons.Filled.MusicNote,
+                    contentDescription = "$title by $subtitle",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp)
+                )
+            } else {
+                AsyncImage(
+                    model = artworkUrl,
+                    contentDescription = "$title by $subtitle",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
     }
 }
