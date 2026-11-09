@@ -167,7 +167,7 @@ fun NovaFullPlayerScreen(
     state: PlaybackState,
     musicPlayer: MusicPlayer,
     onClose: () -> Unit,
-    onStop: () -> Unit
+    onStop: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit
 ) {
