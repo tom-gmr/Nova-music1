@@ -66,10 +66,9 @@ class MusicRepository @Inject constructor(
     }
 
     suspend fun searchSongs(
-        query: String
-    ): List<YouTubeMusicTrack> {
-        return musicApi.searchSongs(query)
-            .filterNot { it.isArtist || it.videoId.isBlank() }
+    query: String
+): List<YouTubeMusicTrack> {
+    return musicApi.searchSongs(query)
     }
 
     fun toggleLike(track: YouTubeMusicTrack): Boolean {
