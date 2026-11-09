@@ -1,4 +1,3 @@
-
 package com.musicnova.app.ui.feed
 
 import androidx.compose.foundation.layout.Arrangement
@@ -9,10 +8,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.musicnova.app.data.music.HomeShelf
 import com.musicnova.app.data.music.HomeShelfItem
+import com.musicnova.app.data.music.PlaylistPreviewState
 import com.musicnova.app.data.music.YouTubeMusicTrack
 import com.musicnova.app.ui.feed.cards.*
 
@@ -20,7 +26,8 @@ import com.musicnova.app.ui.feed.cards.*
 fun HomeNativeShelves(
     shelves: List<HomeShelf>,
     onPlay: (YouTubeMusicTrack) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    previewViewModel: PlaylistPreviewViewModel = hiltViewModel()
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         shelves.forEach { shelf ->
@@ -52,11 +59,29 @@ fun HomeNativeShelves(
                         ),
                         modifier = Modifier.padding(top = 12.dp)
                     ) {
-                        items(shelf.items) { item ->
+                        items(
+                            items = shelf.items,
+                            key = { item ->
+                                when (item) {
+                                    is HomeShelfItem.Track ->
+                                        "track_${item.track.videoId}"
+
+                                    is HomeShelfItem.Playlist ->
+                                        "playlist_${item.playlist.id}"
+
+                                    is HomeShelfItem.PodcastEpisode ->
+                                        "episode_${item.videoId}"
+
+                                    is HomeShelfItem.PodcastShow ->
+                                        "show_${item.title}"
+                                }
+                            }
+                        ) { item ->
                             NativeShelfCard(
                                 item = item,
                                 shelf = shelf,
-                                onPlay = onPlay
+                                onPlay = onPlay,
+                                previewViewModel = previewViewModel
                             )
                         }
                     }
@@ -70,12 +95,14 @@ fun HomeNativeShelves(
 private fun NativeShelfCard(
     item: HomeShelfItem,
     shelf: HomeShelf,
-    onPlay: (YouTubeMusicTrack) -> Unit
+    onPlay: (YouTubeMusicTrack) -> Unit,
+    previewViewModel: PlaylistPreviewViewModel
 ) {
     when (selectCardVariant(item, shelf)) {
 
         HomeCardVariant.FEATURED -> {
             val track = (item as? HomeShelfItem.Track)?.track
+
             if (track != null) {
                 ShelfFeaturedCard(
                     title = track.title,
@@ -93,27 +120,61 @@ private fun NativeShelfCard(
 
         HomeCardVariant.COMMUNITY -> {
             val playlist = item as HomeShelfItem.Playlist
-            val preview = playlist.previewSongs
+            val playlistId = playlist.playlist.id
+
+            var previewState by remember(playlistId) {
+                mutableStateOf<PlaylistPreviewState>(
+                    PlaylistPreviewState.Loading
+                )
+            }
+
+            LaunchedEffect(playlistId) {
+                previewViewModel.load(playlistId).collect { state ->
+                    previewState = state
+                }
+            }
+
+            val readyPreview =
+                (previewState as? PlaylistPreviewState.Ready)?.preview
+
+            val previewSongs = readyPreview?.songs
+                ?: playlist.previewSongs
+
+            val collageUrls = readyPreview?.collageArtworkUrls
+                ?.takeIf { it.isNotEmpty() }
+                ?: playlist.collageArtworkUrls
+
+            val previewLoading =
+                previewState is PlaylistPreviewState.Loading
+
+            val previewFailed =
+                previewState is PlaylistPreviewState.Failed
 
             ShelfCommunityPlaylistCard(
-                playlistId = playlist.playlist.id,
-                title = playlist.playlist.title,
+                playlistId = playlistId,
+                title = readyPreview?.title
+                    ?: playlist.playlist.title,
                 subtitle = listOfNotNull(
                     playlist.playlist.author,
-                    item.cardData?.viewsText,
+                    readyPreview?.songCount?.let { "$it songs" }
+                        ?: item.cardData?.viewsText,
                     playlist.playlist.trackCountText
                 ).joinToString(" • "),
-                collageUrls = playlist.collageArtworkUrls,
-                songs = preview,
+                collageUrls = collageUrls,
+                songs = previewSongs,
                 artworkUrl = item.cardData?.largeArtworkUrl
                     ?: playlist.playlist.artworkUrl,
                 onClick = {
-                    preview.firstOrNull()?.let(onPlay)
+                    previewSongs.firstOrNull()?.let(onPlay)
                 },
                 onPlayClick = {
-                    preview.firstOrNull()?.let(onPlay)
+                    previewSongs.firstOrNull()?.let(onPlay)
                 },
-                onSongClick = onPlay
+                onSongClick = onPlay,
+                isLoading = previewLoading,
+                previewFailed = previewFailed,
+                songPlayCounts = readyPreview?.songPlayCounts
+                    ?: emptyMap()
             )
         }
 
