@@ -1,5 +1,7 @@
+
 package com.musicnova.app.ui.feed
 
+import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.rememberSnapFlingBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -27,7 +30,6 @@ import com.musicnova.app.data.music.HomeShelfItem
 import com.musicnova.app.data.music.PlaylistPreviewState
 import com.musicnova.app.data.music.YouTubeMusicTrack
 import com.musicnova.app.ui.feed.cards.*
-import kotlinx.coroutines.flow.collect
 
 @Composable
 fun HomeNativeShelves(
@@ -61,7 +63,15 @@ fun HomeNativeShelves(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         val rowState = rememberLazyListState()
+                        val flingBehavior = rememberSnapFlingBehavior(
+                            lazyListState = rowState,
+                            snapPosition = SnapPosition.Start
+                        )
                         val view = LocalView.current
+                        val cardWidth = largeShelfCardWidth(maxWidth)
+                        val stableKeys = remember(shelf.items) {
+                            stableShelfCardKeys(shelf.items)
+                        }
 
                         var rowVisible by remember {
                             mutableStateOf(false)
@@ -69,6 +79,7 @@ fun HomeNativeShelves(
 
                         LazyRow(
                             state = rowState,
+                            flingBehavior = flingBehavior,
                             contentPadding = PaddingValues(
                                 horizontal = 16.dp
                             ),
@@ -89,21 +100,7 @@ fun HomeNativeShelves(
                         ) {
                             itemsIndexed(
                                 items = shelf.items,
-                                key = { index, item ->
-                                    when (item) {
-                                        is HomeShelfItem.Track ->
-                                            "track_${item.track.videoId}_$index"
-
-                                        is HomeShelfItem.Playlist ->
-                                            "playlist_${item.playlist.id}_$index"
-
-                                        is HomeShelfItem.PodcastEpisode ->
-                                            "episode_${item.videoId}_$index"
-
-                                        is HomeShelfItem.PodcastShow ->
-                                            "show_${item.browseId}_$index"
-                                    }
-                                }
+                                key = { index, _ -> stableKeys[index] }
                             ) { index, item ->
 
                                 val isVisible by remember(index) {
@@ -120,7 +117,8 @@ fun HomeNativeShelves(
                                     shelf = shelf,
                                     onPlay = onPlay,
                                     previewViewModel = previewViewModel,
-                                    isVisible = isVisible
+                                    isVisible = isVisible,
+                                    cardWidth = cardWidth
                                 )
                             }
                         }
@@ -137,7 +135,8 @@ private fun NativeShelfCard(
     shelf: HomeShelf,
     onPlay: (YouTubeMusicTrack) -> Unit,
     previewViewModel: PlaylistPreviewViewModel,
-    isVisible: Boolean
+    isVisible: Boolean,
+    cardWidth: androidx.compose.ui.unit.Dp
 ) {
     when (selectCardVariant(item, shelf)) {
 
@@ -154,7 +153,9 @@ private fun NativeShelfCard(
                     artworkUrl = item.cardData?.largeArtworkUrl
                         ?: track.artworkUrl,
                     caption = item.caption,
-                    onClick = { onPlay(track) }
+                    onClick = { onPlay(track) },
+                    cardWidth = cardWidth,
+                    isVisible = isVisible
                 )
             }
         }
@@ -219,7 +220,8 @@ private fun NativeShelfCard(
                 isLoading = previewLoading,
                 previewFailed = previewFailed,
                 songPlayCounts = readyPreview?.songPlayCounts
-                    ?: emptyMap()
+                    ?: emptyMap(),
+                cardWidth = cardWidth
             )
         }
 
