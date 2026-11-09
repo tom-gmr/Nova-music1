@@ -93,7 +93,11 @@ class MusicRepository @Inject constructor(
     ): List<YouTubeMusicTrack> {
         return musicApi.searchSongs(query)
     }
-
+suspend fun fetchPlaylistPreview(
+    playlistId: String
+): PlaylistPreview? {
+    return musicApi.fetchPlaylistPreview(playlistId)
+}
     fun toggleLike(track: YouTubeMusicTrack): Boolean {
         return libraryStore.toggleLike(
             LibraryTrack(
