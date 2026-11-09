@@ -5,6 +5,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <application
+        android:name=".MusicNovaApplication"
         android:allowBackup="true"
         android:label="Music Nova"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
