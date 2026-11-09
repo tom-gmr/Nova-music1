@@ -15,11 +15,13 @@ import kotlinx.coroutines.launch
 
 data class MusicUiState(
     val isLoading: Boolean = false,
+    val isSearching: Boolean = false,
     val recommendations: List<YouTubeMusicTrack> = emptyList(),
     val trending: List<YouTubeMusicTrack> = emptyList(),
     val recentlyPlayed: List<LibraryTrack> = emptyList(),
     val likedCount: Int = 0,
     val searchResults: List<YouTubeMusicTrack> = emptyList(),
+    val searchError: String? = null,
     val error: String? = null
 )
 
@@ -67,50 +69,66 @@ class MusicViewModel @Inject constructor(
     fun searchSongs(query: String) {
         if (query.isBlank()) {
             _uiState.value = _uiState.value.copy(
-                searchResults = emptyList()
+                searchResults = emptyList(),
+                searchError = null,
+                isSearching = false
             )
             return
         }
 
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isSearching = true,
+                searchError = null,
+                searchResults = emptyList()
+            )
+
             try {
-                val results = repository.searchSongs(query)
+                val results = repository.searchSongs(query.trim())
 
                 _uiState.value = _uiState.value.copy(
+                    isSearching = false,
                     searchResults = results,
-                    error = null
+                    searchError = null
                 )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
-                    error = e.message ?: "Search failed"
+                    isSearching = false,
+                    searchError = e.message ?: "Search failed. Try again."
                 )
             }
         }
     }
 
     fun toggleLike(track: YouTubeMusicTrack) {
-        viewModelScope.launch {
-            try {
-                repository.toggleLike(track)
+        try {
+            repository.toggleLike(track)
 
-                val data = repository.loadHomeMusic()
+            viewModelScope.launch {
+                try {
+                    val data = repository.loadHomeMusic()
 
-                _uiState.value = _uiState.value.copy(
-                    recommendations = data.recommendations,
-                    trending = data.trending,
-                    recentlyPlayed = data.recentlyPlayed,
-                    likedCount = data.likedCount,
-                    error = null
-                )
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    error = e.message ?: "Unable to update liked songs"
-                )
+                    _uiState.value = _uiState.value.copy(
+                        recommendations = data.recommendations,
+                        trending = data.trending,
+                        recentlyPlayed = data.recentlyPlayed,
+                        likedCount = data.likedCount,
+                        error = null
+                    )
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    _uiState.value = _uiState.value.copy(
+                        error = e.message ?: "Unable to refresh music"
+                    )
+                }
             }
+        } catch (e: Exception) {
+            _uiState.value = _uiState.value.copy(
+                error = e.message ?: "Unable to update liked songs"
+            )
         }
     }
 
