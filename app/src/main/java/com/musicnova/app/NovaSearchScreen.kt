@@ -341,59 +341,58 @@ fun NovaFullPlayerScreen(
             }
 
             Spacer(Modifier.height(25.dp))
+         Row(
+    modifier = Modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.Center,
+    verticalAlignment = Alignment.CenterVertically
+) {
+    IconButton(
+        onClick = onPrevious,
+        modifier = Modifier.size(58.dp)
+    ) {
+        Icon(
+            Icons.Default.SkipPrevious,
+            contentDescription = "Previous track",
+            tint = PlayerLavender,
+            modifier = Modifier.size(34.dp)
+        )
+    }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = { musicPlayer.seekTo(0L) },
-                    modifier = Modifier.size(52.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Replay,
-                        contentDescription = "Restart",
-                        tint = PlayerMuted,
-                        modifier = Modifier.size(27.dp)
-                    )
-                }
+    Spacer(Modifier.width(24.dp))
 
-                Spacer(Modifier.width(35.dp))
+    Surface(
+        onClick = { musicPlayer.togglePlayPause() },
+        modifier = Modifier.size(76.dp),
+        shape = CircleShape,
+        color = PlayerPurple,
+        contentColor = Color.White
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = if (state.isPlaying)
+                    Icons.Default.Pause
+                else
+                    Icons.Default.PlayArrow,
+                contentDescription = "Play or pause",
+                modifier = Modifier.size(40.dp)
+            )
+        }
+    }
 
-                Surface(
-                    onClick = { musicPlayer.togglePlayPause() },
-                    modifier = Modifier.size(76.dp),
-                    shape = CircleShape,
-                    color = PlayerPurple,
-                    contentColor = Color.White
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = if (state.isPlaying)
-                                Icons.Default.Pause
-                            else
-                                Icons.Default.PlayArrow,
-                            contentDescription = "Play or pause",
-                            modifier = Modifier.size(40.dp)
-                        )
-                    }
-                }
+    Spacer(Modifier.width(24.dp))
 
-                Spacer(Modifier.width(35.dp))
-
-                IconButton(
-                    onClick = onStop,
-                    modifier = Modifier.size(52.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Stop,
-                        contentDescription = "Stop",
-                        tint = PlayerMuted,
-                        modifier = Modifier.size(27.dp)
-                    )
-                }
-            }
+    IconButton(
+        onClick = onNext,
+        modifier = Modifier.size(58.dp)
+    ) {
+        Icon(
+            Icons.Default.SkipNext,
+            contentDescription = "Next track",
+            tint = PlayerLavender,
+            modifier = Modifier.size(34.dp)
+        )
+    }
+         }
 
             Spacer(Modifier.weight(0.7f))
 
