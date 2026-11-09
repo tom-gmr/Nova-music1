@@ -186,6 +186,20 @@ fun playQueue(
 
     playTrack(selectedTrack)
 }
+fun playNextTrack() {
+    val nextTrack = playbackQueue.next() ?: return
+
+    playbackQueue.peekNext()?.let { track ->
+        streamExtraction.prefetch(track.videoId)
+    }
+
+    playTrack(nextTrack)
+}
+
+fun playPreviousTrack() {
+    val previousTrack = playbackQueue.previous() ?: return
+    playTrack(previousTrack)
+}
 NovaTheme {
         Box(
             modifier = Modifier
