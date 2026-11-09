@@ -39,7 +39,6 @@ private val NovaLavender = Color(0xFFC9B9E5)
 private val NovaMuted = Color(0xFFAAA4B5)
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
