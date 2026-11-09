@@ -221,7 +221,64 @@ class InnerTubeMusicApi {
             HomeFeedParser.parseHomePage(root)
         }
         
+/** 
 /**
+ * Fetches a YouTube Music browse page using its browse ID.
+ */
+suspend fun fetchBrowsePage(
+    browseId: String
+): HomePage = withContext(Dispatchers.IO) {
+
+    val id = browseId.trim()
+    require(id.isNotBlank()) {
+        "Browse ID cannot be empty"
+    }
+
+    val config = getWebConfig()
+
+    val client = JSONObject()
+        .put("clientName", "WEB_REMIX")
+        .put("clientVersion", config.clientVersion)
+        .put("hl", "en")
+        .put("gl", "IN")
+
+    val context = JSONObject()
+        .put("client", client)
+
+    val body = JSONObject()
+        .put("context", context)
+        .put("browseId", id)
+        .toString()
+
+    val request = Request.Builder()
+        .url("$musicUrl/youtubei/v1/browse?key=${config.apiKey}")
+        .post(
+            body.toRequestBody(
+                "application/json".toMediaType()
+            )
+        )
+        .header("User-Agent", USER_AGENT)
+        .header("Origin", musicUrl)
+        .header("Referer", "$musicUrl/")
+        .header("Content-Type", "application/json")
+        .header("X-YouTube-Client-Name", "67")
+        .header("X-YouTube-Client-Version", config.clientVersion)
+        .build()
+
+    val root = http.newCall(request).execute().use { response ->
+        if (!response.isSuccessful) {
+            error("YouTube Music browse failed: ${response.code}")
+        }
+
+        JSONObject(
+            response.body?.string()
+                ?: error("Empty browse response")
+        )
+    }
+
+    HomeFeedParser.parseHomePage(root)
+}
+
  * Fetches the first page of a YouTube Music playlist for card previews.
  * Does not fetch continuations or alter playback state.
  */
