@@ -7,25 +7,28 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 
 /**
- * LastWave-style square artwork card.
- * Used for songs, albums and playlists.
+ * LastWave-style wide 16:9 artwork card.
  */
 @Composable
-fun ShelfSquareCard(
+fun ShelfWideCard(
     title: String,
     infoLine: String,
     artworkUrl: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
-    cardWidth: Dp = rememberSquareCardWidth(),
+    fallbackIcon: ImageVector = Icons.Filled.PlayCircle,
+    cardWidth: Dp = rememberWideCardWidth(),
 ) {
-    val coverHeight = cardWidth
+    val coverHeight = rememberCoverHeight()
 
     Column(
         modifier = modifier
@@ -45,6 +48,7 @@ fun ShelfSquareCard(
                 subtitle = infoLine,
                 artworkUrl = artworkUrl,
                 modifier = Modifier.fillMaxSize(),
+                cornerRadius = CardTokens.coverCornerRadius,
             )
         }
 
