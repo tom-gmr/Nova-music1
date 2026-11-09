@@ -168,6 +168,8 @@ fun NovaFullPlayerScreen(
     musicPlayer: MusicPlayer,
     onClose: () -> Unit,
     onStop: () -> Unit
+    onNext: () -> Unit,
+    onPrevious: () -> Unit
 ) {
     var currentPosition by remember {
         mutableFloatStateOf(0f)
