@@ -36,6 +36,7 @@ fun HomeNativeShelves(
     shelves: List<HomeShelf>,
     onPlay: (YouTubeMusicTrack) -> Unit,
     modifier: Modifier = Modifier,
+    onBrowse: (String) -> Unit = {},
     previewViewModel: PlaylistPreviewViewModel = hiltViewModel()
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -44,6 +45,9 @@ fun HomeNativeShelves(
                 val tracks = shelf.items
                     .filterIsInstance<HomeShelfItem.Track>()
                     .map { it.track }
+
+                val browseId = shelf.moreBrowseId
+                    ?.takeIf { it.isNotBlank() }
 
                 Column(
                     modifier = Modifier
@@ -54,6 +58,10 @@ fun HomeNativeShelves(
                         title = shelf.title,
                         eyebrow = shelf.strapline,
                         subtitle = shelf.subtitle,
+                        showMore = browseId != null,
+                        onMoreClick = browseId?.let {
+                            { onBrowse(it) }
+                        },
                         onShuffle = if (tracks.isNotEmpty()) {
                             { onPlay(tracks.shuffled().first()) }
                         } else null
@@ -90,19 +98,17 @@ fun HomeNativeShelves(
                                 .padding(top = 12.dp)
                                 .onGloballyPositioned {
                                     val bounds = it.boundsInWindow()
-
                                     rowVisible =
                                         bounds.height > 0f &&
-                                        bounds.width > 0f &&
-                                        bounds.bottom > 0f &&
-                                        bounds.top < view.height
+                                            bounds.width > 0f &&
+                                            bounds.bottom > 0f &&
+                                            bounds.top < view.height
                                 }
                         ) {
                             itemsIndexed(
                                 items = shelf.items,
                                 key = { index, _ -> stableKeys[index] }
                             ) { index, item ->
-
                                 val isVisible by remember(index) {
                                     derivedStateOf {
                                         rowVisible &&
