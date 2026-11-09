@@ -18,13 +18,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.musicnova.app.data.music.*
-import kotlinx.coroutines.launch
+import com.musicnova.app.ui.home.MusicViewModel
 
 private val SearchBg = Color(0xFF09080E)
 private val SearchCard = Color(0xFF1B1722)
@@ -38,25 +39,26 @@ fun NovaSearchScreen(
     onPlayQueue: (
         tracks: List<YouTubeMusicTrack>,
         selectedTrack: YouTubeMusicTrack
-    ) -> Unit
-){
-    val api = remember { InnerTubeMusicApi() }
-    val scope = rememberCoroutineScope()
+    ) -> Unit,
+    viewModel: MusicViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    val results = uiState.searchResults
+    val loading = uiState.isSearching
+    val errorMessage = uiState.searchError
 
     var query by remember { mutableStateOf("") }
-    var results by remember {
-        mutableStateOf<List<YouTubeMusicTrack>>(emptyList())
-    }
-    var loading by remember { mutableStateOf(false) }
     var searched by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     var selectedTrack by remember {
         mutableStateOf<YouTubeMusicTrack?>(null)
     }
+
     var showPlaylistDialog by remember {
         mutableStateOf(false)
     }
+
     var refreshKey by remember { mutableIntStateOf(0) }
 
     val playlists = remember(refreshKey) {
@@ -66,20 +68,8 @@ fun NovaSearchScreen(
     fun searchMusic() {
         if (query.isBlank() || loading) return
 
-        scope.launch {
-            loading = true
-            searched = true
-            errorMessage = null
-            results = emptyList()
-
-            try {
-                results = api.searchSongs(query.trim(), 30)
-            } catch (e: Exception) {
-                errorMessage = e.message ?: "Search failed. Try again."
-            } finally {
-                loading = false
-            }
-        }
+        searched = true
+        viewModel.searchSongs(query.trim())
     }
 
     Column(
@@ -120,7 +110,10 @@ fun NovaSearchScreen(
             onValueChange = { query = it },
             modifier = Modifier.fillMaxWidth(),
             placeholder = {
-                Text("Songs, artists, albums...", color = SearchMuted)
+                Text(
+                    "Songs, artists, albums...",
+                    color = SearchMuted
+                )
             },
             leadingIcon = {
                 Icon(
@@ -131,7 +124,9 @@ fun NovaSearchScreen(
             },
             trailingIcon = {
                 if (query.isNotEmpty()) {
-                    IconButton(onClick = { query = "" }) {
+                    IconButton(
+                        onClick = { query = "" }
+                    ) {
                         Icon(
                             Icons.Default.Close,
                             contentDescription = "Clear",
@@ -174,9 +169,15 @@ fun NovaSearchScreen(
                 disabledContainerColor = Color(0xFF28232E)
             )
         ) {
-            Icon(Icons.Default.Search, contentDescription = null)
+            Icon(
+                Icons.Default.Search,
+                contentDescription = null
+            )
             Spacer(Modifier.width(8.dp))
-            Text("Search Music", fontWeight = FontWeight.SemiBold)
+            Text(
+                "Search Music",
+                fontWeight = FontWeight.SemiBold
+            )
         }
 
         Spacer(Modifier.height(18.dp))
@@ -188,11 +189,15 @@ fun NovaSearchScreen(
                     .padding(top = 45.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     CircularProgressIndicator(
                         color = SearchAccent
                     )
+
                     Spacer(Modifier.height(12.dp))
+
                     Text(
                         "Finding your music...",
                         color = SearchMuted,
@@ -203,7 +208,7 @@ fun NovaSearchScreen(
         } else if (errorMessage != null) {
             SearchMessage(
                 title = "Something went wrong",
-                subtitle = errorMessage ?: "Please try again."
+                subtitle = errorMessage
             )
         } else if (results.isNotEmpty()) {
             Row(
@@ -218,7 +223,9 @@ fun NovaSearchScreen(
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
                 )
+
                 Spacer(Modifier.weight(1f))
+
                 Text(
                     "${results.size} found",
                     color = SearchMuted,
@@ -230,31 +237,44 @@ fun NovaSearchScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(bottom = 24.dp)
             ) {
-                items(results, key = {
-                    if (it.isArtist) "artist_${it.title}"
-                    else it.videoId
-                }) { track ->
+                items(
+                    results,
+                    key = {
+                        if (it.isArtist) {
+                            "artist_${it.title}"
+                        } else {
+                            it.videoId
+                        }
+                    }
+                ) { track ->
+
                     SearchSongCard(
                         track = track,
                         isLiked = !track.isArtist &&
                             libraryStore.isLiked(track.videoId),
                         onPlay = {
-               if (!track.isArtist) {
-              val queueTracks = results.filter {
-            !it.isArtist && it.videoId.isNotBlank()
-        }
-        onPlayQueue(queueTracks, track)
-    }
-},
+                            if (!track.isArtist) {
+                                val queueTracks = results.filter {
+                                    !it.isArtist &&
+                                        it.videoId.isNotBlank()
+                                }
+
+                                onPlayQueue(queueTracks, track)
+                            }
+                        },
                         onLike = {
                             if (!track.isArtist) {
-                                libraryStore.toggleLike(track.toSearchLibraryTrack())
+                                libraryStore.toggleLike(
+                                    track.toSearchLibraryTrack()
+                                )
                                 refreshKey++
                             }
                         },
                         onPlaylist = {
-                            selectedTrack = track
-                            showPlaylistDialog = true
+                            if (!track.isArtist) {
+                                selectedTrack = track
+                                showPlaylistDialog = true
+                            }
                         }
                     )
                 }
@@ -274,9 +294,14 @@ fun NovaSearchScreen(
 
     if (showPlaylistDialog && selectedTrack != null) {
         AlertDialog(
-            onDismissRequest = { showPlaylistDialog = false },
+            onDismissRequest = {
+                showPlaylistDialog = false
+            },
             title = {
-                Text("Add to Playlist", color = Color.White)
+                Text(
+                    "Add to Playlist",
+                    color = Color.White
+                )
             },
             text = {
                 if (playlists.isEmpty()) {
@@ -289,10 +314,12 @@ fun NovaSearchScreen(
                         playlists.forEach { playlist ->
                             TextButton(
                                 onClick = {
-                                    val added = libraryStore.addToPlaylist(
+                                    libraryStore.addToPlaylist(
                                         playlist.name,
                                         selectedTrack!!.toSearchLibraryTrack()
                                     )
+
+                                    refreshKey++
                                     showPlaylistDialog = false
                                 },
                                 modifier = Modifier.fillMaxWidth()
@@ -307,10 +334,15 @@ fun NovaSearchScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    showPlaylistDialog = false
-                }) {
-                    Text("Close", color = SearchAccent)
+                TextButton(
+                    onClick = {
+                        showPlaylistDialog = false
+                    }
+                ) {
+                    Text(
+                        "Close",
+                        color = SearchAccent
+                    )
                 }
             },
             containerColor = SearchCard
@@ -331,7 +363,9 @@ private fun SearchSongCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(17.dp))
             .background(SearchCard)
-            .clickable(enabled = !track.isArtist) { onPlay() }
+            .clickable(enabled = !track.isArtist) {
+                onPlay()
+            }
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -347,7 +381,9 @@ private fun SearchSongCard(
 
         Spacer(Modifier.width(11.dp))
 
-        Column(Modifier.weight(1f)) {
+        Column(
+            Modifier.weight(1f)
+        ) {
             Text(
                 track.title,
                 color = Color.White,
@@ -355,7 +391,9 @@ private fun SearchSongCard(
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1
             )
+
             Spacer(Modifier.height(4.dp))
+
             Text(
                 if (track.isArtist) "Artist" else track.artist,
                 color = SearchMuted,
@@ -367,10 +405,17 @@ private fun SearchSongCard(
         if (!track.isArtist) {
             IconButton(onClick = onLike) {
                 Icon(
-                    if (isLiked) Icons.Default.Favorite
-                    else Icons.Default.FavoriteBorder,
+                    if (isLiked) {
+                        Icons.Default.Favorite
+                    } else {
+                        Icons.Default.FavoriteBorder
+                    },
                     contentDescription = "Like",
-                    tint = if (isLiked) SearchAccent else SearchMuted
+                    tint = if (isLiked) {
+                        SearchAccent
+                    } else {
+                        SearchMuted
+                    }
                 )
             }
 
@@ -412,14 +457,18 @@ private fun SearchMessage(
             tint = SearchAccent,
             modifier = Modifier.size(36.dp)
         )
+
         Spacer(Modifier.height(10.dp))
+
         Text(
             title,
             color = Color.White,
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold
         )
+
         Spacer(Modifier.height(5.dp))
+
         Text(
             subtitle,
             color = SearchMuted,
