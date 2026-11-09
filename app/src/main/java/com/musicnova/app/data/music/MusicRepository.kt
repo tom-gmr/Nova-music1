@@ -23,7 +23,6 @@ class MusicRepository @Inject constructor(
         val recent = libraryStore.getRecentlyPlayed()
         val liked = libraryStore.getLikedSongs()
 
-        // Load the native YouTube Music Home feed.
         val nativeHomePage = try {
             musicApi.fetchHomePage()
         } catch (e: CancellationException) {
@@ -63,8 +62,8 @@ class MusicRepository @Inject constructor(
         val recommendations = found
             .filterNot {
                 it.isArtist ||
-                it.videoId.isBlank() ||
-                it.videoId in excluded
+                    it.videoId.isBlank() ||
+                    it.videoId in excluded
             }
             .distinctBy { it.videoId }
             .take(15)
@@ -93,11 +92,19 @@ class MusicRepository @Inject constructor(
     ): List<YouTubeMusicTrack> {
         return musicApi.searchSongs(query)
     }
-suspend fun fetchPlaylistPreview(
-    playlistId: String
-): PlaylistPreview? {
-    return musicApi.fetchPlaylistPreview(playlistId)
-}
+
+    suspend fun fetchBrowsePage(
+        browseId: String
+    ): HomePage {
+        return musicApi.fetchBrowsePage(browseId)
+    }
+
+    suspend fun fetchPlaylistPreview(
+        playlistId: String
+    ): PlaylistPreview? {
+        return musicApi.fetchPlaylistPreview(playlistId)
+    }
+
     fun toggleLike(track: YouTubeMusicTrack): Boolean {
         return libraryStore.toggleLike(
             LibraryTrack(
