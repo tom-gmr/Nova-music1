@@ -1,3 +1,4 @@
+
 package com.musicnova.app
 
 import androidx.compose.foundation.background
@@ -34,7 +35,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.musicnova.app.data.music.LibraryTrack
 import com.musicnova.app.data.music.YouTubeMusicTrack
 import com.musicnova.app.ui.home.MusicViewModel
 import com.musicnova.app.ui.feed.HomeNativeShelves
@@ -50,6 +50,7 @@ private val HomeBorder = Color(0xFF393044)
 @Composable
 fun RecommendationsHomeScreen(
     onPlay: (YouTubeMusicTrack) -> Unit,
+    onBrowse: (String) -> Unit = {},
     viewModel: MusicViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -147,20 +148,23 @@ fun RecommendationsHomeScreen(
                 )
             }
         }
-      item(key = "native_home_shelves") {
-    val nativeShelves = uiState.nativeHomePage?.shelves
-        ?: emptyList()
 
-    if (nativeShelves.isNotEmpty()) {
-        HomeNativeShelves(
-            shelves = nativeShelves,
-            onPlay = { track ->
-                onPlay(track)
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-      }
+        item(key = "native_home_shelves") {
+            val nativeShelves = uiState.nativeHomePage?.shelves
+                ?: emptyList()
+
+            if (nativeShelves.isNotEmpty()) {
+                HomeNativeShelves(
+                    shelves = nativeShelves,
+                    onPlay = { track ->
+                        onPlay(track)
+                    },
+                    onBrowse = onBrowse,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
         item(key = "stats") {
             Row(
                 Modifier
@@ -594,6 +598,7 @@ private fun HomeQuickCard(
 
         Spacer(Modifier.width(9.dp))
 
+        
         Column(Modifier.weight(1f)) {
             Text(
                 title,
