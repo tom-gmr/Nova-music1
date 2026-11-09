@@ -37,6 +37,7 @@ import coil.compose.AsyncImage
 import com.musicnova.app.data.music.LibraryTrack
 import com.musicnova.app.data.music.YouTubeMusicTrack
 import com.musicnova.app.ui.home.MusicViewModel
+import com.musicnova.app.ui.feed.HomeNativeShelves
 
 private val HomeBg = Color(0xFF09080E)
 private val HomeSurface = Color(0xFF17141E)
@@ -146,7 +147,20 @@ fun RecommendationsHomeScreen(
                 )
             }
         }
+      item(key = "native_home_shelves") {
+    val nativeShelves = uiState.nativeHomePage?.shelves
+        ?: emptyList()
 
+    if (nativeShelves.isNotEmpty()) {
+        HomeNativeShelves(
+            shelves = nativeShelves,
+            onPlay = { track ->
+                onPlay(track)
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+      }
         item(key = "stats") {
             Row(
                 Modifier
