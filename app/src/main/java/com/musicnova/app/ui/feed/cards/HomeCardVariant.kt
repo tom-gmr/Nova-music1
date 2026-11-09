@@ -3,9 +3,6 @@ package com.musicnova.app.ui.feed.cards
 import com.musicnova.app.data.music.HomeShelf
 import com.musicnova.app.data.music.HomeShelfItem
 
-/**
- * Visual card variants supported by Music Nova Home shelves.
- */
 enum class HomeCardVariant {
     SQUARE,
     WIDE,
@@ -14,16 +11,11 @@ enum class HomeCardVariant {
     PODCAST_EPISODE
 }
 
-/**
- * Selects a card variant using the data currently available in Nova.
- *
- * Playlist and podcast variants will be enabled after their data models
- * and parser support are integrated.
- */
 fun selectCardVariant(
     item: HomeShelfItem,
     shelf: HomeShelf? = null
 ): HomeCardVariant {
+
     if (
         shelf != null &&
         isFeaturedShelf(shelf) &&
@@ -40,12 +32,27 @@ fun selectCardVariant(
                 HomeCardVariant.SQUARE
             }
         }
+
+        is HomeShelfItem.Playlist -> {
+            when {
+                isCommunityPlaylistItem(item) ->
+                    HomeCardVariant.COMMUNITY
+
+                isWideAspect(item.aspectRatio) ->
+                    HomeCardVariant.WIDE
+
+                else -> HomeCardVariant.SQUARE
+            }
+        }
+
+        is HomeShelfItem.PodcastEpisode ->
+            HomeCardVariant.PODCAST_EPISODE
+
+        is HomeShelfItem.PodcastShow ->
+            HomeCardVariant.SQUARE
     }
 }
 
-/**
- * Detects a daily-discover shelf from its available title and strapline.
- */
 fun isFeaturedShelf(shelf: HomeShelf): Boolean {
     val description = listOfNotNull(
         shelf.title,
@@ -56,19 +63,25 @@ fun isFeaturedShelf(shelf: HomeShelf): Boolean {
         description.contains("your daily discovery")
 }
 
-/**
- * Checks whether an aspect ratio represents a wide rectangle card.
- */
-private fun isWideAspect(aspectRatio: String?): Boolean {
+fun isCommunityPlaylistItem(
+    item: HomeShelfItem.Playlist
+): Boolean {
+    val type = item.itemType.orEmpty()
+
+    return type.contains("community", ignoreCase = true) ||
+        (
+            item.collageArtworkUrls.isNotEmpty() &&
+            item.previewSongs.isNotEmpty()
+        )
+}
+
+fun isWideAspect(aspectRatio: String?): Boolean {
     return aspectRatio?.contains(
         "RECTANGLE",
         ignoreCase = true
     ) == true
 }
 
-/**
- * True when every item in the shelf is a playable track.
- */
 fun shelfIsPlayableTracks(
     items: List<HomeShelfItem>
 ): Boolean {
