@@ -3,12 +3,14 @@ package com.musicnova.app.data.music
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 
 data class HomeMusicData(
     val recommendations: List<YouTubeMusicTrack>,
     val trending: List<YouTubeMusicTrack>,
     val recentlyPlayed: List<LibraryTrack>,
-    val likedCount: Int
+    val likedCount: Int,
+    val nativeHomePage: HomePage? = null
 )
 
 class MusicRepository @Inject constructor(
@@ -20,13 +22,28 @@ class MusicRepository @Inject constructor(
     suspend fun loadHomeMusic(): HomeMusicData {
         val recent = libraryStore.getRecentlyPlayed()
         val liked = libraryStore.getLikedSongs()
-        val seeds = (liked + recent).distinctBy { it.videoId }.take(5)
+
+        // Load the native YouTube Music Home feed.
+        val nativeHomePage = try {
+            musicApi.fetchHomePage()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+
+        val seeds = (liked + recent)
+            .distinctBy { it.videoId }
+            .take(5)
 
         val found = mutableListOf<YouTubeMusicTrack>()
 
         if (seeds.isEmpty()) {
             found.addAll(
-                musicApi.searchSongs("popular trending songs India", 30)
+                musicApi.searchSongs(
+                    "popular trending songs India",
+                    30
+                )
             )
         } else {
             seeds.forEach { song ->
@@ -39,7 +56,9 @@ class MusicRepository @Inject constructor(
             }
         }
 
-        val excluded = (liked + recent).map { it.videoId }.toSet()
+        val excluded = (liked + recent)
+            .map { it.videoId }
+            .toSet()
 
         val recommendations = found
             .filterNot {
@@ -51,9 +70,12 @@ class MusicRepository @Inject constructor(
             .take(15)
 
         val trending = musicApi.searchSongs(
-            "trending hit songs India", 20
+            "trending hit songs India",
+            20
         )
-            .filterNot { it.isArtist || it.videoId.isBlank() }
+            .filterNot {
+                it.isArtist || it.videoId.isBlank()
+            }
             .distinctBy { it.videoId }
             .take(12)
 
@@ -61,14 +83,15 @@ class MusicRepository @Inject constructor(
             recommendations = recommendations,
             trending = trending,
             recentlyPlayed = recent,
-            likedCount = liked.size
+            likedCount = liked.size,
+            nativeHomePage = nativeHomePage
         )
     }
 
     suspend fun searchSongs(
-    query: String
-): List<YouTubeMusicTrack> {
-    return musicApi.searchSongs(query)
+        query: String
+    ): List<YouTubeMusicTrack> {
+        return musicApi.searchSongs(query)
     }
 
     fun toggleLike(track: YouTubeMusicTrack): Boolean {
