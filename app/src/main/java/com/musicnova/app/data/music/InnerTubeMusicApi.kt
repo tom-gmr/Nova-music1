@@ -220,6 +220,63 @@ class InnerTubeMusicApi {
 
             HomeFeedParser.parseHomePage(root)
         }
+        
+/**
+ * Fetches the first page of a YouTube Music playlist for card previews.
+ * Does not fetch continuations or alter playback state.
+ */
+suspend fun fetchPlaylistPreview(
+    playlistId: String
+): PlaylistPreview? = withContext(Dispatchers.IO) {
+
+    val id = playlistId.trim().removePrefix("VL")
+    if (id.isBlank()) return@withContext null
+
+    val config = getWebConfig()
+
+    val client = JSONObject()
+        .put("clientName", "WEB_REMIX")
+        .put("clientVersion", config.clientVersion)
+        .put("hl", "en")
+        .put("gl", "IN")
+
+    val context = JSONObject()
+        .put("client", client)
+
+    val body = JSONObject()
+        .put("context", context)
+        .put("browseId", "VL$id")
+        .toString()
+
+    val request = Request.Builder()
+        .url("$musicUrl/youtubei/v1/browse?key=${config.apiKey}")
+        .post(
+            body.toRequestBody(
+                "application/json".toMediaType()
+            )
+        )
+        .header("User-Agent", USER_AGENT)
+        .header("Origin", musicUrl)
+        .header("Referer", "$musicUrl/")
+        .header("Content-Type", "application/json")
+        .header("X-YouTube-Client-Name", "67")
+        .header("X-YouTube-Client-Version", config.clientVersion)
+        .build()
+
+    val root = http.newCall(request).execute().use { response ->
+        if (!response.isSuccessful) {
+            error("Playlist preview failed: ${response.code}")
+        }
+
+        JSONObject(
+            response.body?.string()
+                ?: error("Empty playlist response")
+        )
+    }
+
+    PlaylistPreviewParser.parse(root)
+}
+
     private fun parseSong(
         renderer: JSONObject
     ): YouTubeMusicTrack? {
