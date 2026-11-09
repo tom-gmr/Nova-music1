@@ -225,7 +225,12 @@ NovaTheme {
                     onStop = {
                         musicPlayer.stop()
                         showFullPlayer = false
-                    }
+                    } onNext = {
+                     playNextTrack()
+},
+                   onPrevious = {
+                playPreviousTrack()
+}
                 )
 
             } else {
