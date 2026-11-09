@@ -170,7 +170,56 @@ class InnerTubeMusicApi {
 
         results.take(limit.coerceIn(1, 100))
     }
+    /**
+     * Fetches the native YouTube Music Home feed.
+     */
+    suspend fun fetchHomePage(): HomePage =
+        withContext(Dispatchers.IO) {
 
+            val config = getWebConfig()
+
+            val client = JSONObject()
+                .put("clientName", "WEB_REMIX")
+                .put("clientVersion", config.clientVersion)
+                .put("hl", "en")
+                .put("gl", "IN")
+
+            val context = JSONObject()
+                .put("client", client)
+
+            val body = JSONObject()
+                .put("context", context)
+                .put("browseId", "FEmusic_home")
+                .toString()
+
+            val request = Request.Builder()
+                .url("$musicUrl/youtubei/v1/browse?key=${config.apiKey}")
+                .post(
+                    body.toRequestBody(
+                        "application/json".toMediaType()
+                    )
+                )
+                .header("User-Agent", USER_AGENT)
+                .header("Origin", musicUrl)
+                .header("Referer", "$musicUrl/")
+                .header("Content-Type", "application/json")
+                .header("X-YouTube-Client-Name", "67")
+                .header("X-YouTube-Client-Version", config.clientVersion)
+                .build()
+
+            val root = http.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    error("YouTube Music Home failed: ${response.code}")
+                }
+
+                JSONObject(
+                    response.body?.string()
+                        ?: error("Empty Home response")
+                )
+            }
+
+            HomeFeedParser.parseHomePage(root)
+        }
     private fun parseSong(
         renderer: JSONObject
     ): YouTubeMusicTrack? {
