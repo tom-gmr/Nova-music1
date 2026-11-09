@@ -21,6 +21,7 @@ import com.musicnova.app.data.music.HomeShelfItem
 import com.musicnova.app.data.music.PlaylistPreviewState
 import com.musicnova.app.data.music.YouTubeMusicTrack
 import com.musicnova.app.ui.feed.cards.*
+import kotlinx.coroutines.flow.collect
 
 @Composable
 fun HomeNativeShelves(
