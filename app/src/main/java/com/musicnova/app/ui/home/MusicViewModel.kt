@@ -1,3 +1,4 @@
+
 package com.musicnova.app.ui.home
 
 import androidx.lifecycle.ViewModel
@@ -223,6 +224,46 @@ class MusicViewModel @Inject constructor(
         }
     }
 
+    private suspend fun resolveSearchArtwork(
+        tracks: List<YouTubeMusicTrack>
+    ): List<YouTubeMusicTrack> = coroutineScope {
+
+        val semaphore = Semaphore(4)
+
+        tracks.map { track ->
+            async {
+                if (
+                    track.isArtist ||
+                    track.title.isBlank()
+                ) {
+                    return@async track
+                }
+
+                semaphore.withPermit {
+                    try {
+                        val artwork =
+                            artworkRepository.resolve(
+                                title = track.title,
+                                artist = track.artist,
+                                youtubeFallback = track.artworkUrl
+                            )
+
+                        if (artwork.isNullOrBlank()) {
+                            track
+                        } else {
+                            track.copy(artworkUrl = artwork)
+                        }
+
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        track
+                    }
+                }
+            }
+        }.awaitAll()
+    }
+
     fun searchSongs(query: String) {
         if (query.isBlank()) {
             _uiState.value = _uiState.value.copy(
@@ -243,9 +284,12 @@ class MusicViewModel @Inject constructor(
             try {
                 val results = repository.searchSongs(query.trim())
 
+                val resolvedResults =
+                    resolveSearchArtwork(results)
+
                 _uiState.value = _uiState.value.copy(
                     isSearching = false,
-                    searchResults = results,
+                    searchResults = resolvedResults,
                     searchError = null
                 )
 
