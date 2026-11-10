@@ -30,7 +30,6 @@ class MusicPlayer(context: Context) {
 
     private var controller: MediaController? = null
     private var released = false
-
     private var pendingPlay: PendingPlay? = null
 
     private lateinit var controllerFuture:
@@ -254,6 +253,17 @@ class MusicPlayer(context: Context) {
         )
     }
 
+    // Full Player progress support
+    fun getCurrentPosition(): Long {
+        return controller?.currentPosition
+            ?.coerceAtLeast(0L) ?: 0L
+    }
+
+    fun getDuration(): Long {
+        return controller?.duration
+            ?.takeIf { it > 0L } ?: 0L
+    }
+
     fun pause() {
         controller?.pause()
         updatePlaybackState()
@@ -267,11 +277,7 @@ class MusicPlayer(context: Context) {
     }
 
     fun togglePlayPause() {
-        val currentController = controller
-
-        if (currentController == null) {
-            return
-        }
+        val currentController = controller ?: return
 
         if (currentController.isPlaying) {
             pause()
@@ -316,3 +322,4 @@ class MusicPlayer(context: Context) {
         controller = null
     }
 }
+
