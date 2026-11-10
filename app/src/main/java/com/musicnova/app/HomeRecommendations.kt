@@ -630,8 +630,9 @@ private fun HomeSectionHeader(
             title,
             color = HomeText,
             fontSize = 20.sp,
-            fontWeight = FontWeight.ExtraBold,
-                ) {
+            fontWeight = FontWeight.ExtraBold
+        )
+
         Text(
             subtitle,
             color = HomeMuted,
