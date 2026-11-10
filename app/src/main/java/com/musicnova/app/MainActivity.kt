@@ -386,16 +386,6 @@ fun MusicNovaApp() {
             modifier = Modifier.fillMaxWidth()
         )
     }
-
-    NovaBottomNavigation(
-        selectedTab = selectedTab,
-        onSelect = {
-            currentBrowseId = null
-            selectedTab = it
-        },
-        modifier = Modifier.fillMaxWidth()
-    )
-                }
                     NovaBottomNavigation(
                         selectedTab = selectedTab,
                         onSelect = {
