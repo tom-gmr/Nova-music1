@@ -1,5 +1,8 @@
 package com.musicnova.app.data.artwork
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -7,11 +10,12 @@ import okhttp3.Request
 import org.json.JSONObject
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
-import android.content.Context
-import dagger.hilt.android.qualifiers.ApplicationContext
-import javax.inject.Inject
 
-class NovaArtworkRepository {
+class NovaArtworkRepository @Inject constructor(
+    @ApplicationContext context: Context
+) {
+
+    private val persistentCache = NovaArtworkCache(context)
 
     private val http = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -27,32 +31,52 @@ class NovaArtworkRepository {
         youtubeFallback: String? = null
     ): String? = withContext(Dispatchers.IO) {
 
-        if (title.isBlank()) return@withContext youtubeFallback
+        if (title.isBlank()) {
+            return@withContext youtubeFallback
+        }
 
         val key = ArtworkNormalizer.cacheKey(title, artist)
 
+        // 1. Check memory cache
         synchronized(memoryCache) {
-            memoryCache[key]?.let { return@withContext it }
+            memoryCache[key]?.let {
+                return@withContext it
+            }
         }
 
+        // 2. Check persistent cache
+        persistentCache.get(key)?.let { cached ->
+            synchronized(memoryCache) {
+                memoryCache[key] = cached
+            }
+            return@withContext cached
+        }
+
+        // 3. Search Apple Music
         val apple = fetchAppleMusic(title, artist)
 
         if (!apple.isNullOrBlank()) {
             synchronized(memoryCache) {
                 memoryCache[key] = apple
             }
+            persistentCache.put(key, apple)
+
             return@withContext apple
         }
 
+        // 4. Search Deezer
         val deezer = fetchDeezer(title, artist)
 
         if (!deezer.isNullOrBlank()) {
             synchronized(memoryCache) {
                 memoryCache[key] = deezer
             }
+            persistentCache.put(key, deezer)
+
             return@withContext deezer
         }
 
+        // 5. YouTube fallback
         val fallback =
             ArtworkNormalizer.upscaleYoutubeArtwork(youtubeFallback)
 
