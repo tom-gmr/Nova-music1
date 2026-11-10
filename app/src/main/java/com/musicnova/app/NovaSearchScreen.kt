@@ -46,108 +46,111 @@ fun NovaGlassMiniPlayer(
     modifier: Modifier = Modifier,
     musicPlayer: MusicPlayer? = null
 ) {
-    var progress by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(musicPlayer, state.title) {
-        while (musicPlayer != null) {
-            val duration = musicPlayer.getDuration()
-            val position = musicPlayer.getCurrentPosition()
-            progress = if (duration > 0L) {
-                (position.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
-            } else 0f
-            delay(500)
-        }
-    }
+    val shape = RoundedCornerShape(60.dp)
 
-    BoxWithConstraints(
-        modifier = modifier.fillMaxSize()
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(112.dp)
+            .clickable { onExpand() },
+        shape = shape,
+        color = Color.Transparent,
+        shadowElevation = 18.dp,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            Color.White.copy(alpha = 0.30f)
+        )
     ) {
-        val density = androidx.compose.ui.platform.LocalDensity.current
-        val buttonSize = 68.dp
-        val buttonPx = with(density) { buttonSize.toPx() }
-        val maxX = (constraints.maxWidth.toFloat() - buttonPx - with(density) { 14.dp.toPx() }).coerceAtLeast(0f)
-        val maxY = (constraints.maxHeight.toFloat() - buttonPx - with(density) { 104.dp.toPx() }).coerceAtLeast(0f)
-        var offsetX by remember { mutableFloatStateOf(maxX) }
-        var offsetY by remember { mutableFloatStateOf(maxY) }
-        var dragMoved by remember { mutableStateOf(false) }
-
-        Box(
+        Row(
             modifier = Modifier
-                .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
-                .size(buttonSize)
-                .pointerInput(maxX, maxY) {
-                    detectDragGestures(
-                        onDragStart = { dragMoved = false },
-                        onDragEnd = { dragMoved = false },
-                        onDrag = { change, dragAmount ->
-                            change.consume()
-                            dragMoved = true
-                            offsetX = (offsetX + dragAmount.x).coerceIn(0f, maxX)
-                            offsetY = (offsetY + dragAmount.y).coerceIn(0f, maxY)
-                        }
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            Color(0xF20B1111),
+                            Color(0xDD38203D),
+                            Color(0xCC9B5265),
+                            Color(0xE51B1420)
+                        )
                     )
-                }
-                .clickable {
-                    if (!dragMoved) onExpand()
-                    dragMoved = false
-                },
-            contentAlignment = Alignment.Center
+                )
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
+            AsyncImage(
+                model = state.artworkUrl,
+                contentDescription = "Album artwork",
+                contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(buttonSize)
-                    .border(
-                        width = 1.5.dp,
-                        brush = Brush.linearGradient(
-                            listOf(PlayerLavender, PlayerPurple, Color(0xFF5A456F))
-                        ),
-                        shape = CircleShape
-                    ),
+                    .size(78.dp)
+                    .clip(RoundedCornerShape(22.dp))
+            )
+
+            Spacer(Modifier.width(14.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = state.title.ifBlank { "Not Playing" },
+                    color = Color.White,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                Text(
+                    text = state.artist,
+                    color = Color.White.copy(alpha = 0.72f),
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Surface(
+                onClick = onPlayPause,
+                modifier = Modifier.size(66.dp),
                 shape = CircleShape,
-                color = Color(0xF21A1522),
-                shadowElevation = 14.dp
+                color = Color(0xFFE8C9C9)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(2.dp),
-                        color = PlayerLavender,
-                        trackColor = PlayerPurple.copy(alpha = 0.25f),
-                        strokeWidth = 3.dp
+                    Icon(
+                        imageVector = if (state.isPlaying)
+                            Icons.Default.Pause
+                        else
+                            Icons.Default.PlayArrow,
+                        contentDescription = "Play or pause",
+                        tint = Color(0xFF321D25),
+                        modifier = Modifier.size(35.dp)
                     )
-                    AsyncImage(
-                        model = state.artworkUrl,
-                        contentDescription = "Now playing: ${state.title}",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(CircleShape)
-                            .background(PlayerSurface)
+                }
+            }
+
+            Spacer(Modifier.width(10.dp))
+
+            Surface(
+                onClick = onNext,
+                modifier = Modifier.size(66.dp),
+                shape = CircleShape,
+                color = Color(0xFF382A30)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.SkipNext,
+                        contentDescription = "Next track",
+                        tint = Color.White,
+                        modifier = Modifier.size(34.dp)
                     )
-                    if (!state.isPlaying) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(5.dp)
-                                .size(19.dp)
-                                .clip(CircleShape)
-                                .background(PlayerPurple),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Pause,
-                                contentDescription = "Paused",
-                                tint = Color.White,
-                                modifier = Modifier.size(12.dp)
-                            )
-                        }
-                    }
                 }
             }
         }
     }
 }
+                        
 
 // FULL PLAYER SCREEN
 @Composable
