@@ -584,21 +584,23 @@ fun NovaFullPlayerScreen(
                     color = PlayerPurple.copy(alpha = 0.18f)
                 ) {
                     Text(
-                        text = when (lyricsState) {
-                            is LyricsUiState.Success -> {
-                                if (currentState.result.isWordSynced) {
-                                    "WORD SYNC"
-                                } else if (currentState.result.isSynced) {
-                                    "LINE SYNC"
-                                } else {
-                                    "PLAIN"
-                                }
-                            }
-                            LyricsUiState.Loading -> "LOADING"
-                            LyricsUiState.Empty -> "NO LYRICS"
-                            is LyricsUiState.Error -> "ERROR"
-                            LyricsUiState.Idle -> "WAITING"
-                        },
+                        text = when (val currentState = lyricsState) {
+    is LyricsUiState.Success -> {
+        if (currentState.result.isWordSynced) {
+            "WORD SYNC"
+        } else if (currentState.result.isSynced) {
+            "LINE SYNC"
+        } else {
+            "PLAIN"
+        }
+    }
+    LyricsUiState.Loading -> "LOADING"
+    LyricsUiState.Empty -> "NO LYRICS"
+    is LyricsUiState.Error -> "ERROR"
+    LyricsUiState.Idle -> "WAITING"
+},
+                            
+                            
                         color = PlayerLavender,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
