@@ -37,75 +37,85 @@ fun NovaGlassMiniPlayer(
     state: PlaybackState,
     onPlayPause: () -> Unit,
     onStop: () -> Unit,
+    onNext: () -> Unit,
     onExpand: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(26.dp)
+    val shape = RoundedCornerShape(100.dp)
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxWidth()
+            .height(108.dp)
             .clip(shape)
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF332A42),
-                        Color(0xFF211B2B),
-                        Color(0xFF17141F)
-                    )
-                )
-            )
+            .background(Color(0xE6101515))
             .border(
                 1.dp,
-                Color.White.copy(alpha = 0.12f),
+                Color.White.copy(alpha = 0.48f),
                 shape
             )
             .clickable { onExpand() }
     ) {
+        // Soft glass reflections
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(
+                            Color(0x443B7774),
+                            Color(0x22202020),
+                            Color(0x77B52D78),
+                            Color(0x668E5C91)
+                        )
+                    )
+                )
+        )
+
         Row(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .padding(
                     start = 12.dp,
-                    end = 9.dp,
-                    top = 10.dp,
-                    bottom = 10.dp
+                    end = 12.dp
                 ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
                 model = state.artworkUrl,
                 contentDescription = "Album artwork",
+                contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(18.dp))
+                    .size(78.dp)
+                    .clip(RoundedCornerShape(22.dp))
                     .background(PlayerSurface)
             )
 
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(horizontal = 13.dp)
+                    .padding(horizontal = 14.dp),
+                verticalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = state.title.ifBlank {
                         "Unknown track"
                     },
                     color = Color.White,
-                    fontSize = 14.sp,
+                    fontSize = 19.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(5.dp))
 
                 Text(
                     text = state.artist.ifBlank {
                         "Unknown artist"
                     },
-                    color = PlayerMuted,
-                    fontSize = 11.sp,
+                    color = Color.White.copy(alpha = 0.72f),
+                    fontSize = 16.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -114,9 +124,9 @@ fun NovaGlassMiniPlayer(
             Surface(
                 onClick = onPlayPause,
                 shape = CircleShape,
-                color = PlayerPurple,
-                contentColor = Color.White,
-                modifier = Modifier.size(46.dp)
+                color = Color(0xFFEBC9C9),
+                contentColor = Color(0xFF321B20),
+                modifier = Modifier.size(66.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -125,43 +135,44 @@ fun NovaGlassMiniPlayer(
                         else
                             Icons.Default.PlayArrow,
                         contentDescription = "Play or pause",
-                        modifier = Modifier.size(25.dp)
+                        modifier = Modifier.size(38.dp)
+                    )
+                }
+            }
+
+            Spacer(Modifier.width(10.dp))
+
+            Surface(
+                onClick = onNext,
+                shape = CircleShape,
+                color = Color(0xFF38282D),
+                contentColor = Color(0xFFE8CACA),
+                modifier = Modifier.size(66.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.SkipNext,
+                        contentDescription = "Next track",
+                        modifier = Modifier.size(36.dp)
                     )
                 }
             }
 
             IconButton(
                 onClick = onStop,
-                modifier = Modifier
-                    .padding(start = 3.dp)
-                    .size(40.dp)
+                modifier = Modifier.size(30.dp)
             ) {
                 Icon(
-                    Icons.Default.Close,
+                    imageVector = Icons.Default.Close,
                     contentDescription = "Stop playback",
-                    tint = PlayerMuted,
-                    modifier = Modifier.size(21.dp)
+                    tint = Color.White.copy(alpha = 0.7f),
+                    modifier = Modifier.size(17.dp)
                 )
             }
         }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(2.dp)
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            Color.Transparent,
-                            PlayerLavender.copy(alpha = 0.42f),
-                            PlayerPurple.copy(alpha = 0.58f),
-                            Color.Transparent
-                        )
-                    )
-                )
-        )
     }
 }
+
 
 // FULL PLAYER
 
