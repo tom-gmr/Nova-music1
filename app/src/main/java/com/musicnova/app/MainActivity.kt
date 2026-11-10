@@ -357,29 +357,45 @@ fun MusicNovaApp() {
                     }
                 }
 
-                if (playbackState.hasMedia) {
-                    NovaGlassMiniPlayer(
-                        state = playbackState,
-                        onPlayPause = {
-                            musicPlayer.togglePlayPause()
-                        },
-                        onStop = {
-                            musicPlayer.stop()
-                        }, onNext = {
-                            playNextTrack()
-                      },
-                        onExpand = {
-                            showFullPlayer = true
-                        },musicPlayer = musicPlayer,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .navigationBarsPadding()
-                            .padding(
-                                horizontal = 16.dp,
-                                vertical = 10.dp
-                            )
-                    )
-                } else {
+                Column(
+    modifier = Modifier
+        .align(Alignment.BottomCenter)
+        .navigationBarsPadding()
+        .padding(
+            horizontal = 16.dp,
+            vertical = 10.dp
+        ),
+    verticalArrangement = Arrangement.spacedBy(10.dp)
+) {
+    if (playbackState.hasMedia) {
+        NovaGlassMiniPlayer(
+            state = playbackState,
+            onPlayPause = {
+                musicPlayer.togglePlayPause()
+            },
+            onStop = {
+                musicPlayer.stop()
+            },
+            onNext = {
+                playNextTrack()
+            },
+            onExpand = {
+                showFullPlayer = true
+            },
+            musicPlayer = musicPlayer,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+
+    NovaBottomNavigation(
+        selectedTab = selectedTab,
+        onSelect = {
+            currentBrowseId = null
+            selectedTab = it
+        },
+        modifier = Modifier.fillMaxWidth()
+    )
+                }
                     NovaBottomNavigation(
                         selectedTab = selectedTab,
                         onSelect = {
