@@ -365,7 +365,9 @@ fun MusicNovaApp() {
                         },
                         onStop = {
                             musicPlayer.stop()
-                        },
+                        }, onNext = {
+                            playNextTrack()
+                      },
                         onExpand = {
                             showFullPlayer = true
                         },
