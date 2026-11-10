@@ -1,12 +1,19 @@
 package com.musicnova.app
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -16,35 +23,30 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.musicnova.app.playback.MusicPlayer
 import com.musicnova.app.playback.PlaybackState
+import com.musicnova.app.data.lyrics.LyricsRepository
+import com.musicnova.app.data.lyrics.LyricsResult
+import com.musicnova.app.data.lyrics.parseLyrics
+import com.musicnova.app.ui.player.LyricsUiState
+import com.musicnova.app.ui.player.KaraokeLyricText
 import kotlinx.coroutines.delay
-import kotlin.math.roundToInt
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.graphics.graphicsLayer
 
-private val PlayerBackground = Color(0xFF0B0910)
+private val PlayerBackground = Color(0xFF09070F)
 private val PlayerSurface = Color(0xFF211B2B)
 private val PlayerPurple = Color(0xFF9277B8)
 private val PlayerLavender = Color(0xFFD1C1EB)
 private val PlayerMuted = Color(0xFFAAA4B5)
 
-/** LastWave-inspired draggable Now Playing artwork button. */
+/* ---------------- MINI PLAYER ---------------- */
+
 @Composable
 fun NovaGlassMiniPlayer(
     state: PlaybackState,
@@ -122,7 +124,7 @@ fun NovaGlassMiniPlayer(
 
             Surface(
                 onClick = onPlayPause,
-                modifier = Modifier.size(66.dp),
+                modifier = Modifier.size(56.dp),
                 shape = CircleShape,
                 color = Color(0xFFE8C9C9)
             ) {
@@ -134,7 +136,7 @@ fun NovaGlassMiniPlayer(
                             Icons.Default.PlayArrow,
                         contentDescription = "Play or pause",
                         tint = Color(0xFF321D25),
-                        modifier = Modifier.size(35.dp)
+                        modifier = Modifier.size(32.dp)
                     )
                 }
             }
@@ -143,7 +145,7 @@ fun NovaGlassMiniPlayer(
 
             Surface(
                 onClick = onNext,
-                modifier = Modifier.size(66.dp),
+                modifier = Modifier.size(56.dp),
                 shape = CircleShape,
                 color = Color(0xFF382A30)
             ) {
@@ -152,17 +154,15 @@ fun NovaGlassMiniPlayer(
                         imageVector = Icons.Default.SkipNext,
                         contentDescription = "Next track",
                         tint = Color.White,
-                        modifier = Modifier.size(34.dp)
+                        modifier = Modifier.size(32.dp)
                     )
                 }
             }
         }
     }
 }
-                        
+/* ---------------- FULL PLAYER ---------------- */
 
-
-// ADVANCED MUSIC NOVA FULL PLAYER
 @Composable
 fun NovaFullPlayerScreen(
     state: PlaybackState,
@@ -175,6 +175,12 @@ fun NovaFullPlayerScreen(
     var currentPosition by remember { mutableFloatStateOf(0f) }
     var duration by remember { mutableFloatStateOf(1f) }
     var isSeeking by remember { mutableStateOf(false) }
+
+    var lyricsState by remember {
+        mutableStateOf<LyricsUiState>(LyricsUiState.Idle)
+    }
+
+    val lyricsRepository = remember { LyricsRepository() }
 
     val rotationTransition = rememberInfiniteTransition(
         label = "NovaAlbumRotation"
@@ -193,6 +199,7 @@ fun NovaFullPlayerScreen(
         label = "AlbumRotation"
     )
 
+    // Playback position update
     LaunchedEffect(musicPlayer) {
         while (true) {
             val total = musicPlayer.getDuration()
@@ -214,12 +221,53 @@ fun NovaFullPlayerScreen(
         }
     }
 
+    // Fetch lyrics for the currently playing song
+    LaunchedEffect(state.title, state.artist) {
+        if (state.title.isBlank() || state.artist.isBlank()) {
+            lyricsState = LyricsUiState.Empty
+        } else {
+            lyricsState = LyricsUiState.Loading
+
+            try {
+                val result = lyricsRepository.findLyrics(
+                    artist = state.artist,
+                    track = state.title
+                )
+
+                lyricsState = if (result == null) {
+                    LyricsUiState.Empty
+                } else {
+                    when (
+                        val parsed = parseLyrics(
+                            syncedLyrics = result.syncedLyrics,
+                            plainLyrics = result.plainLyrics,
+                            source = "LRCLIB"
+                        )
+                    ) {
+                        is LyricsResult.Success ->
+                            LyricsUiState.Success(parsed)
+
+                        LyricsResult.Empty ->
+                            LyricsUiState.Empty
+
+                        is LyricsResult.Error ->
+                            LyricsUiState.Error(parsed.message)
+                    }
+                }
+            } catch (exception: Exception) {
+                lyricsState = LyricsUiState.Error(
+                    exception.message ?: "Unable to load lyrics"
+                )
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF09070F))
+            .background(PlayerBackground)
     ) {
-        // Artwork-based background
+        // Artwork background
         AsyncImage(
             model = state.artworkUrl,
             contentDescription = null,
@@ -230,7 +278,7 @@ fun NovaFullPlayerScreen(
                 .align(Alignment.TopCenter)
         )
 
-        // Dark cinematic gradient
+        // Dark gradient overlay
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -239,8 +287,8 @@ fun NovaFullPlayerScreen(
                         colors = listOf(
                             Color(0x55000000),
                             Color(0xAA09070F),
-                            Color(0xFF09070F),
-                            Color(0xFF09070F)
+                            PlayerBackground,
+                            PlayerBackground
                         )
                     )
                 )
@@ -256,7 +304,7 @@ fun NovaFullPlayerScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            // TOP BAR
+            // Top bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -306,7 +354,7 @@ fun NovaFullPlayerScreen(
 
             Spacer(Modifier.height(28.dp))
 
-            // ANIMATED ALBUM ARTWORK
+            // Animated album artwork
             Box(
                 modifier = Modifier
                     .size(292.dp)
@@ -331,7 +379,6 @@ fun NovaFullPlayerScreen(
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // Glass shine
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -346,7 +393,6 @@ fun NovaFullPlayerScreen(
                         )
                 )
 
-                // Center disc detail
                 Box(
                     modifier = Modifier
                         .align(Alignment.Center)
@@ -362,19 +408,14 @@ fun NovaFullPlayerScreen(
             }
 
             Spacer(Modifier.height(35.dp))
-
-            // SONG INFORMATION
+                        // Song information
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = state.title.ifBlank {
-                            "Unknown Track"
-                        },
+                        text = state.title.ifBlank { "Unknown Track" },
                         color = Color.White,
                         fontSize = 23.sp,
                         fontWeight = FontWeight.Bold,
@@ -385,9 +426,7 @@ fun NovaFullPlayerScreen(
                     Spacer(Modifier.height(7.dp))
 
                     Text(
-                        text = state.artist.ifBlank {
-                            "Unknown Artist"
-                        },
+                        text = state.artist.ifBlank { "Unknown Artist" },
                         color = PlayerMuted,
                         fontSize = 15.sp,
                         maxLines = 1,
@@ -416,7 +455,7 @@ fun NovaFullPlayerScreen(
 
             Spacer(Modifier.height(25.dp))
 
-            // ADVANCED SEEKBAR
+            // Seekbar
             Slider(
                 value = currentPosition.coerceIn(
                     0f,
@@ -427,9 +466,7 @@ fun NovaFullPlayerScreen(
                     currentPosition = it
                 },
                 onValueChangeFinished = {
-                    musicPlayer.seekTo(
-                        currentPosition.toLong()
-                    )
+                    musicPlayer.seekTo(currentPosition.toLong())
                     isSeeking = false
                 },
                 valueRange = 0f..duration.coerceAtLeast(1f),
@@ -459,7 +496,7 @@ fun NovaFullPlayerScreen(
 
             Spacer(Modifier.height(25.dp))
 
-            // PLAYBACK CONTROLS
+            // Playback controls
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -480,17 +517,13 @@ fun NovaFullPlayerScreen(
                 Spacer(Modifier.width(28.dp))
 
                 Surface(
-                    onClick = {
-                        musicPlayer.togglePlayPause()
-                    },
+                    onClick = { musicPlayer.togglePlayPause() },
                     modifier = Modifier.size(78.dp),
                     shape = CircleShape,
                     color = PlayerPurple,
                     shadowElevation = 16.dp
                 ) {
-                    Box(
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = if (state.isPlaying) {
                                 Icons.Default.Pause
@@ -519,11 +552,275 @@ fun NovaFullPlayerScreen(
                 }
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(28.dp))
+                        // ---------------- LYRICS SECTION ----------------
 
-            // FOOTER
+            Spacer(Modifier.height(30.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "LYRICS",
+                        color = PlayerLavender,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.sp
+                    )
+
+                    Spacer(Modifier.height(4.dp))
+
+                    Text(
+                        text = "Feel every word",
+                        color = PlayerMuted,
+                        fontSize = 12.sp
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = PlayerPurple.copy(alpha = 0.18f)
+                ) {
+                    Text(
+                        text = when (lyricsState) {
+                            is LyricsUiState.Success -> {
+                                if (lyricsState.result.isWordSynced) {
+                                    "WORD SYNC"
+                                } else if (lyricsState.result.isSynced) {
+                                    "LINE SYNC"
+                                } else {
+                                    "PLAIN"
+                                }
+                            }
+                            LyricsUiState.Loading -> "LOADING"
+                            LyricsUiState.Empty -> "NO LYRICS"
+                            is LyricsUiState.Error -> "ERROR"
+                            LyricsUiState.Idle -> "WAITING"
+                        },
+                        color = PlayerLavender,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(
+                            horizontal = 12.dp,
+                            vertical = 8.dp
+                        )
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(18.dp))
+
+            when (val currentLyrics = lyricsState) {
+
+                LyricsUiState.Idle,
+                LyricsUiState.Loading -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(PlayerSurface.copy(alpha = 0.75f))
+                            .padding(28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(
+                            color = PlayerLavender,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(28.dp)
+                        )
+
+                        Spacer(Modifier.height(14.dp))
+
+                        Text(
+                            text = "Finding lyrics...",
+                            color = PlayerMuted,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+
+                LyricsUiState.Empty -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(PlayerSurface.copy(alpha = 0.75f))
+                            .padding(26.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Default.MusicOff,
+                            contentDescription = null,
+                            tint = PlayerLavender,
+                            modifier = Modifier.size(34.dp)
+                        )
+
+                        Spacer(Modifier.height(12.dp))
+
+                        Text(
+                            text = "Lyrics not available",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+
+                        Spacer(Modifier.height(5.dp))
+
+                        Text(
+                            text = "Try another track",
+                            color = PlayerMuted,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+
+                is LyricsUiState.Error -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(PlayerSurface.copy(alpha = 0.75f))
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Default.ErrorOutline,
+                            contentDescription = null,
+                            tint = PlayerLavender,
+                            modifier = Modifier.size(32.dp)
+                        )
+
+                        Spacer(Modifier.height(10.dp))
+
+                        Text(
+                            text = currentLyrics.message,
+                            color = PlayerMuted,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+
+                is LyricsUiState.Success -> {
+                    val result = currentLyrics.result
+                    val lines = result.lines
+
+                    if (result.isInstrumental) {
+                        Text(
+                            text = "♪ Instrumental ♪",
+                            color = PlayerLavender,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 35.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    } else if (result.isSynced) {
+                        val activeIndex = lines.indexOfLast {
+                            it.timeMs <= currentPosition.toLong()
+                        }
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(
+                                            Color(0xFF292035),
+                                            Color(0xFF17121F)
+                                        )
+                                    )
+                                )
+                                .padding(horizontal = 18.dp, vertical = 22.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            lines.forEachIndexed { index, line ->
+                                val isActive = index == activeIndex
+
+                                if (index in (activeIndex - 1)..(activeIndex + 2)) {
+                                    KaraokeLyricText(
+                                        line = line,
+                                        currentPositionMs =
+                                            currentPosition.toLong(),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .clickable {
+                                                musicPlayer.seekTo(line.timeMs)
+                                                currentPosition =
+                                                    line.timeMs.toFloat()
+                                            }
+                                            .padding(
+                                                horizontal = 10.dp,
+                                                vertical = if (isActive) {
+                                                    17.dp
+                                                } else {
+                                                    12.dp
+                                                }
+                                            ),
+                                        style = MaterialTheme.typography.bodyLarge.copy(
+                                            fontSize = if (isActive) {
+                                                21.sp
+                                            } else {
+                                                16.sp
+                                            },
+                                            fontWeight = if (isActive) {
+                                                FontWeight.Bold
+                                            } else {
+                                                FontWeight.Medium
+                                            }
+                                        ),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        activeColor = PlayerLavender,
+                                        sungColor = Color.White,
+                                        upcomingColor = PlayerMuted
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        // Plain lyrics: show all lines instead of
+                        // treating every line as the active timestamp.
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(PlayerSurface.copy(alpha = 0.75f))
+                                .padding(20.dp)
+                        ) {
+                            lines.forEach { line ->
+                                Text(
+                                    text = line.text,
+                                    color = Color.White.copy(alpha = 0.88f),
+                                    fontSize = 16.sp,
+                                    lineHeight = 27.sp,
+                                    modifier = Modifier.padding(
+                                        vertical = 7.dp
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+
+                    Text(
+                        text = "Lyrics source: ${result.source ?: "Unknown"}",
+                        color = PlayerMuted,
+                        fontSize = 10.sp,
+                        modifier = Modifier.align(Alignment.End)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(30.dp))
+                        // Footer
+            Spacer(Modifier.height(20.dp))
+
             Text(
-                "FEEL THE SOUND",
+                text = "FEEL THE SOUND",
                 color = PlayerLavender.copy(alpha = 0.75f),
                 fontSize = 10.sp,
                 letterSpacing = 3.sp,
@@ -533,16 +830,19 @@ fun NovaFullPlayerScreen(
     }
 }
 
+/* ---------------- TIME FORMATTER ---------------- */
+
 private fun formatPlayerTime(milliseconds: Long): String {
     val totalSeconds = (milliseconds / 1000).coerceAtLeast(0)
+
     return "%d:%02d".format(
         totalSeconds / 60,
         totalSeconds % 60
     )
 }
 
+/* ---------------- FLOATING BOTTOM NAVIGATION ---------------- */
 
-// FLOATING BOTTOM NAVIGATION - shown only when no track is playing.
 @Composable
 fun NovaBottomNavigation(
     selectedTab: String,
@@ -555,6 +855,7 @@ fun NovaBottomNavigation(
         Triple("Library", Icons.Default.LibraryMusic, "Library"),
         Triple("Profile", Icons.Default.Person, "Profile")
     )
+
     val shape = RoundedCornerShape(26.dp)
 
     Row(
@@ -563,24 +864,41 @@ fun NovaBottomNavigation(
             .clip(shape)
             .background(
                 Brush.verticalGradient(
-                    listOf(Color(0xFF292333), Color(0xFF1C1825), Color(0xFF15121C))
+                    listOf(
+                        Color(0xFF292333),
+                        Color(0xFF1C1825),
+                        Color(0xFF15121C)
+                    )
                 )
             )
-            .border(1.dp, Color.White.copy(alpha = 0.10f), shape)
-            .padding(horizontal = 7.dp, vertical = 8.dp),
+            .border(
+                1.dp,
+                Color.White.copy(alpha = 0.10f),
+                shape
+            )
+            .padding(
+                horizontal = 7.dp,
+                vertical = 8.dp
+            ),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
         items.forEach { item ->
             val isSelected = selectedTab == item.first
+
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(18.dp))
-                    .clickable { onSelect(item.first) }
+                    .clickable {
+                        onSelect(item.first)
+                    }
                     .background(
-                        if (isSelected) Color(0xFF40334F).copy(alpha = 0.85f)
-                        else Color.Transparent
+                        if (isSelected) {
+                            Color(0xFF40334F).copy(alpha = 0.85f)
+                        } else {
+                            Color.Transparent
+                        }
                     )
                     .padding(vertical = 9.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -588,15 +906,29 @@ fun NovaBottomNavigation(
                 Icon(
                     imageVector = item.second,
                     contentDescription = item.third,
-                    tint = if (isSelected) PlayerLavender else PlayerMuted,
+                    tint = if (isSelected) {
+                        PlayerLavender
+                    } else {
+                        PlayerMuted
+                    },
                     modifier = Modifier.size(22.dp)
                 )
+
                 Spacer(Modifier.height(5.dp))
+
                 Text(
                     text = item.first,
-                    color = if (isSelected) PlayerLavender else PlayerMuted,
+                    color = if (isSelected) {
+                        PlayerLavender
+                    } else {
+                        PlayerMuted
+                    },
                     fontSize = 10.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                    fontWeight = if (isSelected) {
+                        FontWeight.Bold
+                    } else {
+                        FontWeight.Normal
+                    }
                 )
             }
         }
