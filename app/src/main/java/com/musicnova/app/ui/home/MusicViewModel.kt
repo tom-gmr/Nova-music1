@@ -3,6 +3,7 @@ package com.musicnova.app.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.musicnova.app.data.artwork.NovaArtworkRepository
 import com.musicnova.app.data.music.HomePage
 import com.musicnova.app.data.music.LibraryTrack
 import com.musicnova.app.data.music.MusicRepository
@@ -10,10 +11,15 @@ import com.musicnova.app.data.music.YouTubeMusicTrack
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 data class MusicUiState(
     val isLoading: Boolean = false,
@@ -30,7 +36,8 @@ data class MusicUiState(
 
 @HiltViewModel
 class MusicViewModel @Inject constructor(
-    private val repository: MusicRepository
+    private val repository: MusicRepository,
+    private val artworkRepository: NovaArtworkRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MusicUiState())
@@ -50,6 +57,7 @@ class MusicViewModel @Inject constructor(
             try {
                 val data = repository.loadHomeMusic()
 
+                // Show original songs immediately.
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     recommendations = data.recommendations,
@@ -59,6 +67,19 @@ class MusicViewModel @Inject constructor(
                     nativeHomePage = data.nativeHomePage,
                     error = null
                 )
+
+                // Resolve better artwork in the background.
+                val (recommendations, trending) =
+                    resolveHomeArtwork(
+                        data.recommendations,
+                        data.trending
+                    )
+
+                _uiState.value = _uiState.value.copy(
+                    recommendations = recommendations,
+                    trending = trending
+                )
+
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -69,6 +90,69 @@ class MusicViewModel @Inject constructor(
             }
         }
     }
+
+    private suspend fun resolveHomeArtwork(
+        recommendations: List<YouTubeMusicTrack>,
+        trending: List<YouTubeMusicTrack>
+    ): Pair<List<YouTubeMusicTrack>, List<YouTubeMusicTrack>> =
+        coroutineScope {
+
+            val semaphore = Semaphore(4)
+
+            val allTracks = (
+                recommendations + trending
+            ).distinctBy { it.videoId }
+
+            val resolvedTracks = allTracks.map { track ->
+                async {
+                    if (
+                        track.isArtist ||
+                        track.title.isBlank()
+                    ) {
+                        return@async track
+                    }
+
+                    semaphore.withPermit {
+                        try {
+                            val artwork =
+                                artworkRepository.resolve(
+                                    title = track.title,
+                                    artist = track.artist,
+                                    youtubeFallback = track.artworkUrl
+                                )
+
+                            if (artwork.isNullOrBlank()) {
+                                track
+                            } else {
+                                track.copy(
+                                    artworkUrl = artwork
+                                )
+                            }
+
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            track
+                        }
+                    }
+                }
+            }.awaitAll()
+
+            val artworkByVideoId =
+                resolvedTracks.associateBy { it.videoId }
+
+            val updatedRecommendations =
+                recommendations.map { track ->
+                    artworkByVideoId[track.videoId] ?: track
+                }
+
+            val updatedTrending =
+                trending.map { track ->
+                    artworkByVideoId[track.videoId] ?: track
+                }
+
+            updatedRecommendations to updatedTrending
+        }
 
     fun searchSongs(query: String) {
         if (query.isBlank()) {
@@ -95,12 +179,14 @@ class MusicViewModel @Inject constructor(
                     searchResults = results,
                     searchError = null
                 )
+
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isSearching = false,
-                    searchError = e.message ?: "Search failed. Try again."
+                    searchError = e.message
+                        ?: "Search failed. Try again."
                 )
             }
         }
@@ -122,17 +208,32 @@ class MusicViewModel @Inject constructor(
                         nativeHomePage = data.nativeHomePage,
                         error = null
                     )
+
+                    val (recommendations, trending) =
+                        resolveHomeArtwork(
+                            data.recommendations,
+                            data.trending
+                        )
+
+                    _uiState.value = _uiState.value.copy(
+                        recommendations = recommendations,
+                        trending = trending
+                    )
+
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     _uiState.value = _uiState.value.copy(
-                        error = e.message ?: "Unable to refresh music"
+                        error = e.message
+                            ?: "Unable to refresh music"
                     )
                 }
             }
+
         } catch (e: Exception) {
             _uiState.value = _uiState.value.copy(
-                error = e.message ?: "Unable to update liked songs"
+                error = e.message
+                    ?: "Unable to update liked songs"
             )
         }
     }
