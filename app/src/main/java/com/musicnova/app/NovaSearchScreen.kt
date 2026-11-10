@@ -23,7 +23,7 @@ import coil.compose.AsyncImage
 import com.musicnova.app.playback.MusicPlayer
 import com.musicnova.app.playback.PlaybackState
 import kotlinx.coroutines.delay
-
+import androidx.compose.ui.layout.ContentScale
 private val PlayerBackground = Color(0xFF100D17)
 private val PlayerSurface = Color(0xFF211B2B)
 private val PlayerPurple = Color(0xFF9277B8)
@@ -272,23 +272,47 @@ fun NovaFullPlayerScreen(
             Spacer(Modifier.weight(0.5f))
 
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(0.92f)
-                    .clip(playerShape)
-                    .background(PlayerSurface)
-                    .border(
-                        1.dp,
-                        Color.White.copy(alpha = 0.15f),
-                        playerShape
+    modifier = Modifier
+        .fillMaxSize()
+        .background(Color.Black)
+) {
+    // Current song artwork as full-screen background
+    AsyncImage(
+        model = state.artworkUrl,
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier.fillMaxSize()
+    )
+
+    // Dark fade towards the bottom
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0x22000000),
+                        Color(0x44000000),
+                        Color(0xCC090609),
+                        Color(0xFF08070B)
                     )
+                )
+            )
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 22.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Yahan tumhara existing Column content bilkul same rahega.
             ) {
                 AsyncImage(
                     model = state.artworkUrl,
-                    contentDescription = "Album artwork",
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
+                    contentDescri
 
             Spacer(Modifier.height(30.dp))
 
