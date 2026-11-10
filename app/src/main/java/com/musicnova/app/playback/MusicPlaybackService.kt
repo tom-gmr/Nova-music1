@@ -6,7 +6,6 @@ import android.content.Intent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
@@ -16,6 +15,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 import com.musicnova.app.MainActivity
 import java.io.File
 
@@ -25,16 +26,21 @@ class MusicPlaybackService : MediaSessionService() {
     private var player: ExoPlayer? = null
     private var streamCache: SimpleCache? = null
 
+    private lateinit var httpDataSourceFactory:
+        DefaultHttpDataSource.Factory
+
     override fun onCreate() {
         super.onCreate()
 
-        val httpDataSourceFactory =
+        httpDataSourceFactory =
             DefaultHttpDataSource.Factory()
                 .setAllowCrossProtocolRedirects(true)
 
         streamCache = SimpleCache(
             File(cacheDir, "music_stream_cache"),
-            LeastRecentlyUsedCacheEvictor(100L * 1024 * 1024),
+            LeastRecentlyUsedCacheEvictor(
+                100L * 1024 * 1024
+            ),
             StandaloneDatabaseProvider(this)
         )
 
@@ -58,7 +64,9 @@ class MusicPlaybackService : MediaSessionService() {
                 .setAudioAttributes(
                     AudioAttributes.Builder()
                         .setUsage(C.USAGE_MEDIA)
-                        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                        .setContentType(
+                            C.AUDIO_CONTENT_TYPE_MUSIC
+                        )
                         .build(),
                     true
                 )
@@ -81,6 +89,54 @@ class MusicPlaybackService : MediaSessionService() {
         mediaSession =
             MediaSession.Builder(this, exoPlayer)
                 .setSessionActivity(activityPendingIntent)
+                .setCallback(
+                    object : MediaSession.Callback {
+
+                        override fun onAddMediaItems(
+                            mediaSession: MediaSession,
+                            controller: MediaSession.ControllerInfo,
+                            mediaItems: List<MediaItem>
+                        ): ListenableFuture<List<MediaItem>> {
+
+                            val extras =
+                                mediaItems.firstOrNull()
+                                    ?.mediaMetadata
+                                    ?.extras
+
+                            val names =
+                                extras?.getStringArrayList(
+                                    "nova_header_names"
+                                )
+
+                            val values =
+                                extras?.getStringArrayList(
+                                    "nova_header_values"
+                                )
+
+                            val headers =
+                                if (
+                                    names != null &&
+                                    values != null &&
+                                    names.size == values.size
+                                ) {
+                                    names.indices.associate {
+                                        names[it] to values[it]
+                                    }
+                                } else {
+                                    emptyMap()
+                                }
+
+                            httpDataSourceFactory
+                                .setDefaultRequestProperties(
+                                    headers
+                                )
+
+                            return Futures.immediateFuture(
+                                mediaItems
+                            )
+                        }
+                    }
+                )
                 .build()
     }
 
@@ -90,12 +146,10 @@ class MusicPlaybackService : MediaSessionService() {
         return mediaSession
     }
 
-    override fun onTaskRemoved(rootIntent: Intent?) {
-        val currentPlayer = player
-
-        if (currentPlayer == null ||
-            !currentPlayer.isPlaying
-        ) {
+    override fun onTaskRemoved(
+        rootIntent: Intent?
+    ) {
+        if (player?.isPlaying != true) {
             stopSelf()
         }
     }
