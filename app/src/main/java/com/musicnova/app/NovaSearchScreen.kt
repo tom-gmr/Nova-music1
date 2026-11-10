@@ -28,6 +28,15 @@ import com.musicnova.app.playback.MusicPlayer
 import com.musicnova.app.playback.PlaybackState
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.graphicsLayer
 
 private val PlayerBackground = Color(0xFF0B0910)
 private val PlayerSurface = Color(0xFF211B2B)
@@ -152,7 +161,8 @@ fun NovaGlassMiniPlayer(
 }
                         
 
-// FULL PLAYER SCREEN
+
+// ADVANCED MUSIC NOVA FULL PLAYER
 @Composable
 fun NovaFullPlayerScreen(
     state: PlaybackState,
@@ -164,41 +174,73 @@ fun NovaFullPlayerScreen(
 ) {
     var currentPosition by remember { mutableFloatStateOf(0f) }
     var duration by remember { mutableFloatStateOf(1f) }
+    var isSeeking by remember { mutableStateOf(false) }
+
+    val rotationTransition = rememberInfiniteTransition(
+        label = "NovaAlbumRotation"
+    )
+
+    val albumRotation by rotationTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 18000,
+                easing = LinearEasing
+            ),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "AlbumRotation"
+    )
 
     LaunchedEffect(musicPlayer) {
         while (true) {
             val total = musicPlayer.getDuration()
             val current = musicPlayer.getCurrentPosition()
-            duration = if (total > 0L) total.toFloat() else 1f
-            currentPosition = current.coerceAtLeast(0L).toFloat()
-            delay(500)
+
+            duration = if (total > 0L) {
+                total.toFloat()
+            } else {
+                1f
+            }
+
+            if (!isSeeking) {
+                currentPosition = current
+                    .coerceAtLeast(0L)
+                    .toFloat()
+            }
+
+            delay(400)
         }
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(PlayerBackground)
+            .background(Color(0xFF09070F))
     ) {
+        // Artwork-based background
         AsyncImage(
             model = state.artworkUrl,
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.58f)
+                .fillMaxHeight(0.65f)
                 .align(Alignment.TopCenter)
         )
+
+        // Dark cinematic gradient
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x33000000),
-                            Color(0x990B0910),
-                            Color(0xFF0B0910),
-                            Color(0xFF0B0910)
+                            Color(0x55000000),
+                            Color(0xAA09070F),
+                            Color(0xFF09070F),
+                            Color(0xFF09070F)
                         )
                     )
                 )
@@ -209,13 +251,16 @@ fun NovaFullPlayerScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 22.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+
+            // TOP BAR
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 6.dp),
+                    .padding(top = 5.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onClose) {
@@ -226,8 +271,12 @@ fun NovaFullPlayerScreen(
                         modifier = Modifier.size(32.dp)
                     )
                 }
+
                 Spacer(Modifier.weight(1f))
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Text(
                         "NOW PLAYING",
                         color = PlayerLavender,
@@ -235,6 +284,7 @@ fun NovaFullPlayerScreen(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 2.sp
                     )
+
                     Text(
                         "MUSIC NOVA",
                         color = PlayerMuted,
@@ -242,7 +292,9 @@ fun NovaFullPlayerScreen(
                         letterSpacing = 2.sp
                     )
                 }
+
                 Spacer(Modifier.weight(1f))
+
                 IconButton(onClick = onStop) {
                     Icon(
                         Icons.Default.Close,
@@ -252,33 +304,133 @@ fun NovaFullPlayerScreen(
                 }
             }
 
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(28.dp))
 
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = state.title.ifBlank { "Unknown track" },
-                    color = Color.White,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+            // ANIMATED ALBUM ARTWORK
+            Box(
+                modifier = Modifier
+                    .size(292.dp)
+                    .graphicsLayer {
+                        rotationZ = if (state.isPlaying) {
+                            albumRotation
+                        } else {
+                            0f
+                        }
+                    }
+                    .clip(CircleShape)
+                    .border(
+                        2.dp,
+                        Color.White.copy(alpha = 0.28f),
+                        CircleShape
+                    )
+            ) {
+                AsyncImage(
+                    model = state.artworkUrl,
+                    contentDescription = "Album artwork",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
                 )
-                Spacer(Modifier.height(7.dp))
-                Text(
-                    text = state.artist.ifBlank { "Unknown artist" },
-                    color = PlayerMuted,
-                    fontSize = 15.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+
+                // Glass shine
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.White.copy(alpha = 0.13f),
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.18f)
+                                )
+                            )
+                        )
+                )
+
+                // Center disc detail
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.75f))
+                        .border(
+                            3.dp,
+                            Color.Black.copy(alpha = 0.35f),
+                            CircleShape
+                        )
                 )
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(35.dp))
+
+            // SONG INFORMATION
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = state.title.ifBlank {
+                            "Unknown Track"
+                        },
+                        color = Color.White,
+                        fontSize = 23.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(Modifier.height(7.dp))
+
+                    Text(
+                        text = state.artist.ifBlank {
+                            "Unknown Artist"
+                        },
+                        color = PlayerMuted,
+                        fontSize = 15.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Surface(
+                    shape = CircleShape,
+                    color = PlayerPurple.copy(alpha = 0.20f),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        PlayerLavender.copy(alpha = 0.25f)
+                    )
+                ) {
+                    Icon(
+                        Icons.Default.GraphicEq,
+                        contentDescription = "Now playing",
+                        tint = PlayerLavender,
+                        modifier = Modifier
+                            .padding(12.dp)
+                            .size(23.dp)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(25.dp))
+
+            // ADVANCED SEEKBAR
             Slider(
-                value = currentPosition.coerceIn(0f, duration.coerceAtLeast(1f)),
-                onValueChange = { currentPosition = it },
+                value = currentPosition.coerceIn(
+                    0f,
+                    duration.coerceAtLeast(1f)
+                ),
+                onValueChange = {
+                    isSeeking = true
+                    currentPosition = it
+                },
                 onValueChangeFinished = {
-                    musicPlayer.seekTo(currentPosition.toLong())
+                    musicPlayer.seekTo(
+                        currentPosition.toLong()
+                    )
+                    isSeeking = false
                 },
                 valueRange = 0f..duration.coerceAtLeast(1f),
                 colors = SliderDefaults.colors(
@@ -287,65 +439,108 @@ fun NovaFullPlayerScreen(
                     inactiveTrackColor = Color(0xFF51485D)
                 )
             )
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(formatPlayerTime(currentPosition.toLong()), color = PlayerMuted, fontSize = 11.sp)
-                Text(formatPlayerTime(duration.toLong()), color = PlayerMuted, fontSize = 11.sp)
+                Text(
+                    formatPlayerTime(currentPosition.toLong()),
+                    color = PlayerMuted,
+                    fontSize = 11.sp
+                )
+
+                Text(
+                    formatPlayerTime(duration.toLong()),
+                    color = PlayerMuted,
+                    fontSize = 11.sp
+                )
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(25.dp))
+
+            // PLAYBACK CONTROLS
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onPrevious, modifier = Modifier.size(58.dp)) {
+                IconButton(
+                    onClick = onPrevious,
+                    modifier = Modifier.size(58.dp)
+                ) {
                     Icon(
                         Icons.Default.SkipPrevious,
-                        contentDescription = "Previous track",
+                        contentDescription = "Previous",
                         tint = PlayerLavender,
                         modifier = Modifier.size(36.dp)
                     )
                 }
-                Spacer(Modifier.width(25.dp))
+
+                Spacer(Modifier.width(28.dp))
+
                 Surface(
-                    onClick = { musicPlayer.togglePlayPause() },
-                    modifier = Modifier.size(76.dp),
+                    onClick = {
+                        musicPlayer.togglePlayPause()
+                    },
+                    modifier = Modifier.size(78.dp),
                     shape = CircleShape,
                     color = PlayerPurple,
-                    contentColor = Color.White
+                    shadowElevation = 16.dp
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
+                    Box(
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
-                            imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            imageVector = if (state.isPlaying) {
+                                Icons.Default.Pause
+                            } else {
+                                Icons.Default.PlayArrow
+                            },
                             contentDescription = "Play or pause",
-                            modifier = Modifier.size(40.dp)
+                            tint = Color.White,
+                            modifier = Modifier.size(43.dp)
                         )
                     }
                 }
-                Spacer(Modifier.width(25.dp))
-                IconButton(onClick = onNext, modifier = Modifier.size(58.dp)) {
+
+                Spacer(Modifier.width(28.dp))
+
+                IconButton(
+                    onClick = onNext,
+                    modifier = Modifier.size(58.dp)
+                ) {
                     Icon(
                         Icons.Default.SkipNext,
-                        contentDescription = "Next track",
+                        contentDescription = "Next",
                         tint = PlayerLavender,
                         modifier = Modifier.size(36.dp)
                     )
                 }
             }
-            Spacer(Modifier.weight(0.7f))
+
+            Spacer(Modifier.height(32.dp))
+
+            // FOOTER
             Text(
                 "FEEL THE SOUND",
-                color = PlayerLavender.copy(alpha = 0.7f),
+                color = PlayerLavender.copy(alpha = 0.75f),
                 fontSize = 10.sp,
                 letterSpacing = 3.sp,
-                modifier = Modifier.padding(bottom = 17.dp)
+                modifier = Modifier.padding(bottom = 22.dp)
             )
         }
     }
 }
+
+private fun formatPlayerTime(milliseconds: Long): String {
+    val totalSeconds = (milliseconds / 1000).coerceAtLeast(0)
+    return "%d:%02d".format(
+        totalSeconds / 60,
+        totalSeconds % 60
+    )
+}
+
 
 private fun formatPlayerTime(milliseconds: Long): String {
     val totalSeconds = (milliseconds / 1000).coerceAtLeast(0)
