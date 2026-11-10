@@ -542,11 +542,6 @@ private fun formatPlayerTime(milliseconds: Long): String {
 }
 
 
-private fun formatPlayerTime(milliseconds: Long): String {
-    val totalSeconds = (milliseconds / 1000).coerceAtLeast(0)
-    return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
-}
-
 // FLOATING BOTTOM NAVIGATION - shown only when no track is playing.
 @Composable
 fun NovaBottomNavigation(
