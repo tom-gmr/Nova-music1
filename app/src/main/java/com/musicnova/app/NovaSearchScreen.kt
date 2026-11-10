@@ -586,9 +586,9 @@ fun NovaFullPlayerScreen(
                     Text(
                         text = when (lyricsState) {
                             is LyricsUiState.Success -> {
-                                if (lyricsState.result.isWordSynced) {
+                                if (currentState.result.isWordSynced) {
                                     "WORD SYNC"
-                                } else if (lyricsState.result.isSynced) {
+                                } else if (currentState.result.isSynced) {
                                     "LINE SYNC"
                                 } else {
                                     "PLAIN"
