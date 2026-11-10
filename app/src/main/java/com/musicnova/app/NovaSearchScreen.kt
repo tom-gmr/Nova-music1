@@ -3,6 +3,7 @@ package com.musicnova.app
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,15 +16,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.musicnova.app.playback.MusicPlayer
 import com.musicnova.app.playback.PlaybackState
 import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 private val PlayerBackground = Color(0xFF0B0910)
 private val PlayerSurface = Color(0xFF211B2B)
@@ -31,8 +35,7 @@ private val PlayerPurple = Color(0xFF9277B8)
 private val PlayerLavender = Color(0xFFD1C1EB)
 private val PlayerMuted = Color(0xFFAAA4B5)
 
-// MINI PLAYER
-
+/** LastWave-inspired draggable Now Playing artwork button. */
 @Composable
 fun NovaGlassMiniPlayer(
     state: PlaybackState,
@@ -40,129 +43,113 @@ fun NovaGlassMiniPlayer(
     onStop: () -> Unit,
     onNext: () -> Unit,
     onExpand: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    musicPlayer: MusicPlayer? = null
 ) {
-    val shape = RoundedCornerShape(100.dp)
+    var progress by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(musicPlayer, state.title) {
+        while (musicPlayer != null) {
+            val duration = musicPlayer.getDuration()
+            val position = musicPlayer.getCurrentPosition()
+            progress = if (duration > 0L) {
+                (position.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+            } else 0f
+            delay(500)
+        }
+    }
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(88.dp)
-            .clip(shape)
-            .background(Color(0xAA17131F))
-            .border(
-                1.dp,
-                Color.White.copy(alpha = 0.22f),
-                shape
-            )
-            .clickable {
-                onExpand()
-            }
+    BoxWithConstraints(
+        modifier = modifier.fillMaxSize()
     ) {
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        val buttonSize = 68.dp
+        val buttonPx = with(density) { buttonSize.toPx() }
+        val maxX = (constraints.maxWidth.toFloat() - buttonPx - with(density) { 14.dp.toPx() }).coerceAtLeast(0f)
+        val maxY = (constraints.maxHeight.toFloat() - buttonPx - with(density) { 104.dp.toPx() }).coerceAtLeast(0f)
+        var offsetX by remember { mutableFloatStateOf(maxX) }
+        var offsetY by remember { mutableFloatStateOf(maxY) }
+        var dragMoved by remember { mutableStateOf(false) }
 
-        // Glass reflection
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(
-                            Color(0x333F7774),
-                            Color(0x111C1825),
-                            Color(0x338E5C91)
-                        )
+                .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
+                .size(buttonSize)
+                .pointerInput(maxX, maxY) {
+                    detectDragGestures(
+                        onDragStart = { dragMoved = false },
+                        onDragEnd = { dragMoved = false },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            dragMoved = true
+                            offsetX = (offsetX + dragAmount.x).coerceIn(0f, maxX)
+                            offsetY = (offsetY + dragAmount.y).coerceIn(0f, maxY)
+                        }
                     )
-                )
-        )
-
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                }
+                .clickable {
+                    if (!dragMoved) onExpand()
+                    dragMoved = false
+                },
+            contentAlignment = Alignment.Center
         ) {
-
-            AsyncImage(
-                model = state.artworkUrl,
-                contentDescription = "Album artwork",
-                contentScale = ContentScale.Crop,
+            Surface(
                 modifier = Modifier
-                    .size(62.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(PlayerSurface)
-            )
-
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 12.dp),
-                verticalArrangement = Arrangement.Center
+                    .size(buttonSize)
+                    .border(
+                        width = 1.5.dp,
+                        brush = Brush.linearGradient(
+                            listOf(PlayerLavender, PlayerPurple, Color(0xFF5A456F))
+                        ),
+                        shape = CircleShape
+                    ),
+                shape = CircleShape,
+                color = Color(0xF21A1522),
+                shadowElevation = 14.dp
             ) {
-
-                Text(
-                    text = state.title.ifBlank {
-                        "Unknown track"
-                    },
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(Modifier.height(4.dp))
-
-                Text(
-                    text = state.artist.ifBlank {
-                        "Unknown artist"
-                    },
-                    color = PlayerMuted,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            IconButton(
-                onClick = onPlayPause
-            ) {
-                Icon(
-                    imageVector = if (state.isPlaying)
-                        Icons.Default.Pause
-                    else
-                        Icons.Default.PlayArrow,
-                    contentDescription = "Play or pause",
-                    tint = PlayerLavender,
-                    modifier = Modifier.size(29.dp)
-                )
-            }
-
-            IconButton(
-                onClick = onNext
-            ) {
-                Icon(
-                    imageVector = Icons.Default.SkipNext,
-                    contentDescription = "Next track",
-                    tint = PlayerLavender,
-                    modifier = Modifier.size(27.dp)
-                )
-            }
-
-            IconButton(
-                onClick = onStop
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Stop playback",
-                    tint = PlayerMuted,
-                    modifier = Modifier.size(19.dp)
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(2.dp),
+                        color = PlayerLavender,
+                        trackColor = PlayerPurple.copy(alpha = 0.25f),
+                        strokeWidth = 3.dp
+                    )
+                    AsyncImage(
+                        model = state.artworkUrl,
+                        contentDescription = "Now playing: ${state.title}",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(CircleShape)
+                            .background(PlayerSurface)
+                    )
+                    if (!state.isPlaying) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(5.dp)
+                                .size(19.dp)
+                                .clip(CircleShape)
+                                .background(PlayerPurple),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Pause,
+                                contentDescription = "Paused",
+                                tint = Color.White,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
-// FULL PLAYER SCREEN
 
+// FULL PLAYER SCREEN
 @Composable
 fun NovaFullPlayerScreen(
     state: PlaybackState,
@@ -172,29 +159,15 @@ fun NovaFullPlayerScreen(
     onNext: () -> Unit,
     onPrevious: () -> Unit
 ) {
-    var currentPosition by remember {
-        mutableFloatStateOf(0f)
-    }
-
-    var duration by remember {
-        mutableFloatStateOf(1f)
-    }
+    var currentPosition by remember { mutableFloatStateOf(0f) }
+    var duration by remember { mutableFloatStateOf(1f) }
 
     LaunchedEffect(musicPlayer) {
         while (true) {
             val total = musicPlayer.getDuration()
             val current = musicPlayer.getCurrentPosition()
-
-            duration = if (total > 0L) {
-                total.toFloat()
-            } else {
-                1f
-            }
-
-            currentPosition = current
-                .coerceAtLeast(0L)
-                .toFloat()
-
+            duration = if (total > 0L) total.toFloat() else 1f
+            currentPosition = current.coerceAtLeast(0L).toFloat()
             delay(500)
         }
     }
@@ -202,28 +175,27 @@ fun NovaFullPlayerScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(PlayerBackground)
     ) {
-
-        // Full-screen artwork background
         AsyncImage(
             model = state.artworkUrl,
             contentDescription = null,
-            contentScale = ContentScale.Fit,
-            modifier = Modifier.fillMaxSize()
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.58f)
+                .align(Alignment.TopCenter)
         )
-
-        // Dark overlay for readable controls
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x44000000),
-                            Color(0x88000000),
-                            Color(0xDD090609),
-                            Color(0xFF08070B)
+                            Color(0x33000000),
+                            Color(0x990B0910),
+                            Color(0xFF0B0910),
+                            Color(0xFF0B0910)
                         )
                     )
                 )
@@ -237,18 +209,13 @@ fun NovaFullPlayerScreen(
                 .padding(horizontal = 22.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
-            // Top bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
+                    .padding(top = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-
-                IconButton(
-                    onClick = onClose
-                ) {
+                IconButton(onClick = onClose) {
                     Icon(
                         Icons.Default.KeyboardArrowDown,
                         contentDescription = "Close player",
@@ -256,33 +223,24 @@ fun NovaFullPlayerScreen(
                         modifier = Modifier.size(32.dp)
                     )
                 }
-
                 Spacer(Modifier.weight(1f))
-
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "NOW PLAYING",
+                        "NOW PLAYING",
                         color = PlayerLavender,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 2.sp
                     )
-
                     Text(
-                        text = "MUSIC NOVA",
+                        "MUSIC NOVA",
                         color = PlayerMuted,
                         fontSize = 9.sp,
                         letterSpacing = 2.sp
                     )
                 }
-
                 Spacer(Modifier.weight(1f))
-
-                IconButton(
-                    onClick = onStop
-                ) {
+                IconButton(onClick = onStop) {
                     Icon(
                         Icons.Default.Close,
                         contentDescription = "Stop playback",
@@ -293,28 +251,18 @@ fun NovaFullPlayerScreen(
 
             Spacer(Modifier.weight(1f))
 
-            // Song information
-            Column(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-
+            Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = state.title.ifBlank {
-                        "Unknown track"
-                    },
+                    text = state.title.ifBlank { "Unknown track" },
                     color = Color.White,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-
                 Spacer(Modifier.height(7.dp))
-
                 Text(
-                    text = state.artist.ifBlank {
-                        "Unknown artist"
-                    },
+                    text = state.artist.ifBlank { "Unknown artist" },
                     color = PlayerMuted,
                     fontSize = 15.sp,
                     maxLines = 1,
@@ -323,20 +271,11 @@ fun NovaFullPlayerScreen(
             }
 
             Spacer(Modifier.height(20.dp))
-
-            // Playback progress
             Slider(
-                value = currentPosition.coerceIn(
-                    0f,
-                    duration.coerceAtLeast(1f)
-                ),
-                onValueChange = {
-                    currentPosition = it
-                },
+                value = currentPosition.coerceIn(0f, duration.coerceAtLeast(1f)),
+                onValueChange = { currentPosition = it },
                 onValueChangeFinished = {
-                    musicPlayer.seekTo(
-                        currentPosition.toLong()
-                    )
+                    musicPlayer.seekTo(currentPosition.toLong())
                 },
                 valueRange = 0f..duration.coerceAtLeast(1f),
                 colors = SliderDefaults.colors(
@@ -345,42 +284,21 @@ fun NovaFullPlayerScreen(
                     inactiveTrackColor = Color(0xFF51485D)
                 )
             )
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-
-                Text(
-                    text = formatPlayerTime(
-                        currentPosition.toLong()
-                    ),
-                    color = PlayerMuted,
-                    fontSize = 11.sp
-                )
-
-                Text(
-                    text = formatPlayerTime(
-                        duration.toLong()
-                    ),
-                    color = PlayerMuted,
-                    fontSize = 11.sp
-                )
+                Text(formatPlayerTime(currentPosition.toLong()), color = PlayerMuted, fontSize = 11.sp)
+                Text(formatPlayerTime(duration.toLong()), color = PlayerMuted, fontSize = 11.sp)
             }
 
             Spacer(Modifier.height(24.dp))
-
-            // Main playback controls
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-
-                IconButton(
-                    onClick = onPrevious,
-                    modifier = Modifier.size(58.dp)
-                ) {
+                IconButton(onClick = onPrevious, modifier = Modifier.size(58.dp)) {
                     Icon(
                         Icons.Default.SkipPrevious,
                         contentDescription = "Previous track",
@@ -388,38 +306,24 @@ fun NovaFullPlayerScreen(
                         modifier = Modifier.size(36.dp)
                     )
                 }
-
                 Spacer(Modifier.width(25.dp))
-
                 Surface(
-                    onClick = {
-                        musicPlayer.togglePlayPause()
-                    },
+                    onClick = { musicPlayer.togglePlayPause() },
                     modifier = Modifier.size(76.dp),
                     shape = CircleShape,
                     color = PlayerPurple,
                     contentColor = Color.White
                 ) {
-                    Box(
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = if (state.isPlaying)
-                                Icons.Default.Pause
-                            else
-                                Icons.Default.PlayArrow,
+                            imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = "Play or pause",
                             modifier = Modifier.size(40.dp)
                         )
                     }
                 }
-
                 Spacer(Modifier.width(25.dp))
-
-                IconButton(
-                    onClick = onNext,
-                    modifier = Modifier.size(58.dp)
-                ) {
+                IconButton(onClick = onNext, modifier = Modifier.size(58.dp)) {
                     Icon(
                         Icons.Default.SkipNext,
                         contentDescription = "Next track",
@@ -428,11 +332,9 @@ fun NovaFullPlayerScreen(
                     )
                 }
             }
-
             Spacer(Modifier.weight(0.7f))
-
             Text(
-                text = "FEEL THE SOUND",
+                "FEEL THE SOUND",
                 color = PlayerLavender.copy(alpha = 0.7f),
                 fontSize = 10.sp,
                 letterSpacing = 3.sp,
@@ -441,21 +343,13 @@ fun NovaFullPlayerScreen(
         }
     }
 }
-// TIME FORMATTER
 
 private fun formatPlayerTime(milliseconds: Long): String {
-    val totalSeconds =
-        (milliseconds / 1000).coerceAtLeast(0)
-
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-
-    return "%d:%02d".format(minutes, seconds)
+    val totalSeconds = (milliseconds / 1000).coerceAtLeast(0)
+    return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 }
 
-
-// FLOATING BOTTOM NAVIGATION
-
+// FLOATING BOTTOM NAVIGATION - shown only when no track is playing.
 @Composable
 fun NovaBottomNavigation(
     selectedTab: String,
@@ -468,7 +362,6 @@ fun NovaBottomNavigation(
         Triple("Library", Icons.Default.LibraryMusic, "Library"),
         Triple("Profile", Icons.Default.Person, "Profile")
     )
-
     val shape = RoundedCornerShape(26.dp)
 
     Row(
@@ -477,75 +370,40 @@ fun NovaBottomNavigation(
             .clip(shape)
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF292333),
-                        Color(0xFF1C1825),
-                        Color(0xFF15121C)
-                    )
+                    listOf(Color(0xFF292333), Color(0xFF1C1825), Color(0xFF15121C))
                 )
             )
-            .border(
-                1.dp,
-                Color.White.copy(alpha = 0.10f),
-                shape
-            )
-            .padding(
-                horizontal = 7.dp,
-                vertical = 8.dp
-            ),
+            .border(1.dp, Color.White.copy(alpha = 0.10f), shape)
+            .padding(horizontal = 7.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-
         items.forEach { item ->
-
             val isSelected = selectedTab == item.first
-
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(18.dp))
-                    .clickable {
-                        onSelect(item.first)
-                    }
+                    .clickable { onSelect(item.first) }
                     .background(
-                        if (isSelected) {
-                            Color(0xFF40334F)
-                                .copy(alpha = 0.85f)
-                        } else {
-                            Color.Transparent
-                        }
+                        if (isSelected) Color(0xFF40334F).copy(alpha = 0.85f)
+                        else Color.Transparent
                     )
                     .padding(vertical = 9.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-
                 Icon(
                     imageVector = item.second,
                     contentDescription = item.third,
-                    tint = if (isSelected) {
-                        PlayerLavender
-                    } else {
-                        PlayerMuted
-                    },
+                    tint = if (isSelected) PlayerLavender else PlayerMuted,
                     modifier = Modifier.size(22.dp)
                 )
-
                 Spacer(Modifier.height(5.dp))
-
                 Text(
                     text = item.first,
-                    color = if (isSelected) {
-                        PlayerLavender
-                    } else {
-                        PlayerMuted
-                    },
+                    color = if (isSelected) PlayerLavender else PlayerMuted,
                     fontSize = 10.sp,
-                    fontWeight = if (isSelected) {
-                        FontWeight.Bold
-                    } else {
-                        FontWeight.Normal
-                    }
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                 )
             }
         }
