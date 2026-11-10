@@ -370,7 +370,7 @@ fun MusicNovaApp() {
                       },
                         onExpand = {
                             showFullPlayer = true
-                        },musicPlayer = musicPlayer
+                        },musicPlayer = musicPlayer,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .navigationBarsPadding()
