@@ -1,10 +1,10 @@
-
 package com.musicnova.app.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.musicnova.app.data.artwork.NovaArtworkRepository
 import com.musicnova.app.data.music.HomePage
+import com.musicnova.app.data.music.HomeShelfItem
 import com.musicnova.app.data.music.LibraryTrack
 import com.musicnova.app.data.music.MusicRepository
 import com.musicnova.app.data.music.YouTubeMusicTrack
@@ -57,7 +57,6 @@ class MusicViewModel @Inject constructor(
             try {
                 val data = repository.loadHomeMusic()
 
-                // Show original songs immediately.
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     recommendations = data.recommendations,
@@ -68,16 +67,19 @@ class MusicViewModel @Inject constructor(
                     error = null
                 )
 
-                // Resolve better artwork in the background.
                 val (recommendations, trending) =
                     resolveHomeArtwork(
                         data.recommendations,
                         data.trending
                     )
 
+                val updatedNativeHomePage =
+                    resolveQuickPickArtwork(data.nativeHomePage)
+
                 _uiState.value = _uiState.value.copy(
                     recommendations = recommendations,
-                    trending = trending
+                    trending = trending,
+                    nativeHomePage = updatedNativeHomePage
                 )
 
             } catch (e: CancellationException) {
@@ -124,9 +126,7 @@ class MusicViewModel @Inject constructor(
                             if (artwork.isNullOrBlank()) {
                                 track
                             } else {
-                                track.copy(
-                                    artworkUrl = artwork
-                                )
+                                track.copy(artworkUrl = artwork)
                             }
 
                         } catch (e: CancellationException) {
@@ -153,6 +153,75 @@ class MusicViewModel @Inject constructor(
 
             updatedRecommendations to updatedTrending
         }
+
+    private suspend fun resolveQuickPickArtwork(
+        homePage: HomePage?
+    ): HomePage? {
+        if (homePage == null) return null
+
+        return coroutineScope {
+            val semaphore = Semaphore(4)
+
+            val updatedShelves = homePage.shelves.map { shelf ->
+                val isQuickPick = shelf.title
+                    .contains("quick pick", ignoreCase = true)
+
+                if (!isQuickPick) {
+                    return@map shelf
+                }
+
+                val updatedItems = shelf.items.map { item ->
+                    if (item !is HomeShelfItem.Track) {
+                        return@map item
+                    }
+
+                    val track = item.track
+
+                    if (
+                        track.isArtist ||
+                        track.title.isBlank()
+                    ) {
+                        return@map item
+                    }
+
+                    semaphore.withPermit {
+                        try {
+                            val artwork =
+                                artworkRepository.resolve(
+                                    title = track.title,
+                                    artist = track.artist,
+                                    youtubeFallback =
+                                        item.cardData?.largeArtworkUrl
+                                            ?: track.artworkUrl
+                                )
+
+                            if (artwork.isNullOrBlank()) {
+                                item
+                            } else {
+                                item.copy(
+                                    track = track.copy(
+                                        artworkUrl = artwork
+                                    ),
+                                    cardData = item.cardData?.copy(
+                                        largeArtworkUrl = artwork
+                                    )
+                                )
+                            }
+
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            item
+                        }
+                    }
+                }
+
+                shelf.copy(items = updatedItems)
+            }
+
+            homePage.copy(shelves = updatedShelves)
+        }
+    }
 
     fun searchSongs(query: String) {
         if (query.isBlank()) {
@@ -215,9 +284,13 @@ class MusicViewModel @Inject constructor(
                             data.trending
                         )
 
+                    val updatedNativeHomePage =
+                        resolveQuickPickArtwork(data.nativeHomePage)
+
                     _uiState.value = _uiState.value.copy(
                         recommendations = recommendations,
-                        trending = trending
+                        trending = trending,
+                        nativeHomePage = updatedNativeHomePage
                     )
 
                 } catch (e: CancellationException) {
