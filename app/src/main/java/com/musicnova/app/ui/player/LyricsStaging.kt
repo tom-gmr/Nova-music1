@@ -1,4 +1,3 @@
-
 package com.musicnova.app.ui.player
 
 import com.musicnova.app.data.lyrics.LyricLine
@@ -59,12 +58,14 @@ internal class LyricsStage(
 
         while (low < high) {
             val mid = (low + high) ushr 1
+
             if (starts[mid] <= positionMs) {
                 low = mid + 1
             } else {
                 high = mid
             }
         }
+
         return low - 1
     }
 
@@ -93,13 +94,16 @@ private fun LyricLine.knownEnd(): Long? {
 
     val lineEnd = if (durationMs > 0L) {
         timeMs + durationMs
-    } else null
+    } else {
+        null
+    }
 
     return when {
         lineEnd != null && syllableEnd != null ->
             maxOf(lineEnd, syllableEnd)
 
         lineEnd != null -> lineEnd
+
         syllableEnd != null && syllableEnd > timeMs ->
             syllableEnd
 
@@ -149,6 +153,7 @@ internal fun buildLyricsStage(
                     it.end = maxOf(it.start, line.timeMs)
                 }
             }
+
             return@forEachIndexed
         }
 
@@ -166,7 +171,9 @@ internal fun buildLyricsStage(
 
         val end = line.knownEnd()
 
-        val lead = if (backingOnly) null else {
+        val lead = if (backingOnly) {
+            null
+        } else {
             createVocal(
                 index,
                 line.timeMs,
@@ -186,11 +193,18 @@ internal fun buildLyricsStage(
                 backgroundUnits.maxOfOrNull {
                     it.timeMs + it.durationMs
                 } ?: end,
-                if (backingOnly) line.text
-                    else backgroundUnits.joinToString(" ") { it.text },
+                if (backingOnly) {
+                    line.text
+                } else {
+                    backgroundUnits.joinToString(" ") {
+                        it.text
+                    }
+                },
                 backgroundUnits
             )
-        } else null
+        } else {
+            null
+        }
 
         val previous = drafts.lastOrNull()
 
@@ -203,9 +217,11 @@ internal fun buildLyricsStage(
                 (previous.end ?: previous.start) + BACKING_ATTACH_MS
         ) {
             previous.backgrounds.add(background)
+
             background.endMs?.let {
                 previous.end = maxOf(previous.end ?: it, it)
             }
+
             return@forEachIndexed
         }
 
@@ -216,10 +232,13 @@ internal fun buildLyricsStage(
         drafts.add(
             Draft(
                 lead = lead,
-                backgrounds = mutableListOfNotNull(background),
+                backgrounds = listOfNotNull(background)
+                    .toMutableList(),
                 role = if (backingOnly) {
                     previous?.role ?: VocalRole.LEAD_LEFT
-                } else line.role,
+                } else {
+                    line.role
+                },
                 start = line.timeMs,
                 end = listOfNotNull(
                     end,
@@ -249,8 +268,11 @@ internal fun buildLyricsStage(
                 LyricInterlude(
                     startMs = start,
                     endMs = end,
-                    role = if (isStaged) role
-                        else VocalRole.LEAD_LEFT
+                    role = if (isStaged) {
+                        role
+                    } else {
+                        VocalRole.LEAD_LEFT
+                    }
                 )
             )
         }
@@ -331,7 +353,9 @@ private fun createVocal(
     }
 
     val displayText = if (cleanUnits.isNotEmpty()) {
-        cleanUnits.joinToString("") { it.text }
+        cleanUnits.joinToString("") {
+            it.text
+        }
     } else {
         text.replace(Regex("\\s+"), " ").trim()
     }
