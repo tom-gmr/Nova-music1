@@ -450,14 +450,31 @@ internal object HomeFeedParser {
                 val thumbnails = value.optJSONArray("thumbnails")
 
                 if (thumbnails != null) {
-                    for (i in thumbnails.length() - 1 downTo 0) {
-                        val url = thumbnails.optJSONObject(i)
-                            ?.optString("url")
-                            .orEmpty()
+    var bestUrl: String? = null
+    var bestQuality = -1L
 
-                        if (url.startsWith("http")) return url
-                        if (url.startsWith("//")) return "https:$url"
-                    }
+    for (i in 0 until thumbnails.length()) {
+        val item = thumbnails.optJSONObject(i) ?: continue
+        val rawUrl = item.optString("url").orEmpty()
+
+        val url = when {
+            rawUrl.startsWith("https://") ||
+            rawUrl.startsWith("http://") -> rawUrl
+            rawUrl.startsWith("//") -> "https:$rawUrl"
+            else -> continue
+        }
+
+        val width = item.optLong("width", 0L)
+        val height = item.optLong("height", 0L)
+        val quality = width * height
+
+        if (quality > bestQuality) {
+            bestQuality = quality
+            bestUrl = url
+        }
+    }
+
+    if (!bestUrl.isNullOrBlank()) return bestUrl
                 }
 
                 val keys = value.keys()
