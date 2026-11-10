@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.lazy.rememberSnapFlingBehavior
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -30,7 +30,7 @@ import com.musicnova.app.data.music.HomeShelfItem
 import com.musicnova.app.data.music.PlaylistPreviewState
 import com.musicnova.app.data.music.YouTubeMusicTrack
 import com.musicnova.app.ui.feed.cards.*
-
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 @Composable
 fun HomeNativeShelves(
     shelves: List<HomeShelf>,
