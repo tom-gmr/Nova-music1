@@ -253,9 +253,7 @@ fun RecommendationsHomeScreen(
                 )
             }
         }
-
-        // MADE FOR YOU BOX
-        item(key = "mix_section") {
+                item(key = "mix_section") {
             HomeSectionBox(
                 title = "Made for you",
                 subtitle = "Your personal music mix"
@@ -272,9 +270,7 @@ fun RecommendationsHomeScreen(
                     )
                 } else {
                     LazyRow(
-                        contentPadding = PaddingValues(
-                            horizontal = 12.dp
-                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(13.dp)
                     ) {
                         items(
@@ -290,7 +286,6 @@ fun RecommendationsHomeScreen(
             }
         }
 
-        // TRENDING BOX
         item(key = "trending_section") {
             HomeSectionBox(
                 title = "Trending now",
@@ -306,9 +301,7 @@ fun RecommendationsHomeScreen(
                     )
                 } else {
                     LazyRow(
-                        contentPadding = PaddingValues(
-                            horizontal = 12.dp
-                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(13.dp)
                     ) {
                         items(
@@ -324,7 +317,6 @@ fun RecommendationsHomeScreen(
             }
         }
 
-        // RECENTLY PLAYED BOX
         item(key = "recent_section") {
             HomeSectionBox(
                 title = "Jump back in",
@@ -337,9 +329,7 @@ fun RecommendationsHomeScreen(
                 } else {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(5.dp),
-                        modifier = Modifier.padding(
-                            horizontal = 8.dp
-                        )
+                        modifier = Modifier.padding(horizontal = 8.dp)
                     ) {
                         recentlyPlayed.take(10).forEach { song ->
                             HomeTrackRow(
@@ -403,10 +393,7 @@ private fun HomeSectionBox(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(
-                horizontal = 12.dp,
-                vertical = 6.dp
-            )
+            .padding(horizontal = 12.dp, vertical = 6.dp)
             .clip(RoundedCornerShape(22.dp))
             .background(HomeBg)
             .border(
@@ -414,23 +401,17 @@ private fun HomeSectionBox(
                 color = HomeBorder,
                 shape = RoundedCornerShape(22.dp)
             )
-            .padding(
-                top = 13.dp,
-                bottom = 13.dp
-            )
+            .padding(vertical = 13.dp)
     ) {
         HomeSectionHeader(
             title = title,
             subtitle = subtitle,
-            modifier = Modifier.padding(
-                bottom = 11.dp
-            )
+            modifier = Modifier.padding(bottom = 11.dp)
         )
 
         content()
     }
 }
-
 @Composable
 private fun HomeHero(
     featured: YouTubeMusicTrack?,
@@ -482,9 +463,7 @@ private fun HomeHero(
                 .align(Alignment.TopEnd)
                 .offset(x = 65.dp, y = (-65).dp)
                 .clip(CircleShape)
-                .background(
-                    HomeLavender.copy(alpha = 0.12f)
-                )
+                .background(HomeLavender.copy(alpha = 0.12f))
         )
 
         Column(
@@ -492,9 +471,7 @@ private fun HomeHero(
                 .fillMaxSize()
                 .padding(20.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     Icons.Default.AutoAwesome,
                     contentDescription = null,
@@ -539,12 +516,8 @@ private fun HomeHero(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(19.dp))
-                        .background(
-                            Color.White.copy(alpha = 0.13f)
-                        )
-                        .clickable {
-                            onPlay(featured)
-                        }
+                        .background(Color.White.copy(alpha = 0.13f))
+                        .clickable { onPlay(featured) }
                         .padding(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -559,9 +532,7 @@ private fun HomeHero(
 
                     Spacer(Modifier.width(11.dp))
 
-                    Column(
-                        modifier = Modifier.weight(1f)
-                    ) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             "FEATURED TRACK",
                             color = HomeLavender,
@@ -597,10 +568,6 @@ private fun HomeHero(
                 }
             } else {
                 Text(
-                    if (refreshing) {
-                        "Finding music for you..."
-                    } else {
-                        "Your next                 Text(
                     if (refreshing) {
                         "Finding music for you..."
                     } else {
@@ -648,7 +615,6 @@ private fun HomeStat(
         )
     }
 }
-
 @Composable
 private fun HomeSectionHeader(
     title: String,
@@ -749,9 +715,7 @@ private fun HomeTrackRow(
 
         Spacer(Modifier.width(12.dp))
 
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 title,
                 color = HomeText,
