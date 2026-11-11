@@ -11,13 +11,15 @@ import com.musicnova.app.ui.home.HomeScreen
 import com.musicnova.app.ui.home.HomeSong
 import com.musicnova.app.ui.home.HomeUiState
 import com.musicnova.app.ui.home.MusicViewModel
-
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.unit.dp
 @Composable
 fun RecommendationsHomeScreen(
     onPlay: (YouTubeMusicTrack) -> Unit,
     onBrowse: (String) -> Unit,
     onPlayNext: (YouTubeMusicTrack) -> Unit = {},
-    onAddToQueue: (YouTubeMusicTrack) -> Unit = {}
+    onAddToQueue: (YouTubeMusicTrack) -> Unit = {},
+contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val viewModel: MusicViewModel = hiltViewModel()
     val musicState by viewModel.uiState.collectAsState()
@@ -129,5 +131,6 @@ fun RecommendationsHomeScreen(
         actions = actions,
         modifier = Modifier,
         selectedMood = selectedMood
+        contentPadding = contentPadding
     )
 }
