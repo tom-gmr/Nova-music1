@@ -35,6 +35,12 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.musicnova.app.ui.home.MusicNovaShell
+import android.net.Uri
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import androidx.compose.material.icons.filled.*
 private val NovaBlack = Color(0xFF09080E)
 private val NovaSurface = Color(0xFF191620)
 private val NovaPurple = Color(0xFF9277B8)
@@ -340,13 +346,16 @@ fun MusicNovaApp() {
                 .padding(top = shellPadding.calculateTopPadding())
         ) {
 
-            if (selectedTab != "Home" && currentBrowseId == null) {
-                NovaTopHeader(
-                    selectedTab = selectedTab,
-                    onProfileClick = {
-                        selectedTab = "Profile"
-                    }
-                )
+            if (currentBrowseId == null) {
+    NovaTopHeader(
+        selectedTab = selectedTab,
+        onSearchClick = {
+            selectedTab = "Search"
+        },
+        onProfileClick = {
+            selectedTab = "Profile"
+        }
+    )
             }
 
             playbackError?.let { message ->
@@ -485,19 +494,29 @@ fun MusicNovaApp() {
 }     // Box
 }     // NovaTheme
 }     // MusicNovaApp
+
 @Composable
 private fun NovaTopHeader(
     selectedTab: String,
+    onSearchClick: () -> Unit,
     onProfileClick: () -> Unit
 ) {
+    val context = LocalContext.current
+
+    val profilePicture = remember(selectedTab) {
+        context.getSharedPreferences("nova_profile", 0)
+            .getString("profile_picture", "builtin:person")
+            ?: "builtin:person"
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(
                 start = 22.dp,
                 end = 14.dp,
-                top = 14.dp,
-                bottom = 16.dp
+                top = 10.dp,
+                bottom = 12.dp
             ),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -520,18 +539,57 @@ private fun NovaTopHeader(
 
         Spacer(Modifier.weight(1f))
 
-        IconButton(
-            onClick = onProfileClick
-        ) {
+        IconButton(onClick = onSearchClick) {
             Icon(
-                imageVector = Icons.Default.AccountCircle,
-                contentDescription = "Profile",
+                imageVector = Icons.Default.Search,
+                contentDescription = "Search",
                 tint = NovaLavender,
-                modifier = Modifier.size(29.dp)
+                modifier = Modifier.size(27.dp)
             )
+        }
+
+        Spacer(Modifier.width(5.dp))
+
+        IconButton(onClick = onProfileClick) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF30263D)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (profilePicture.startsWith("builtin:")) {
+                    val avatarIcon = when (
+                        profilePicture.removePrefix("builtin:")
+                    ) {
+                        "music" -> Icons.Default.MusicNote
+                        "headphones" -> Icons.Default.Headphones
+                        "album" -> Icons.Default.Album
+                        "equalizer" -> Icons.Default.Equalizer
+                        "favorite" -> Icons.Default.Favorite
+                        else -> Icons.Default.Person
+                    }
+
+                    Icon(
+                        imageVector = avatarIcon,
+                        contentDescription = "Profile",
+                        tint = NovaLavender,
+                        modifier = Modifier.size(25.dp)
+                    )
+                } else {
+                    AsyncImage(
+                        model = Uri.parse(profilePicture),
+                        contentDescription = "Profile",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
         }
     }
 }
+
+
 
 private fun YouTubeMusicTrack.toLibraryTrack(): LibraryTrack {
     return LibraryTrack(
