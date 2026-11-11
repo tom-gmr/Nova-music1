@@ -67,42 +67,7 @@ fun RecommendationsHomeScreen(
 
     val featured = recommendations.firstOrNull()
         ?: trending.firstOrNull()
-    if (
-        refreshing &&
-        recommendations.isEmpty() &&
-        trending.isEmpty() &&
-        recentlyPlayed.isEmpty() &&
-        uiState.nativeHomePage == null
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(HomeBg),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                CircularProgressIndicator(
-                    color = HomeLavender,
-                    strokeWidth = 3.dp
-                )
-                Spacer(Modifier.height(18.dp))
-                Text(
-                    "Preparing your music...",
-                    color = HomeText,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "Loading high-quality artwork",
-                    color = HomeMuted,
-                    fontSize = 11.sp
-                )
-            }
-        }
-    } else {
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -436,7 +401,7 @@ fun RecommendationsHomeScreen(
             }
         }
     }
-    }
+    
 }
 
 @Composable
