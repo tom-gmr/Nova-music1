@@ -1,3 +1,4 @@
+
 package com.musicnova.app
 
 import android.os.Bundle
@@ -24,16 +25,15 @@ import com.musicnova.app.data.music.LibraryTrack
 import com.musicnova.app.data.music.StreamExtraction
 import com.musicnova.app.data.music.YouTubeMusicTrack
 import com.musicnova.app.playback.MusicPlayer
-import com.musicnova.app.playback.PlaybackState
 import com.musicnova.app.playback.PlaybackQueue
+import com.musicnova.app.ui.home.HomeSong
+import com.musicnova.app.ui.home.PlayerActions
+import com.musicnova.app.ui.home.PlayerUiState
 import com.musicnova.app.ui.theme.NovaTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
-import com.musicnova.app.ui.home.HomeSong
-import com.musicnova.app.ui.home.PlayerUiState
 import kotlinx.coroutines.delay
-import com.musicnova.app.ui.home.PlayerActions
+import kotlinx.coroutines.launch
 
 private val NovaBlack = Color(0xFF09080E)
 private val NovaSurface = Color(0xFF191620)
@@ -87,73 +87,41 @@ fun MusicNovaApp() {
     }
 
     val playbackState by musicPlayer.playbackState.collectAsState()
-   var positionMs by remember { mutableLongStateOf(0L) }
-var durationMs by remember { mutableLongStateOf(0L) }
 
-LaunchedEffect(playbackState.hasMedia) {
-    while (playbackState.hasMedia) {
-        positionMs = musicPlayer.getCurrentPosition()
-        durationMs = musicPlayer.getDuration()
-        delay(500)
-    }
+    var positionMs by remember { mutableLongStateOf(0L) }
+    var durationMs by remember { mutableLongStateOf(0L) }
 
-    positionMs = 0L
-    durationMs = 0L
-}
-
-
-val glassPlayerState = PlayerUiState(
-    song = if (playbackState.hasMedia) {
-        HomeSong(
-            id = activeTrack?.videoId ?: playbackState.title,
-            title = playbackState.title,
-            artist = playbackState.artist,
-            artworkUrl = playbackState.artworkUrl,
-            isLiked = activeTrack?.let {
-                libraryStore.isLiked(it.videoId)
-            } ?: false
-        )
-    } else {
-        null
-    },
-    isPlaying = playbackState.isPlaying,
-    isBuffering = false,
-    positionMs = positionMs,
-    durationMs = durationMs
-)
-
-val glassPlayerActions = PlayerActions(
-    onTogglePlay = {
-        musicPlayer.togglePlayPause()
-    },
-    onNext = {
-        playNextTrack()
-    },
-    onPrevious = {
-        playPreviousTrack()
-    },
-    onOpenPlayer = {
-        showFullPlayer = true
-    },
-    onDismiss = {
-        musicPlayer.stop()
-        activeTrack = null
-    },
-    onToggleLike = {
-        activeTrack?.let { track ->
-            libraryStore.toggleLike(track.toLibraryTrack())
+    LaunchedEffect(playbackState.hasMedia) {
+        while (playbackState.hasMedia) {
+            positionMs = musicPlayer.getCurrentPosition()
+            durationMs = musicPlayer.getDuration()
+            delay(500)
         }
-    }
-)
 
- } else {
-        null
-    },
-    isPlaying = playbackState.isPlaying,
-    isBuffering = false,
-    positionMs = positionMs,
-    durationMs = durationMs
-)
+        positionMs = 0L
+        durationMs = 0L
+    }
+
+    val glassPlayerState = PlayerUiState(
+        song = if (playbackState.hasMedia) {
+            HomeSong(
+                id = activeTrack?.videoId ?: playbackState.title,
+                title = playbackState.title,
+                artist = playbackState.artist,
+                artworkUrl = playbackState.artworkUrl,
+                isLiked = activeTrack?.let {
+                    libraryStore.isLiked(it.videoId)
+                } ?: false
+            )
+        } else {
+            null
+        },
+        isPlaying = playbackState.isPlaying,
+        isBuffering = false,
+        positionMs = positionMs,
+        durationMs = durationMs
+    )
+
     DisposableEffect(musicPlayer) {
         onDispose {
             musicPlayer.release()
@@ -205,9 +173,7 @@ val glassPlayerActions = PlayerActions(
         }
     }
 
-    BackHandler(
-        enabled = showFullPlayer
-    ) {
+    BackHandler(enabled = showFullPlayer) {
         showFullPlayer = false
     }
 
@@ -216,13 +182,15 @@ val glassPlayerActions = PlayerActions(
     ) {
         currentBrowseId = null
     }
-       BackHandler(
-    enabled = selectedTab != "Home" &&
-        !showFullPlayer &&
-        currentBrowseId == null
-) {
-    selectedTab = "Home"
-       }
+
+    BackHandler(
+        enabled = selectedTab != "Home" &&
+            !showFullPlayer &&
+            currentBrowseId == null
+    ) {
+        selectedTab = "Home"
+    }
+
     fun playTrack(track: YouTubeMusicTrack) {
         if (track.isArtist || track.videoId.isBlank()) return
 
@@ -285,6 +253,30 @@ val glassPlayerActions = PlayerActions(
         val previousTrack = playbackQueue.previous() ?: return
         playTrack(previousTrack)
     }
+
+    val glassPlayerActions = PlayerActions(
+        onTogglePlay = {
+            musicPlayer.togglePlayPause()
+        },
+        onNext = {
+            playNextTrack()
+        },
+        onPrevious = {
+            playPreviousTrack()
+        },
+        onOpenPlayer = {
+            showFullPlayer = true
+        },
+        onDismiss = {
+            musicPlayer.stop()
+            activeTrack = null
+        },
+        onToggleLike = {
+            activeTrack?.let { track ->
+                libraryStore.toggleLike(track.toLibraryTrack())
+            }
+        }
+    )
 
     NovaTheme {
         Box(
@@ -439,7 +431,7 @@ val glassPlayerActions = PlayerActions(
                     }
                 }
 
-                // Floating Mini Player + Floating Bottom Navigation
+                // Existing Mini Player + Bottom Navigation
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
