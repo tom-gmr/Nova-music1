@@ -254,8 +254,11 @@ private fun NativeShelfCard(
 
                 // Playlist cover opens the complete playlist
                 onClick = {
-                    onBrowse(playlistId)
-                },
+    onBrowse(
+        if (playlistId.startsWith("VL")) playlistId
+        else "VL$playlistId"
+    )
+},
 
                 // Play button plays the first available song
                 onPlayClick = {
@@ -393,16 +396,19 @@ private fun NativeShelfCard(
                 infoLine = subtitle,
                 artworkUrl = artwork,
                 onClick = {
+    val playlist = item as? HomeShelfItem.Playlist
 
-                    val playlist = item as? HomeShelfItem.Playlist
-
-                
-    if (playlistId.startsWith("VL")) playlistId
-    else "VL$playlistId"
-)
-                    } else {
-                        playable?.let(onPlay)
-                    }
+    if (playlist != null) {
+        onBrowse(
+            if (playlist.playlist.id.startsWith("VL")) {
+                playlist.playlist.id
+            } else {
+                "VL${playlist.playlist.id}"
+            }
+        )
+    } else {
+        playable?.let(onPlay)
+    }
                 }
             )
         }
