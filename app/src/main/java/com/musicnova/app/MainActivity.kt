@@ -101,6 +101,7 @@ LaunchedEffect(playbackState.hasMedia) {
     durationMs = 0L
 }
 
+
 val glassPlayerState = PlayerUiState(
     song = if (playbackState.hasMedia) {
         HomeSong(
@@ -111,7 +112,17 @@ val glassPlayerState = PlayerUiState(
             isLiked = activeTrack?.let {
                 libraryStore.isLiked(it.videoId)
             } ?: false
-        ) val glassPlayerActions = PlayerActions(
+        )
+    } else {
+        null
+    },
+    isPlaying = playbackState.isPlaying,
+    isBuffering = false,
+    positionMs = positionMs,
+    durationMs = durationMs
+)
+
+val glassPlayerActions = PlayerActions(
     onTogglePlay = {
         musicPlayer.togglePlayPause()
     },
@@ -134,7 +145,8 @@ val glassPlayerState = PlayerUiState(
         }
     }
 )
-    } else {
+
+ } else {
         null
     },
     isPlaying = playbackState.isPlaying,
