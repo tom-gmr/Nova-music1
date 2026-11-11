@@ -184,25 +184,37 @@ class InnerTubeMusicApi {
             HomeFeedParser.parseHomePage(root)
         }
 
-    /** Fetches a YouTube Music browse page using its browse ID. */
-        suspend fun fetchBrowsePage(
-        browseId: String
-    ): HomePage = withContext(Dispatchers.IO) {
-        val id = browseId.trim()
-        require(id.isNotBlank()) {
-            "Browse ID cannot be empty"
-        }
+   /** Fetches a YouTube Music browse page using its browse ID. */
+suspend fun fetchBrowsePage(
+    browseId: String
+): HomePage = withContext(Dispatchers.IO) {
 
-        val config = getWebConfig()
-        val request = browseRequest(config, id)
-        val root = executeJson(request, "YouTube Music browse")
+    val rawId = browseId.trim()
 
-        if (id.startsWith("VL")) {
-            PlaylistBrowseParser.parse(root)
-        } else {
-            HomeFeedParser.parseHomePage(root)
-        }
-        }
+    require(rawId.isNotBlank()) {
+        "Browse ID cannot be empty"
+    }
+
+    val id = when {
+        rawId.startsWith("VL") ||
+        rawId.startsWith("RD") ||
+        rawId.startsWith("FE") ||
+        rawId.startsWith("MPRE") ||
+        rawId.startsWith("UC") -> rawId
+
+        else -> "VL$rawId"
+    }
+
+    val config = getWebConfig()
+    val request = browseRequest(config, id)
+    val root = executeJson(request, "YouTube Music browse")
+
+    when {
+        id.startsWith("VL") -> PlaylistBrowseParser.parse(root)
+        id.startsWith("RD") -> PlaylistBrowseParser.parse(root)
+        else -> HomeFeedParser.parseHomePage(root)
+    }
+} 
 
     /** Fetches the first page of a playlist for card previews. */
     suspend fun fetchPlaylistPreview(
