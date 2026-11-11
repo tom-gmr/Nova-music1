@@ -184,7 +184,7 @@ class InnerTubeMusicApi {
             HomeFeedParser.parseHomePage(root)
         }
 
-   /** Fetches a YouTube Music browse page using its browse ID. */
+/** Fetches a YouTube Music browse page using its browse ID. */
 suspend fun fetchBrowsePage(
     browseId: String
 ): HomePage = withContext(Dispatchers.IO) {
@@ -206,15 +206,72 @@ suspend fun fetchBrowsePage(
     }
 
     val config = getWebConfig()
+
+    // RD Mix: try browse first, then use the /next fallback.
+    if (id.startsWith("RD")) {
+
+        val browsePage = runCatching {
+            val request = browseRequest(config, id)
+            val root = executeJson(
+                request,
+                "YouTube Music browse"
+            )
+            PlaylistBrowseParser.parse(root)
+        }.getOrNull()
+
+        if (browsePage?.shelves?.any {
+                it.items.isNotEmpty()
+            } == true
+        ) {
+            return@withContext browsePage
+        }
+
+        val nextBody = JSONObject()
+            .put("context", createContext(config))
+            .put("playlistId", id)
+            .put("isAudioOnly", true)
+            .toString()
+
+        val nextRequest = Request.Builder()
+            .url("$musicUrl/youtubei/v1/next?key=${config.apiKey}&prettyPrint=false")
+            .post(
+                nextBody.toRequestBody(
+                    "application/json".toMediaType()
+                )
+            )
+            .header("User-Agent", USER_AGENT)
+            .header("Origin", musicUrl)
+            .header("Referer", "$musicUrl/")
+            .header("Content-Type", "application/json")
+            .header("X-YouTube-Client-Name", "67")
+            .header("X-YouTube-Client-Version", config.clientVersion)
+            .build()
+
+        val nextRoot = executeJson(
+            nextRequest,
+            "YouTube Music RD Mix"
+        )
+
+        val nextPage = PlaylistBrowseParser.parse(nextRoot)
+
+        return@withContext if (
+            nextPage.shelves.any { it.items.isNotEmpty() }
+        ) {
+            nextPage
+        } else {
+            browsePage ?: nextPage
+        }
+    }
+
     val request = browseRequest(config, id)
     val root = executeJson(request, "YouTube Music browse")
 
     when {
         id.startsWith("VL") -> PlaylistBrowseParser.parse(root)
-        id.startsWith("RD") -> PlaylistBrowseParser.parse(root)
         else -> HomeFeedParser.parseHomePage(root)
     }
-} 
+}
+
 
     /** Fetches the first page of a playlist for card previews. */
     suspend fun fetchPlaylistPreview(
