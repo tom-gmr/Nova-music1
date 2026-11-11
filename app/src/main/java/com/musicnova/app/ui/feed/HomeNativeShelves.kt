@@ -31,6 +31,10 @@ import com.musicnova.app.data.music.PlaylistPreviewState
 import com.musicnova.app.data.music.YouTubeMusicTrack
 import com.musicnova.app.ui.feed.cards.*
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
 @Composable
 fun HomeNativeShelves(
     shelves: List<HomeShelf>,
@@ -50,10 +54,21 @@ fun HomeNativeShelves(
                     ?.takeIf { it.isNotBlank() }
 
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 25.dp)
-                ) {
+    modifier = Modifier
+        .fillMaxWidth()
+        .padding(
+            horizontal = 12.dp,
+            vertical = 7.dp
+        )
+        .clip(RoundedCornerShape(22.dp))
+        .background(Color(0xFF000000))
+        .border(
+            width = 1.dp,
+            color = Color(0xFF25202D),
+            shape = RoundedCornerShape(22.dp)
+        )
+        .padding(vertical = 12.dp)
+) {
                     ShelfHeaderV2(
                         title = shelf.title,
                         eyebrow = shelf.strapline,
