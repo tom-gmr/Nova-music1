@@ -30,6 +30,9 @@ import com.musicnova.app.ui.theme.NovaTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import com.musicnova.app.ui.home.HomeSong
+import com.musicnova.app.ui.home.PlayerUiState
+import kotlinx.coroutines.delay
 
 private val NovaBlack = Color(0xFF09080E)
 private val NovaSurface = Color(0xFF191620)
@@ -83,7 +86,39 @@ fun MusicNovaApp() {
     }
 
     val playbackState by musicPlayer.playbackState.collectAsState()
+   var positionMs by remember { mutableLongStateOf(0L) }
+var durationMs by remember { mutableLongStateOf(0L) }
 
+LaunchedEffect(playbackState.hasMedia) {
+    while (playbackState.hasMedia) {
+        positionMs = musicPlayer.getCurrentPosition()
+        durationMs = musicPlayer.getDuration()
+        delay(500)
+    }
+
+    positionMs = 0L
+    durationMs = 0L
+}
+
+val glassPlayerState = PlayerUiState(
+    song = if (playbackState.hasMedia) {
+        HomeSong(
+            id = activeTrack?.videoId ?: playbackState.title,
+            title = playbackState.title,
+            artist = playbackState.artist,
+            artworkUrl = playbackState.artworkUrl,
+            isLiked = activeTrack?.let {
+                libraryStore.isLiked(it.videoId)
+            } ?: false
+        )
+    } else {
+        null
+    },
+    isPlaying = playbackState.isPlaying,
+    isBuffering = false,
+    positionMs = positionMs,
+    durationMs = durationMs
+)
     DisposableEffect(musicPlayer) {
         onDispose {
             musicPlayer.release()
