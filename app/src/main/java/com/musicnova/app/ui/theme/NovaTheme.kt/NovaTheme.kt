@@ -48,8 +48,9 @@ fun NovaTheme(content: @Composable () -> Unit) {
     )
 
     MaterialTheme(
-        colorScheme = colors,
-        shapes = NovaShapes,
-        content = content
-    )
+    colorScheme = colors,
+    typography = LastWaveTypography,
+    shapes = NovaShapes,
+    content = content
+)
 }
