@@ -481,7 +481,10 @@ fun MusicNovaApp() {
                 }
             }
         }
-    }
+    }     } // else
+}     // Box
+}     // NovaTheme
+}     // MusicNovaApp
 @Composable
 private fun NovaTopHeader(
     selectedTab: String,
