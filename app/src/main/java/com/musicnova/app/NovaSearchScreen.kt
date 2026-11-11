@@ -232,7 +232,8 @@ fun NovaFullPlayerScreen(
                 val result = lyricsRepository.findLyrics(
                     artist = state.artist,
                     track = state.title
-                )
+                    durationMs = musicPlayer.getDuration()
+)
 
                 lyricsState = if (result == null) {
                     LyricsUiState.Empty
