@@ -1,9 +1,10 @@
 package com.musicnova.app.ui.home
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.ui.graphics.vector.ImageVector
+
 
 data class PlayerUiState(
     val song: HomeSong? = null,
@@ -37,6 +38,6 @@ data class NavItem(
 )
 
 val DefaultNavItems = listOf(
-    NavItem("home", "Home", Icons.Rounded.Home),
-    NavItem("library", "Library", Icons.Rounded.LibraryMusic)
+    NavItem("home", "Home", Icons.Filled.Home),
+    NavItem("library", "Library", Icons.Filled.LibraryMusic)
 )
