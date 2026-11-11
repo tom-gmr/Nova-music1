@@ -311,7 +311,13 @@ private fun NativeShelfCard(
                     val playlist = item as? HomeShelfItem.Playlist
 
                     if (playlist != null) {
-                        onBrowse(playlist.playlist.id)
+                        onBrowse(
+    if (playlist.playlist.id.startsWith("VL")) {
+        playlist.playlist.id
+    } else {
+        "VL${playlist.playlist.id}"
+    }
+)
                     } else {
                         playable?.let(onPlay)
                     }
@@ -390,8 +396,10 @@ private fun NativeShelfCard(
 
                     val playlist = item as? HomeShelfItem.Playlist
 
-                    if (playlist != null) {
-                        onBrowse(playlist.playlist.id)
+                
+    if (playlistId.startsWith("VL")) playlistId
+    else "VL$playlistId"
+)
                     } else {
                         playable?.let(onPlay)
                     }
