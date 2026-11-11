@@ -41,6 +41,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 import androidx.compose.material.icons.filled.*
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 private val NovaBlack = Color(0xFF09080E)
 private val NovaSurface = Color(0xFF191620)
 private val NovaPurple = Color(0xFF9277B8)
@@ -50,6 +51,7 @@ private val NovaMuted = Color(0xFFAAA4B5)
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
 
         setContent {
