@@ -3,8 +3,6 @@ package com.musicnova.app.ui.home
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.ui.graphics.vector.ImageVector
 
 data class PlayerUiState(
@@ -15,7 +13,11 @@ data class PlayerUiState(
     val durationMs: Long = 0L
 ) {
     val progress: Float
-        get() = if (durationMs > 0L) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
+        get() = if (durationMs > 0L) {
+            (positionMs.toFloat() / durationMs).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
 }
 
 class PlayerActions(
@@ -36,7 +38,5 @@ data class NavItem(
 
 val DefaultNavItems = listOf(
     NavItem("home", "Home", Icons.Rounded.Home),
-    NavItem("search", "Search", Icons.Rounded.Search),
-    NavItem("library", "Library", Icons.Rounded.LibraryMusic),
-    NavItem("profile", "Profile", Icons.Rounded.Person)
+    NavItem("library", "Library", Icons.Rounded.LibraryMusic)
 )
