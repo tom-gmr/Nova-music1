@@ -53,11 +53,10 @@ class LyricsRepository {
 
         // Fallback: search matching tracks
         val searchUrl = Uri.parse("https://lrclib.net/api/search")
-            .buildUpon()
-            .appendQueryParameter("track_name", track)
-            .appendQueryParameter("artist_name", artist)
-            .build()
-            .toString()
+    .buildUpon()
+    .appendQueryParameter("q", "$artist $track")
+    .build()
+    .toString()
 
         return@withContext searchRecords(
             searchUrl,
