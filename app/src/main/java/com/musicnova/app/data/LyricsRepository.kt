@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
@@ -30,33 +31,40 @@ class LyricsRepository {
 
     suspend fun findLyrics(
         artist: String,
-        track: String
+        track: String,
+        durationMs: Long = 0L
     ): TrackLyrics? = withContext(Dispatchers.IO) {
 
         if (artist.isBlank() || track.isBlank()) {
             return@withContext null
         }
 
-        // First try exact match
-        val exactUrl = Uri.parse("https://lrclib.net/api/get")
-            .buildUpon()
-            .appendQueryParameter("artist_name", artist)
-            .appendQueryParameter("track_name", track)
-            .build()
-            .toString()
+        val durationSeconds = (durationMs / 1000L)
+            .takeIf { it > 0L }
 
-        val exactResult = requestRecord(exactUrl)
+        // Exact match with track duration
+        if (durationSeconds != null) {
+            val exactUrl = Uri.parse("https://lrclib.net/api/get")
+                .buildUpon()
+                .appendQueryParameter("artist_name", artist)
+                .appendQueryParameter("track_name", track)
+                .appendQueryParameter("duration", durationSeconds.toString())
+                .build()
+                .toString()
 
-        if (exactResult != null) {
-            return@withContext exactResult
+            val exactResult = requestRecord(exactUrl)
+
+            if (exactResult != null) {
+                return@withContext exactResult
+            }
         }
 
-        // Fallback: search matching tracks
+        // Search fallback
         val searchUrl = Uri.parse("https://lrclib.net/api/search")
-    .buildUpon()
-    .appendQueryParameter("q", "$artist $track")
-    .build()
-    .toString()
+            .buildUpon()
+            .appendQueryParameter("q", "$artist $track")
+            .build()
+            .toString()
 
         return@withContext searchRecords(
             searchUrl,
@@ -84,8 +92,7 @@ class LyricsRepository {
                 val body = response.body?.string()
                     ?: return@use null
 
-                val json = JSONObject(body)
-                readLyrics(json)
+                readLyrics(JSONObject(body))
             }
         } catch (_: Exception) {
             null
@@ -97,7 +104,6 @@ class LyricsRepository {
         artist: String,
         track: String
     ): TrackLyrics? {
-
         val request = Request.Builder()
             .url(url)
             .header(
@@ -116,7 +122,7 @@ class LyricsRepository {
                 val body = response.body?.string()
                     ?: return@use null
 
-                val results = org.json.JSONArray(body)
+                val results = JSONArray(body)
                 if (results.length() == 0) {
                     return@use null
                 }
