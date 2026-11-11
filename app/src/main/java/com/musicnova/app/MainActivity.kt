@@ -33,6 +33,7 @@ import kotlinx.coroutines.launch
 import com.musicnova.app.ui.home.HomeSong
 import com.musicnova.app.ui.home.PlayerUiState
 import kotlinx.coroutines.delay
+import com.musicnova.app.ui.home.PlayerActions
 
 private val NovaBlack = Color(0xFF09080E)
 private val NovaSurface = Color(0xFF191620)
@@ -110,7 +111,29 @@ val glassPlayerState = PlayerUiState(
             isLiked = activeTrack?.let {
                 libraryStore.isLiked(it.videoId)
             } ?: false
-        )
+        ) val glassPlayerActions = PlayerActions(
+    onTogglePlay = {
+        musicPlayer.togglePlayPause()
+    },
+    onNext = {
+        playNextTrack()
+    },
+    onPrevious = {
+        playPreviousTrack()
+    },
+    onOpenPlayer = {
+        showFullPlayer = true
+    },
+    onDismiss = {
+        musicPlayer.stop()
+        activeTrack = null
+    },
+    onToggleLike = {
+        activeTrack?.let { track ->
+            libraryStore.toggleLike(track.toLibraryTrack())
+        }
+    }
+)
     } else {
         null
     },
