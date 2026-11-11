@@ -1,4 +1,3 @@
-
 package com.musicnova.app
 
 import android.app.Application
@@ -20,8 +19,8 @@ class MusicNovaApplication : Application(), ImageLoaderFactory {
                     .build()
             }
             .memoryCache {
-                MemoryCache.Builder()
-                    .maxSizePercent(this, 0.20)
+                MemoryCache.Builder(this)
+                    .maxSizePercent(0.20)
                     .build()
             }
             .crossfade(false)
