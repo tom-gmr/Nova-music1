@@ -72,6 +72,8 @@ import dev.chrisbanes.haze.HazeState
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 
 private val PillShape = RoundedCornerShape(44.dp)
 
@@ -185,14 +187,15 @@ private fun PillContent(
                 label = "song"
             ) { s ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Cover(
-                        s.artworkUrl,
-                        Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(HomeColors.CardHigh),
-                        px = 300
-                    )
+                    AsyncImage(
+    model = s.artworkUrl,
+    contentDescription = null,
+    contentScale = ContentScale.Crop,
+    modifier = Modifier
+        .size(56.dp)
+        .clip(RoundedCornerShape(16.dp))
+        .background(HomeColors.CardHigh)
+)
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
