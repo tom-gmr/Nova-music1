@@ -97,7 +97,7 @@ class HomeActions(
  *  COLORS
  * --------------------------------------------------------------- */
 
-private object HomeColors {
+internal object HomeColors {
     val Bg = Color(0xFF07050C)
     val Card = Color(0xFF16131F)
     val CardHigh = Color(0xFF221D30)
