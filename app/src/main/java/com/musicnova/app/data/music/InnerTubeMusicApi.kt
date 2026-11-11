@@ -196,7 +196,11 @@ class InnerTubeMusicApi {
         val config = getWebConfig()
         val request = browseRequest(config, id)
         val root = executeJson(request, "YouTube Music browse")
-        HomeFeedParser.parseHomePage(root)
+        if (id.startsWith("VL")) {
+    PlaylistBrowseParser.parse(root)
+} else {
+    HomeFeedParser.parseHomePage(root)
+        
     }
 
     /** Fetches the first page of a playlist for card previews. */
