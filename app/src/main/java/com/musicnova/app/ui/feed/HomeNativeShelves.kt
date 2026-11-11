@@ -36,6 +36,24 @@ import com.musicnova.app.data.music.PlaylistPreviewState
 import com.musicnova.app.data.music.YouTubeMusicTrack
 import com.musicnova.app.ui.feed.cards.*
 
+/**
+ * Keeps YouTube Music playlist and Mix IDs in their correct format.
+ * RD Mix IDs must never receive a VL prefix.
+ */
+private fun normalizePlaylistBrowseId(playlistId: String): String {
+    val id = playlistId.trim()
+
+    return when {
+        id.isBlank() -> id
+        id.startsWith("VL") ||
+        id.startsWith("RD") ||
+        id.startsWith("FE") ||
+        id.startsWith("MPRE") -> id
+
+        else -> "VL$id"
+    }
+}
+
 @Composable
 fun HomeNativeShelves(
     shelves: List<HomeShelf>,
@@ -252,20 +270,19 @@ private fun NativeShelfCard(
                 artworkUrl = item.cardData?.largeArtworkUrl
                     ?: playlist.playlist.artworkUrl,
 
-                // Playlist cover opens the complete playlist
+                // Open the complete playlist or RD Mix.
                 onClick = {
-    onBrowse(
-        if (playlistId.startsWith("VL")) playlistId
-        else "VL$playlistId"
-    )
-},
+                    onBrowse(
+                        normalizePlaylistBrowseId(playlistId)
+                    )
+                },
 
-                // Play button plays the first available song
+                // Play the first available song.
                 onPlayClick = {
                     previewSongs.firstOrNull()?.let(onPlay)
                 },
 
-                // Individual song plays directly
+                // Play an individual preview song.
                 onSongClick = onPlay,
 
                 isLoading = previewLoading,
@@ -315,12 +332,10 @@ private fun NativeShelfCard(
 
                     if (playlist != null) {
                         onBrowse(
-    if (playlist.playlist.id.startsWith("VL")) {
-        playlist.playlist.id
-    } else {
-        "VL${playlist.playlist.id}"
-    }
-)
+                            normalizePlaylistBrowseId(
+                                playlist.playlist.id
+                            )
+                        )
                     } else {
                         playable?.let(onPlay)
                     }
@@ -396,19 +411,17 @@ private fun NativeShelfCard(
                 infoLine = subtitle,
                 artworkUrl = artwork,
                 onClick = {
-    val playlist = item as? HomeShelfItem.Playlist
+                    val playlist = item as? HomeShelfItem.Playlist
 
-    if (playlist != null) {
-        onBrowse(
-            if (playlist.playlist.id.startsWith("VL")) {
-                playlist.playlist.id
-            } else {
-                "VL${playlist.playlist.id}"
-            }
-        )
-    } else {
-        playable?.let(onPlay)
-    }
+                    if (playlist != null) {
+                        onBrowse(
+                            normalizePlaylistBrowseId(
+                                playlist.playlist.id
+                            )
+                        )
+                    } else {
+                        playable?.let(onPlay)
+                    }
                 }
             )
         }
