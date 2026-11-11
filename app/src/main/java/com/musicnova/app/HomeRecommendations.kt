@@ -38,7 +38,7 @@ import com.musicnova.app.data.music.YouTubeMusicTrack
 import com.musicnova.app.ui.feed.HomeNativeShelves
 import com.musicnova.app.ui.home.MusicViewModel
 
-private val HomeBg = Color(00xFF000000)
+private val HomeBg = Color(0xFF000000)
 private val HomeSurface = Color(0xFF17141F)
 private val HomeSurfaceLight = Color(0xFF211B2C)
 private val HomeLavender = Color(0xFFD1C1EB)
@@ -377,7 +377,7 @@ fun RecommendationsHomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(
-                        top = 35.dp,
+                        top = 16.dp,
                         bottom = 16.dp
                     ),
                 horizontalAlignment = Alignment.CenterHorizontally
