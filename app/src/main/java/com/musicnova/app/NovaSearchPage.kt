@@ -1,3 +1,4 @@
+
 package com.musicnova.app
 
 import androidx.compose.foundation.background
@@ -129,7 +130,6 @@ fun NovaSearchScreen(
                         .background(
                             Brush.linearGradient(
                                 listOf(
-                
                                     Color(0xFF59456F),
                                     Color(0xFF292033)
                                 )
@@ -178,7 +178,7 @@ fun NovaSearchScreen(
 
                 Spacer(Modifier.width(12.dp))
 
-                androidx.compose.material3.TextField(
+                TextField(
                     value = query,
                     onValueChange = { query = it },
                     modifier = Modifier.weight(1f),
@@ -261,7 +261,6 @@ fun NovaSearchScreen(
                         .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -339,8 +338,42 @@ fun NovaSearchScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(bottom = 25.dp)
                 ) {
+                    item(key = "top_result") {
+                        val topTrack = results.first()
+
+                        FeaturedSearchSongCard(
+                            track = topTrack,
+                            isLiked = !topTrack.isArtist &&
+                                libraryStore.isLiked(topTrack.videoId),
+                            onPlay = {
+                                if (!topTrack.isArtist) {
+                                    val queueTracks = results.filter {
+                                        !it.isArtist &&
+                                            it.videoId.isNotBlank()
+                                    }
+
+                                    onPlayQueue(queueTracks, topTrack)
+                                }
+                            },
+                            onLike = {
+                                if (!topTrack.isArtist) {
+                                    libraryStore.toggleLike(
+                                        topTrack.toSearchLibraryTrack()
+                                    )
+                                    refreshKey++
+                                }
+                            },
+                            onPlaylist = {
+                                if (!topTrack.isArtist) {
+                                    selectedTrack = topTrack
+                                    showPlaylistDialog = true
+                                }
+                            }
+                        )
+                    }
+
                     items(
-                        results,
+                        items = results.drop(1),
                         key = {
                             if (it.isArtist) {
                                 "artist_${it.title}"
@@ -393,7 +426,6 @@ fun NovaSearchScreen(
                             "No music found"
                         else
                             "Your next favourite starts here",
-                        
                         subtitle = if (searched)
                             "Try another song or artist name."
                         else
@@ -464,20 +496,21 @@ fun NovaSearchScreen(
 }
 
 @Composable
-private fun SearchSongCard(
+private fun FeaturedSearchSongCard(
     track: YouTubeMusicTrack,
     isLiked: Boolean,
     onPlay: () -> Unit,
     onLike: () -> Unit,
     onPlaylist: () -> Unit
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(25.dp))
             .background(
-                Brush.horizontalGradient(
+                Brush.verticalGradient(
                     listOf(
+                        Color(0xFF352943),
                         Color(0xFF211B2B),
                         Color(0xFF17141F)
                     )
@@ -486,51 +519,55 @@ private fun SearchSongCard(
             .border(
                 1.dp,
                 SearchBorder,
-                RoundedCornerShape(20.dp)
+                RoundedCornerShape(25.dp)
             )
             .clickable(enabled = !track.isArtist) {
                 onPlay()
             }
-            .padding(11.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(16.dp)
     ) {
-        Box {
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "TOP RESULT",
+                color = SearchLavender,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp
+            )
+
+            Spacer(Modifier.weight(1f))
+
+            Icon(
+                Icons.Default.GraphicEq,
+                contentDescription = null,
+                tint = SearchPurple,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Spacer(Modifier.height(15.dp))
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             AsyncImage(
                 model = track.artworkUrl,
                 contentDescription = track.title,
                 modifier = Modifier
-                    .size(59.dp)
-                    .clip(RoundedCornerShape(15.dp))
-                    .background(Color(0xFF30283C)),
+                    .size(112.dp)
+                    .clip(RoundedCornerShape(19.dp))
+                    .background(SearchCard),
                 contentScale = ContentScale.Crop
             )
 
-            if (!track.isArtist) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(3.dp)
-                        .size(19.dp)
-                        .clip(CircleShape)
-                        .background(SearchPurple),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(14.dp)
-                    )
-                }
-            }
-        }
-        
-        Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(15.dp))
 
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
                 text = track.title,
                 color = Color.White,
                 fontSize = 13.sp,
