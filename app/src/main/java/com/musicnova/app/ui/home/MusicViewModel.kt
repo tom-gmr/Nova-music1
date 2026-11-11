@@ -4,6 +4,7 @@ package com.musicnova.app.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.musicnova.app.data.artwork.NovaArtworkRepository
+import com.musicnova.app.data.music.HomeMusicData
 import com.musicnova.app.data.music.HomePage
 import com.musicnova.app.data.music.HomeShelfItem
 import com.musicnova.app.data.music.LibraryTrack
@@ -15,6 +16,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,6 +35,13 @@ data class MusicUiState(
     val searchResults: List<YouTubeMusicTrack> = emptyList(),
     val searchError: String? = null,
     val error: String? = null
+)
+
+private data class HomeArtworkBundle(
+    val recommendations: List<YouTubeMusicTrack>,
+    val trending: List<YouTubeMusicTrack>,
+    val recentlyPlayed: List<LibraryTrack>,
+    val nativeHomePage: HomePage?
 )
 
 @HiltViewModel
@@ -57,30 +66,26 @@ class MusicViewModel @Inject constructor(
 
             try {
                 val data = repository.loadHomeMusic()
+                val artworkData = resolveHomeArtworkBundle(data)
 
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    recommendations = data.recommendations,
-                    trending = data.trending,
-                    recentlyPlayed = data.recentlyPlayed,
+                    recommendations = artworkData?.recommendations
+                        ?: data.recommendations.map {
+                            it.copy(artworkUrl = null)
+                        },
+                    trending = artworkData?.trending
+                        ?: data.trending.map {
+                            it.copy(artworkUrl = null)
+                        },
+                    recentlyPlayed = artworkData?.recentlyPlayed
+                        ?: data.recentlyPlayed.map {
+                            it.copy(artworkUrl = null)
+                        },
                     likedCount = data.likedCount,
-                    nativeHomePage = data.nativeHomePage,
+                    nativeHomePage = artworkData?.nativeHomePage
+                        ?: clearNativeTrackArtwork(data.nativeHomePage),
                     error = null
-                )
-
-                val (recommendations, trending) =
-                    resolveHomeArtwork(
-                        data.recommendations,
-                        data.trending
-                    )
-
-                val updatedNativeHomePage =
-                    resolveQuickPickArtwork(data.nativeHomePage)
-
-                _uiState.value = _uiState.value.copy(
-                    recommendations = recommendations,
-                    trending = trending,
-                    nativeHomePage = updatedNativeHomePage
                 )
 
             } catch (e: CancellationException) {
@@ -94,127 +99,120 @@ class MusicViewModel @Inject constructor(
         }
     }
 
-    private suspend fun resolveHomeArtwork(
-        recommendations: List<YouTubeMusicTrack>,
-        trending: List<YouTubeMusicTrack>
-    ): Pair<List<YouTubeMusicTrack>, List<YouTubeMusicTrack>> =
+    private suspend fun resolveHomeArtworkBundle(
+        data: HomeMusicData
+    ): HomeArtworkBundle? = withTimeoutOrNull(2500L) {
+
         coroutineScope {
+            val recommendationsJob = async {
+                resolveHomeArtwork(
+                    data.recommendations
+                )
+            }
 
-            val semaphore = Semaphore(4)
+            val trendingJob = async {
+                resolveHomeArtwork(
+                    data.trending
+                )
+            }
 
-            val allTracks = (
-                recommendations + trending
-            ).distinctBy { it.videoId }
+            val recentJob = async {
+                resolveRecentArtwork(
+                    data.recentlyPlayed
+                )
+            }
 
-            val resolvedTracks = allTracks.map { track ->
-                async {
-                    if (
-                        track.isArtist ||
-                        track.title.isBlank()
-                    ) {
-                        return@async track
-                    }
+            val nativeJob = async {
+                resolveNativeArtwork(
+                    data.nativeHomePage
+                )
+            }
 
-                    semaphore.withPermit {
-                        try {
-                            val artwork =
-                                artworkRepository.resolve(
-                                    title = track.title,
-                                    artist = track.artist,
-                                    youtubeFallback = track.artworkUrl
-                                )
-
-                            if (artwork.isNullOrBlank()) {
-                                track
-                            } else {
-                                track.copy(artworkUrl = artwork)
-                            }
-
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (_: Exception) {
-                            track
-                        }
-                    }
-                }
-            }.awaitAll()
-
-            val artworkByVideoId =
-                resolvedTracks.associateBy { it.videoId }
-
-            val updatedRecommendations =
-                recommendations.map { track ->
-                    artworkByVideoId[track.videoId] ?: track
-                }
-
-            val updatedTrending =
-                trending.map { track ->
-                    artworkByVideoId[track.videoId] ?: track
-                }
-
-            updatedRecommendations to updatedTrending
+            HomeArtworkBundle(
+                recommendations = recommendationsJob.await(),
+                trending = trendingJob.await(),
+                recentlyPlayed = recentJob.await(),
+                nativeHomePage = nativeJob.await()
+            )
         }
+    }
 
-    private suspend fun resolveQuickPickArtwork(
+    private suspend fun resolveHomeArtwork(
+        tracks: List<YouTubeMusicTrack>
+    ): List<YouTubeMusicTrack> = coroutineScope {
+
+        val semaphore = Semaphore(16)
+
+        tracks.map { track ->
+            async {
+                if (track.isArtist || track.title.isBlank()) {
+                    return@async track.copy(artworkUrl = null)
+                }
+
+                val artwork = semaphore.withPermit {
+                    resolveArtwork(track.title, track.artist)
+                }
+
+                track.copy(artworkUrl = artwork)
+            }
+        }.awaitAll()
+    }
+
+    private suspend fun resolveRecentArtwork(
+        tracks: List<LibraryTrack>
+    ): List<LibraryTrack> = coroutineScope {
+
+        val semaphore = Semaphore(16)
+
+        tracks.map { track ->
+            async {
+                val artwork = semaphore.withPermit {
+                    resolveArtwork(track.title, track.artist)
+                }
+
+                track.copy(artworkUrl = artwork)
+            }
+        }.awaitAll()
+    }
+
+    private suspend fun resolveNativeArtwork(
         homePage: HomePage?
     ): HomePage? {
         if (homePage == null) return null
 
         return coroutineScope {
-            val semaphore = Semaphore(4)
+            val semaphore = Semaphore(16)
 
             val updatedShelves = homePage.shelves.map { shelf ->
-                val isQuickPick = shelf.title
-                    .contains("quick pick", ignoreCase = true)
-
-                if (!isQuickPick) {
-                    return@map shelf
-                }
-
                 val updatedItems = shelf.items.map { item ->
+
                     if (item !is HomeShelfItem.Track) {
                         return@map item
                     }
 
                     val track = item.track
 
-                    if (
-                        track.isArtist ||
-                        track.title.isBlank()
+                    val artwork = if (
+                        track.isArtist || track.title.isBlank()
                     ) {
-                        return@map item
-                    }
-
-                    semaphore.withPermit {
-                        try {
-                            val artwork =
-                                artworkRepository.resolve(
-                                    title = track.title,
-                                    artist = track.artist,
-                                    youtubeFallback =
-                                        item.cardData?.largeArtworkUrl
-                                            ?: track.artworkUrl
-                                )
-
-                            if (artwork.isNullOrBlank()) {
-                                item
-                            } else {
-                                item.copy(
-                                    track = track.copy(
-                                        artworkUrl = artwork
-                                    ),
-                                    cardData = item.cardData?.copy(
-                                        largeArtworkUrl = artwork
-                                    )
-                                )
-                            }
-
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (_: Exception) {
-                            item
+                        null
+                    } else {
+                        semaphore.withPermit {
+                            resolveArtwork(
+                                track.title,
+                                track.artist
+                            )
                         }
                     }
+
+                    item.copy(
+                        track = track.copy(
+                            artworkUrl = artwork
+                        ),
+                        cardData = item.cardData?.copy(
+                            largeArtworkUrl = artwork
+                        )
+                    )
                 }
 
                 shelf.copy(items = updatedItems)
@@ -224,42 +222,69 @@ class MusicViewModel @Inject constructor(
         }
     }
 
+    private suspend fun resolveArtwork(
+        title: String,
+        artist: String
+    ): String? {
+        if (title.isBlank()) return null
+
+        return try {
+            artworkRepository.resolve(
+                title = title,
+                artist = artist,
+                youtubeFallback = null
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun clearNativeTrackArtwork(
+        homePage: HomePage?
+    ): HomePage? {
+        if (homePage == null) return null
+
+        return homePage.copy(
+            shelves = homePage.shelves.map { shelf ->
+                shelf.copy(
+                    items = shelf.items.map { item ->
+                        if (item is HomeShelfItem.Track) {
+                            item.copy(
+                                track = item.track.copy(
+                                    artworkUrl = null
+                                ),
+                                cardData = item.cardData?.copy(
+                                    largeArtworkUrl = null
+                                )
+                            )
+                        } else {
+                            item
+                        }
+                    }
+                )
+            }
+        )
+    }
+
     private suspend fun resolveSearchArtwork(
         tracks: List<YouTubeMusicTrack>
     ): List<YouTubeMusicTrack> = coroutineScope {
 
-        val semaphore = Semaphore(4)
+        val semaphore = Semaphore(8)
 
         tracks.map { track ->
             async {
-                if (
-                    track.isArtist ||
-                    track.title.isBlank()
-                ) {
-                    return@async track
+                if (track.isArtist || track.title.isBlank()) {
+                    return@async track.copy(artworkUrl = null)
                 }
 
-                semaphore.withPermit {
-                    try {
-                        val artwork =
-                            artworkRepository.resolve(
-                                title = track.title,
-                                artist = track.artist,
-                                youtubeFallback = track.artworkUrl
-                            )
-
-                        if (artwork.isNullOrBlank()) {
-                            track
-                        } else {
-                            track.copy(artworkUrl = artwork)
-                        }
-
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (_: Exception) {
-                        track
-                    }
+                val artwork = semaphore.withPermit {
+                    resolveArtwork(track.title, track.artist)
                 }
+
+                track.copy(artworkUrl = artwork)
             }
         }.awaitAll()
     }
@@ -283,9 +308,7 @@ class MusicViewModel @Inject constructor(
 
             try {
                 val results = repository.searchSongs(query.trim())
-
-                val resolvedResults =
-                    resolveSearchArtwork(results)
+                val resolvedResults = resolveSearchArtwork(results)
 
                 _uiState.value = _uiState.value.copy(
                     isSearching = false,
@@ -312,45 +335,39 @@ class MusicViewModel @Inject constructor(
             viewModelScope.launch {
                 try {
                     val data = repository.loadHomeMusic()
+                    val artworkData = resolveHomeArtworkBundle(data)
 
                     _uiState.value = _uiState.value.copy(
-                        recommendations = data.recommendations,
-                        trending = data.trending,
-                        recentlyPlayed = data.recentlyPlayed,
+                        recommendations = artworkData?.recommendations
+                            ?: data.recommendations.map {
+                                it.copy(artworkUrl = null)
+                            },
+                        trending = artworkData?.trending
+                            ?: data.trending.map {
+                                it.copy(artworkUrl = null)
+                            },
+                        recentlyPlayed = artworkData?.recentlyPlayed
+                            ?: data.recentlyPlayed.map {
+                                it.copy(artworkUrl = null)
+                            },
                         likedCount = data.likedCount,
-                        nativeHomePage = data.nativeHomePage,
+                        nativeHomePage = artworkData?.nativeHomePage
+                            ?: clearNativeTrackArtwork(data.nativeHomePage),
                         error = null
-                    )
-
-                    val (recommendations, trending) =
-                        resolveHomeArtwork(
-                            data.recommendations,
-                            data.trending
-                        )
-
-                    val updatedNativeHomePage =
-                        resolveQuickPickArtwork(data.nativeHomePage)
-
-                    _uiState.value = _uiState.value.copy(
-                        recommendations = recommendations,
-                        trending = trending,
-                        nativeHomePage = updatedNativeHomePage
                     )
 
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     _uiState.value = _uiState.value.copy(
-                        error = e.message
-                            ?: "Unable to refresh music"
+                        error = e.message ?: "Unable to refresh music"
                     )
                 }
             }
 
         } catch (e: Exception) {
             _uiState.value = _uiState.value.copy(
-                error = e.message
-                    ?: "Unable to update liked songs"
+                error = e.message ?: "Unable to update liked songs"
             )
         }
     }
