@@ -1,7 +1,12 @@
 package com.musicnova.app.ui.home
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil.imageLoader
+import coil.request.CachePolicy
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 import com.musicnova.app.data.artwork.NovaArtworkRepository
 import com.musicnova.app.data.music.HomePage
 import com.musicnova.app.data.music.HomeShelfItem
@@ -9,9 +14,12 @@ import com.musicnova.app.data.music.LibraryTrack
 import com.musicnova.app.data.music.MusicRepository
 import com.musicnova.app.data.music.YouTubeMusicTrack
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,13 +44,14 @@ data class MusicUiState(
 @HiltViewModel
 class MusicViewModel @Inject constructor(
     private val repository: MusicRepository,
-    private val artworkRepository: NovaArtworkRepository
+    private val artworkRepository: NovaArtworkRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MusicUiState())
     val uiState: StateFlow<MusicUiState> = _uiState.asStateFlow()
 
-    private val artworkSemaphore = Semaphore(8)
+    private val artworkSemaphore = Semaphore(6)
 
     fun loadHomeMusic() {
         if (_uiState.value.isLoading) return
@@ -55,30 +64,22 @@ class MusicViewModel @Inject constructor(
             try {
                 val data = repository.loadHomeMusic()
 
-                // Render Home immediately. Do not wait for remote artwork.
+                val recommendations = resolveTrackList(data.recommendations)
+                val trending = resolveTrackList(data.trending)
+                val recentlyPlayed = resolveRecentList(data.recentlyPlayed)
+                val nativePage = resolveNativePage(data.nativeHomePage)
+
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        recommendations = data.recommendations.map {
-                            track -> track.copy(artworkUrl = null)
-                        },
-                        trending = data.trending.map {
-                            track -> track.copy(artworkUrl = null)
-                        },
-                        recentlyPlayed = data.recentlyPlayed.map {
-                            track -> track.copy(artworkUrl = null)
-                        },
+                        recommendations = recommendations,
+                        trending = trending,
+                        recentlyPlayed = recentlyPlayed,
                         likedCount = data.likedCount,
-                        nativeHomePage = clearNativeArtwork(data.nativeHomePage),
+                        nativeHomePage = nativePage,
                         error = null
                     )
                 }
-
-                // Resolve artwork independently in the background.
-                resolveTrackList(data.recommendations, "recommendations")
-                resolveTrackList(data.trending, "trending")
-                resolveRecentList(data.recentlyPlayed)
-                resolveNativePage(data.nativeHomePage)
 
             } catch (e: CancellationException) {
                 throw e
@@ -93,167 +94,123 @@ class MusicViewModel @Inject constructor(
         }
     }
 
-    private fun resolveTrackList(
-        tracks: List<YouTubeMusicTrack>,
-        section: String
-    ) {
-        tracks.forEach { track ->
-            if (track.isArtist || track.title.isBlank()) return@forEach
-
-            viewModelScope.launch {
-                val artwork = artworkSemaphore.withPermit {
-                    resolveArtwork(track.title, track.artist)
-                }
-
-                if (artwork.isNullOrBlank()) return@launch
-
-                _uiState.update { state ->
-                    val updated = when (section) {
-                        "recommendations" -> state.recommendations.map {
-                            if (it.videoId == track.videoId)
-                                it.copy(artworkUrl = artwork)
-                            else it
-                        }
-
-                        "trending" -> state.trending.map {
-                            if (it.videoId == track.videoId)
-                                it.copy(artworkUrl = artwork)
-                            else it
-                        }
-
-                        else -> state.searchResults.map {
-                            if (it.videoId == track.videoId)
-                                it.copy(artworkUrl = artwork)
-                            else it
-                        }
-                    }
-
-                    when (section) {
-                        "recommendations" ->
-                            state.copy(recommendations = updated)
-                        "trending" ->
-                            state.copy(trending = updated)
-                        else ->
-                            state.copy(searchResults = updated)
-                    }
-                }
-            }
-        }
-    }
-
-    private fun resolveRecentList(tracks: List<LibraryTrack>) {
-        tracks.forEach { track ->
-            viewModelScope.launch {
-                val artwork = artworkSemaphore.withPermit {
-                    resolveArtwork(track.title, track.artist)
-                }
-
-                if (artwork.isNullOrBlank()) return@launch
-
-                _uiState.update { state ->
-                    state.copy(
-                        recentlyPlayed = state.recentlyPlayed.map {
-                            if (it.videoId == track.videoId)
-                                it.copy(artworkUrl = artwork)
-                            else it
-                        }
+    private suspend fun resolveTrackList(
+        tracks: List<YouTubeMusicTrack>
+    ): List<YouTubeMusicTrack> = coroutineScope {
+        tracks.map { track ->
+            async {
+                if (track.isArtist || track.title.isBlank()) {
+                    track
+                } else {
+                    val artwork = resolveAndPreload(
+                        track.title,
+                        track.artist,
+                        track.artworkUrl
                     )
+                    track.copy(artworkUrl = artwork)
                 }
             }
-        }
+        }.awaitAll()
     }
 
-    private fun resolveNativePage(homePage: HomePage?) {
-        if (homePage == null) return
+    private suspend fun resolveRecentList(
+        tracks: List<LibraryTrack>
+    ): List<LibraryTrack> = coroutineScope {
+        tracks.map { track ->
+            async {
+                val artwork = resolveAndPreload(
+                    track.title,
+                    track.artist,
+                    track.artworkUrl
+                )
+                track.copy(artworkUrl = artwork)
+            }
+        }.awaitAll()
+    }
 
-        homePage.shelves.forEach { shelf ->
-            shelf.items.forEach { item ->
-                if (item !is HomeShelfItem.Track) return@forEach
+    private suspend fun resolveNativePage(
+        page: HomePage?
+    ): HomePage? {
+        if (page == null) return null
 
-                val track = item.track
-                if (track.isArtist || track.title.isBlank()) return@forEach
+        return coroutineScope {
+            page.copy(
+                shelves = page.shelves.map { shelf ->
+                    val resolvedItems = shelf.items.map { item ->
+                        async {
+                            if (item !is HomeShelfItem.Track) {
+                                item
+                            } else {
+                                val track = item.track
+                                val fallback = item.cardData?.largeArtworkUrl
+                                    ?: track.artworkUrl
 
-                viewModelScope.launch {
-                    val artwork = artworkSemaphore.withPermit {
-                        resolveArtwork(track.title, track.artist)
-                    }
+                                val artwork = resolveAndPreload(
+                                    track.title,
+                                    track.artist,
+                                    fallback
+                                )
 
-                    if (artwork.isNullOrBlank()) return@launch
-
-                    _uiState.update { state ->
-                        val currentPage = state.nativeHomePage ?: return@update state
-
-                        state.copy(
-                            nativeHomePage = currentPage.copy(
-                                shelves = currentPage.shelves.map { currentShelf ->
-                                    currentShelf.copy(
-                                        items = currentShelf.items.map { currentItem ->
-                                            if (
-                                                currentItem is HomeShelfItem.Track &&
-                                                currentItem.track.videoId == track.videoId
-                                            ) {
-                                                currentItem.copy(
-                                                    track = currentItem.track.copy(
-                                                        artworkUrl = artwork
-                                                    ),
-                                                    cardData = currentItem.cardData?.copy(
-                                                        largeArtworkUrl = artwork
-                                                    )
-                                                )
-                                            } else {
-                                                currentItem
-                                            }
-                                        }
+                                item.copy(
+                                    track = track.copy(
+                                        artworkUrl = artwork
+                                    ),
+                                    cardData = item.cardData?.copy(
+                                        largeArtworkUrl = artwork
                                     )
-                                }
-                            )
-                        )
-                    }
+                                )
+                            }
+                        }
+                    }.awaitAll()
+
+                    shelf.copy(items = resolvedItems)
                 }
-            }
+            )
         }
     }
 
-    private suspend fun resolveArtwork(
+    private suspend fun resolveAndPreload(
         title: String,
-        artist: String
+        artist: String,
+        fallback: String?
     ): String? {
         if (title.isBlank()) return null
 
-        return try {
-            artworkRepository.resolve(
-                title = title,
-                artist = artist,
-                youtubeFallback = null
-            )
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            null
+        return artworkSemaphore.withPermit {
+            try {
+                val artwork = artworkRepository.resolve(
+                    title = title,
+                    artist = artist,
+                    youtubeFallback = fallback
+                ) ?: return@withPermit null
+
+                if (preloadImage(artwork)) artwork else null
+
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
         }
     }
 
-    private fun clearNativeArtwork(homePage: HomePage?): HomePage? {
-        if (homePage == null) return null
+    private suspend fun preloadImage(url: String): Boolean {
+        if (url.isBlank()) return false
 
-        return homePage.copy(
-            shelves = homePage.shelves.map { shelf ->
-                shelf.copy(
-                    items = shelf.items.map { item ->
-                        if (item is HomeShelfItem.Track) {
-                            item.copy(
-                                track = item.track.copy(artworkUrl = null),
-                                cardData = item.cardData?.copy(
-                                    largeArtworkUrl = null
-                                )
-                            )
-                        } else {
-                            item
-                        }
-                    }
-                )
-            }
-        )
+        val request = ImageRequest.Builder(context)
+            .data(url)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .allowHardware(true)
+            .build()
+
+        return try {
+            context.imageLoader.execute(request) is SuccessResult
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            false
+        }
     }
 
     fun searchSongs(query: String) {
@@ -279,18 +236,15 @@ class MusicViewModel @Inject constructor(
 
             try {
                 val results = repository.searchSongs(query.trim())
+                val readyResults = resolveTrackList(results)
 
                 _uiState.update {
                     it.copy(
                         isSearching = false,
-                        searchResults = results.map { track ->
-                            track.copy(artworkUrl = null)
-                        },
+                        searchResults = readyResults,
                         searchError = null
                     )
                 }
-
-                resolveTrackList(results, "search")
 
             } catch (e: CancellationException) {
                 throw e
