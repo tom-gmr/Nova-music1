@@ -6,10 +6,27 @@ import org.json.JSONObject
 internal object PlaylistBrowseParser {
 
     fun parse(root: JSONObject): HomePage {
-        val playlistShelves = findObjects(
-            root,
-            "musicPlaylistShelfRenderer"
+        val tracks = mutableListOf<HomeShelfItem>()
+        val seenIds = mutableSetOf<String>()
+
+        val rendererKeys = listOf(
+            "musicResponsiveListItemRenderer",
+            "playlistPanelVideoRenderer",
+            "playlistVideoRenderer",
+            "videoRenderer",
+            "compactVideoRenderer"
         )
+
+        for (key in rendererKeys) {
+            for (renderer in findObjects(root, key)) {
+                val track = parseTrack(renderer) ?: continue
+
+                if (track.videoId.isBlank()) continue
+                if (!seenIds.add(track.videoId)) continue
+
+                tracks.add(HomeShelfItem.Track(track))
+            }
+        }
 
         val header = findObjects(
             root,
@@ -19,61 +36,14 @@ internal object PlaylistBrowseParser {
                 root,
                 "musicDetailHeaderRenderer"
             ).firstOrNull()
-
-        val tracks = mutableListOf<HomeShelfItem>()
-        val seenIds = mutableSetOf<String>()
-
-        for (shelf in playlistShelves) {
-            val contents = shelf.optJSONArray("contents")
-                ?: continue
-
-            for (i in 0 until contents.length()) {
-                val row = contents.optJSONObject(i)
-                    ?.optJSONObject(
-                        "musicResponsiveListItemRenderer"
-                    ) ?: continue
-
-                val videoId = findString(row, "videoId")
-                    ?: continue
-
-                if (!seenIds.add(videoId)) continue
-
-                val columns = row.optJSONArray("flexColumns")
-
-                val title = columns
-                    ?.optJSONObject(0)
-                    ?.optJSONObject(
-                        "musicResponsiveListItemFlexColumnRenderer"
-                    )
-                    ?.optJSONObject("text")
-                    ?.let(::readText)
-                    ?: readText(row.optJSONObject("title"))
-                    ?: continue
-
-                val artist = columns
-                    ?.optJSONObject(1)
-                    ?.optJSONObject(
-                        "musicResponsiveListItemFlexColumnRenderer"
-                    )
-                    ?.optJSONObject("text")
-                    ?.let(::readText)
-                    ?: "Unknown Artist"
-
-                tracks.add(
-                    HomeShelfItem.Track(
-                        track = YouTubeMusicTrack(
-                            videoId = videoId,
-                            title = title,
-                            artist = artist,
-                            artworkUrl = thumbnailUrl(row)
-                        )
-                    )
-                )
-            }
-        }
+            ?: findObjects(
+                root,
+                "playlistHeaderRenderer"
+            ).firstOrNull()
 
         val playlistTitle = header?.let {
             readText(it.optJSONObject("title"))
+                ?: readText(it.optJSONObject("titleText"))
         } ?: "Playlist"
 
         val shelf = HomeShelf(
@@ -98,6 +68,47 @@ internal object PlaylistBrowseParser {
         )
     }
 
+    private fun parseTrack(
+        row: JSONObject
+    ): YouTubeMusicTrack? {
+
+        val videoId = findString(row, "videoId")
+            ?: return null
+
+        val columns = row.optJSONArray("flexColumns")
+
+        val title = columns
+            ?.optJSONObject(0)
+            ?.optJSONObject(
+                "musicResponsiveListItemFlexColumnRenderer"
+            )
+            ?.optJSONObject("text")
+            ?.let(::readText)
+            ?: readText(row.optJSONObject("title"))
+            ?: readText(row.optJSONObject("titleText"))
+            ?: return null
+
+        val artist = columns
+            ?.optJSONObject(1)
+            ?.optJSONObject(
+                "musicResponsiveListItemFlexColumnRenderer"
+            )
+            ?.optJSONObject("text")
+            ?.let(::readText)
+            ?: readText(row.optJSONObject("longBylineText"))
+            ?: readText(row.optJSONObject("shortBylineText"))
+            ?: readText(row.optJSONObject("ownerText"))
+            ?: "Unknown Artist"
+
+        return YouTubeMusicTrack(
+            videoId = videoId,
+            title = title,
+            artist = artist,
+            artworkUrl = thumbnailUrl(row),
+            isArtist = false
+        )
+    }
+
     private fun findObjects(
         value: Any?,
         target: String
@@ -107,8 +118,9 @@ internal object PlaylistBrowseParser {
         fun walk(node: Any?) {
             when (node) {
                 is JSONObject -> {
-                    val direct = node.optJSONObject(target)
-                    if (direct != null) result.add(direct)
+                    node.optJSONObject(target)?.let {
+                        result.add(it)
+                    }
 
                     val keys = node.keys()
                     while (keys.hasNext()) {
@@ -127,29 +139,52 @@ internal object PlaylistBrowseParser {
         walk(value)
         return result
     }
+        private fun readText(
+        value: Any?
+    ): String? {
+        when (value) {
+            is String -> {
+                return value.takeIf { it.isNotBlank() }
+            }
 
-    private fun readText(node: JSONObject?): String? {
-        if (node == null) return null
+            is JSONObject -> {
+                val simpleText = value.optString("simpleText")
+                if (simpleText.isNotBlank() && simpleText != "null") {
+                    return simpleText
+                }
 
-        val simple = node.optString("simpleText")
-        if (simple.isNotBlank() && simple != "null") {
-            return simple.trim()
+                val runs = value.optJSONArray("runs")
+                if (runs != null) {
+                    val combined = buildString {
+                        for (i in 0 until runs.length()) {
+                            append(
+                                readText(runs.optJSONObject(i))
+                                    .orEmpty()
+                            )
+                        }
+                    }
+
+                    if (combined.isNotBlank()) return combined
+                }
+
+                val text = value.optString("text")
+                if (text.isNotBlank() && text != "null") {
+                    return text
+                }
+            }
+
+            is JSONArray -> {
+                val combined = buildString {
+                    for (i in 0 until value.length()) {
+                        append(readText(value.opt(i)).orEmpty())
+                    }
+                }
+
+                return combined.takeIf { it.isNotBlank() }
+            }
         }
 
-        val runs = node.optJSONArray("runs")
-            ?: return null
-
-        val result = buildString {
-            for (i in 0 until runs.length()) {
-                append(
-                    runs.optJSONObject(i)
-                        ?.optString("text")
-                        .orEmpty()
-                )
-            }
-        }.trim()
-
-        return result.takeIf { it.isNotBlank() }
+        return null
     }
 
     private fun findString(
@@ -158,27 +193,34 @@ internal object PlaylistBrowseParser {
     ): String? {
         when (value) {
             is JSONObject -> {
-                val direct = value.optString(target)
+                val direct = value.opt(target)
 
-                if (direct.isNotBlank() && direct != "null") {
+                if (direct is String &&
+                    direct.isNotBlank() &&
+                    direct != "null"
+                ) {
                     return direct
                 }
 
                 val keys = value.keys()
                 while (keys.hasNext()) {
-                    findString(
+                    val result = findString(
                         value.opt(keys.next()),
                         target
-                    )?.let { return it }
+                    )
+
+                    if (!result.isNullOrBlank()) return result
                 }
             }
 
             is JSONArray -> {
                 for (i in 0 until value.length()) {
-                    findString(
+                    val result = findString(
                         value.opt(i),
                         target
-                    )?.let { return it }
+                    )
+
+                    if (!result.isNullOrBlank()) return result
                 }
             }
         }
@@ -186,54 +228,41 @@ internal object PlaylistBrowseParser {
         return null
     }
 
-    private fun thumbnailUrl(value: Any?): String? {
+    private fun thumbnailUrl(
+        value: Any?
+    ): String? {
         when (value) {
             is JSONObject -> {
                 val thumbnails = value.optJSONArray("thumbnails")
 
                 if (thumbnails != null) {
-                    var bestUrl: String? = null
-                    var bestWidth = -1
+                    for (i in thumbnails.length() - 1 downTo 0) {
+                        val url = thumbnails.optJSONObject(i)
+                            ?.optString("url")
+                            .orEmpty()
 
-                    for (i in 0 until thumbnails.length()) {
-                        val item = thumbnails.optJSONObject(i)
-                            ?: continue
-
-                        val url = item.optString("url")
-                        val width = item.optInt("width", 0)
-
-                        if (
-                            url.isNotBlank() &&
-                            url != "null" &&
-                            width >= bestWidth
+                        if (url.startsWith("https://") ||
+                            url.startsWith("http://")
                         ) {
-                            bestWidth = width
-                            bestUrl = url
-                        }
-                    }
-
-                    if (!bestUrl.isNullOrBlank()) {
-                        return if (bestUrl.startsWith("//")) {
-                            "https:$bestUrl"
-                        } else {
-                            bestUrl
+                            return url
                         }
                     }
                 }
 
                 val keys = value.keys()
                 while (keys.hasNext()) {
-                    thumbnailUrl(value.opt(keys.next()))?.let {
-                        return it
-                    }
+                    val result = thumbnailUrl(
+                        value.opt(keys.next())
+                    )
+
+                    if (!result.isNullOrBlank()) return result
                 }
             }
 
             is JSONArray -> {
                 for (i in 0 until value.length()) {
-                    thumbnailUrl(value.opt(i))?.let {
-                        return it
-                    }
+                    val result = thumbnailUrl(value.opt(i))
+                    if (!result.isNullOrBlank()) return result
                 }
             }
         }
