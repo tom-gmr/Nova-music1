@@ -10,7 +10,7 @@
         android:roundIcon="@drawable/nova_logo"
         android:allowBackup="true"
         android:label="Music Nova"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar"
+        android:theme="@style/Theme.MusicNova.Splash"
         android:usesCleartextTraffic="false">
 
         <activity
