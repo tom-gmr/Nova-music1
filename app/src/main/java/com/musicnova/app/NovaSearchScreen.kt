@@ -222,46 +222,56 @@ fun NovaFullPlayerScreen(
     }
 
     // Fetch lyrics for the currently playing song
-    LaunchedEffect(state.title, state.artist) {
-        if (state.title.isBlank() || state.artist.isBlank()) {
-            lyricsState = LyricsUiState.Empty
-        } else {
-            lyricsState = LyricsUiState.Loading
+LaunchedEffect(state.title, state.artist) {
+    if (state.title.isBlank() || state.artist.isBlank()) {
+        lyricsState = LyricsUiState.Empty
+    } else {
+        lyricsState = LyricsUiState.Loading
 
-            try {
-                val result = lyricsRepository.findLyrics(
-                    artist = state.artist,
-                    track = state.title,
-                    durationMs = musicPlayer.getDuration()
-)
+        try {
+            var trackDuration = musicPlayer.getDuration()
+            var attempts = 0
 
-                lyricsState = if (result == null) {
-                    LyricsUiState.Empty
-                } else {
-                    when (
-                        val parsed = parseLyrics(
-                            syncedLyrics = result.syncedLyrics,
-                            plainLyrics = result.plainLyrics,
-                            source = "LRCLIB"
-                        )
-                    ) {
-                        is LyricsResult.Success ->
-                            LyricsUiState.Success(parsed)
-
-                        LyricsResult.Empty ->
-                            LyricsUiState.Empty
-
-                        is LyricsResult.Error ->
-                            LyricsUiState.Error(parsed.message)
-                    }
-                }
-            } catch (exception: Exception) {
-                lyricsState = LyricsUiState.Error(
-                    exception.message ?: "Unable to load lyrics"
-                )
+            // Wait up to 6 seconds for the actual track duration
+            while (trackDuration <= 0L && attempts < 20) {
+                delay(300)
+                trackDuration = musicPlayer.getDuration()
+                attempts++
             }
+
+            val result = lyricsRepository.findLyrics(
+                artist = state.artist,
+                track = state.title,
+                durationMs = trackDuration
+            )
+
+            lyricsState = if (result == null) {
+                LyricsUiState.Empty
+            } else {
+                when (
+                    val parsed = parseLyrics(
+                        syncedLyrics = result.syncedLyrics,
+                        plainLyrics = result.plainLyrics,
+                        source = "LRCLIB"
+                    )
+                ) {
+                    is LyricsResult.Success ->
+                        LyricsUiState.Success(parsed)
+
+                    LyricsResult.Empty ->
+                        LyricsUiState.Empty
+
+                    is LyricsResult.Error ->
+                        LyricsUiState.Error(parsed.message)
+                }
+            }
+        } catch (exception: Exception) {
+            lyricsState = LyricsUiState.Error(
+                exception.message ?: "Unable to load lyrics"
+            )
         }
     }
+}
 
     Box(
         modifier = Modifier
