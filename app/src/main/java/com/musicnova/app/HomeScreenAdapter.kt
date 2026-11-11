@@ -130,7 +130,7 @@ contentPadding: PaddingValues = PaddingValues(0.dp)
         state = homeState,
         actions = actions,
         modifier = Modifier,
-        selectedMood = selectedMood
+        selectedMood = selectedMood,
         contentPadding = contentPadding
     )
 }
