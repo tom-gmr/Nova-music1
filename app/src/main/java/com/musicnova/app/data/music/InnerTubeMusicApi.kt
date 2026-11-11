@@ -185,7 +185,7 @@ class InnerTubeMusicApi {
         }
 
     /** Fetches a YouTube Music browse page using its browse ID. */
-    suspend fun fetchBrowsePage(
+        suspend fun fetchBrowsePage(
         browseId: String
     ): HomePage = withContext(Dispatchers.IO) {
         val id = browseId.trim()
@@ -196,12 +196,13 @@ class InnerTubeMusicApi {
         val config = getWebConfig()
         val request = browseRequest(config, id)
         val root = executeJson(request, "YouTube Music browse")
+
         if (id.startsWith("VL")) {
-    PlaylistBrowseParser.parse(root)
-} else {
-    HomeFeedParser.parseHomePage(root)
-        
-    }
+            PlaylistBrowseParser.parse(root)
+        } else {
+            HomeFeedParser.parseHomePage(root)
+        }
+        }
 
     /** Fetches the first page of a playlist for card previews. */
     suspend fun fetchPlaylistPreview(
