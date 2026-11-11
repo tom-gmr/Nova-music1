@@ -311,125 +311,179 @@ fun MusicNovaApp() {
                         playPreviousTrack()
                     }
                 )
+                
+} else {
 
-            } else {
+    MusicNovaShell(
+        player = glassPlayerState,
+        playerActions = glassPlayerActions,
+        selectedRoute = selectedTab.lowercase(),
+        onNavigate = { route ->
+            currentBrowseId = null
+            selectedTab = when (route) {
+                "search" -> "Search"
+                "library" -> "Library"
+                "profile" -> "Profile"
+                else -> "Home"
+            }
+        },
+        onReselect = { route ->
+            if (route == "home") {
+                currentBrowseId = null
+            }
+        }
+    ) { shellPadding ->
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding()
-                ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = shellPadding.calculateTopPadding())
+        ) {
 
-                    if (selectedTab != "Home" && currentBrowseId == null) {
-                        NovaTopHeader(
-                            selectedTab = selectedTab,
-                            onProfileClick = {
-                                selectedTab = "Profile"
+            if (selectedTab != "Home" && currentBrowseId == null) {
+                NovaTopHeader(
+                    selectedTab = selectedTab,
+                    onProfileClick = {
+                        selectedTab = "Profile"
+                    }
+                )
+            }
+
+            playbackError?.let { message ->
+                Text(
+                    text = message,
+                    color = Color(0xFFFF9999),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        bottom = 8.dp
+                    )
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+
+                if (currentBrowseId != null) {
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(
+                                bottom = shellPadding.calculateBottomPadding()
+                            )
+                    ) {
+                        BrowseScreen(
+                            browseId = currentBrowseId!!,
+                            onBack = {
+                                currentBrowseId = null
+                            },
+                            onPlay = { track ->
+                                playTrack(track)
+                            },
+                            onBrowse = { nextBrowseId ->
+                                currentBrowseId = nextBrowseId
                             }
                         )
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .padding(
-                                bottom = if (playbackState.hasMedia) {
-                                    190.dp
-                                } else {
-                                    88.dp
-                                }
-                            )
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxSize()
-                        ) {
+                } else {
 
-                            playbackError?.let { message ->
-                                Text(
-                                    text = message,
-                                    color = Color(0xFFFF9999),
-                                    fontSize = 12.sp,
-                                    modifier = Modifier.padding(
-                                        bottom = 8.dp
+                    AnimatedContent(
+                        targetState = selectedTab,
+                        label = "NovaScreenTransition"
+                    ) { tab ->
+
+                        when (tab) {
+
+                            "Home" -> {
+                                RecommendationsHomeScreen(
+                                    onPlay = { track ->
+                                        playTrack(track)
+                                    },
+                                    onBrowse = { browseId ->
+                                        currentBrowseId = browseId
+                                    },
+                                    contentPadding = PaddingValues(
+                                        bottom = shellPadding.calculateBottomPadding()
                                     )
                                 )
                             }
 
-                            if (currentBrowseId != null) {
-                                BrowseScreen(
-                                    browseId = currentBrowseId!!,
-                                    onBack = {
-                                        currentBrowseId = null
-                                    },
+                            "Search" -> {
+                                Box(
+                                    Modifier
+                                        .fillMaxSize()
+                                        .padding(
+                                            bottom = shellPadding.calculateBottomPadding()
+                                        )
+                                ) {
+                                    NovaSearchScreen(
+                                        libraryStore = libraryStore,
+                                        onPlay = { track ->
+                                            playTrack(track)
+                                        },
+                                        onPlayQueue = { tracks, selectedTrack ->
+                                            playQueue(tracks, selectedTrack)
+                                        }
+                                    )
+                                }
+                            }
+
+                            "Library" -> {
+                                Box(
+                                    Modifier
+                                        .fillMaxSize()
+                                        .padding(
+                                            bottom = shellPadding.calculateBottomPadding()
+                                        )
+                                ) {
+                                    LibraryScreen(
+                                        libraryStore = libraryStore,
+                                        onPlay = { track ->
+                                            playTrack(track.toMusicTrack())
+                                        }
+                                    )
+                                }
+                            }
+
+                            "Profile" -> {
+                                Box(
+                                    Modifier
+                                        .fillMaxSize()
+                                        .padding(
+                                            bottom = shellPadding.calculateBottomPadding()
+                                        )
+                                ) {
+                                    NovaProfileScreen()
+                                }
+                            }
+
+                            else -> {
+                                RecommendationsHomeScreen(
                                     onPlay = { track ->
                                         playTrack(track)
                                     },
-                                    onBrowse = { nextBrowseId ->
-                                        currentBrowseId = nextBrowseId
-                                    }
+                                    onBrowse = { browseId ->
+                                        currentBrowseId = browseId
+                                    },
+                                    contentPadding = PaddingValues(
+                                        bottom = shellPadding.calculateBottomPadding()
+                                    )
                                 )
-                            } else {
-                                AnimatedContent(
-                                    targetState = selectedTab,
-                                    label = "NovaScreenTransition"
-                                ) { tab ->
-
-                                    when (tab) {
-                                        "Home" -> {
-                                            RecommendationsHomeScreen(
-                                                onPlay = { track ->
-                                                    playTrack(track)
-                                                },
-                                                onBrowse = { browseId ->
-                                                    currentBrowseId = browseId
-                                                }
-                                            )
-                                        }
-
-                                        "Search" -> {
-                                            NovaSearchScreen(
-                                                libraryStore = libraryStore,
-                                                onPlay = { track ->
-                                                    playTrack(track)
-                                                },
-                                                onPlayQueue = { tracks, selectedTrack ->
-                                                    playQueue(tracks, selectedTrack)
-                                                }
-                                            )
-                                        }
-
-                                        "Library" -> {
-                                            LibraryScreen(
-                                                libraryStore = libraryStore,
-                                                onPlay = { track ->
-                                                    playTrack(
-                                                        track.toMusicTrack()
-                                                    )
-                                                }
-                                            )
-                                        }
-
-                                        "Profile" -> {
-                                            NovaProfileScreen()
-                                        }
-
-                                        else -> {
-                                            RecommendationsHomeScreen(
-                                                onPlay = { track ->
-                                                    playTrack(track)
-                                                },
-                                                onBrowse = { browseId ->
-                                                    currentBrowseId = browseId
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+            
+            
 
                 // Existing Mini Player + Bottom Navigation
                 Column(
