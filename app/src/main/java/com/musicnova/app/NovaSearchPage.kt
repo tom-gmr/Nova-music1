@@ -73,185 +73,128 @@ fun NovaSearchScreen(
     }
 
     fun searchMusic() {
-        if (query.isBlank() || loading) return
+        // Shared Search header
+Row(
+    modifier = Modifier
+        .fillMaxWidth()
+        .padding(top = 14.dp, bottom = 16.dp),
+    verticalAlignment = Alignment.CenterVertically
+) {
+    Text(
+        "Search",
+        color = Color.White,
+        fontSize = 27.sp,
+        fontWeight = FontWeight.Bold
+    )
+    Spacer(Modifier.weight(1f))
+    Icon(
+        Icons.Default.GraphicEq,
+        contentDescription = "Music Nova",
+        tint = SearchLavender,
+        modifier = Modifier.size(25.dp)
+    )
+}
 
-        searched = true
-        viewModel.searchSongs(query.trim())
+Row(
+    modifier = Modifier
+        .fillMaxWidth()
+        .clip(RoundedCornerShape(24.dp))
+        .background(
+            Brush.linearGradient(
+                listOf(Color(0xFF292135), Color(0xFF191520))
+            )
+        )
+        .border(1.dp, SearchBorder, RoundedCornerShape(24.dp))
+        .padding(start = 15.dp, end = 7.dp),
+    verticalAlignment = Alignment.CenterVertically
+) {
+    Icon(
+        Icons.Default.Search,
+        contentDescription = null,
+        tint = SearchLavender
+    )
+
+    Spacer(Modifier.width(10.dp))
+
+    TextField(
+        value = query,
+        onValueChange = { query = it },
+        modifier = Modifier.weight(1f),
+        placeholder = {
+            Text("Songs, artists, albums...", color = SearchMuted)
+        },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(
+            onSearch = { searchMusic() }
+        ),
+        colors = TextFieldDefaults.colors(
+            focusedTextColor = Color.White,
+            unfocusedTextColor = Color.White,
+            cursorColor = SearchLavender,
+            focusedContainerColor = Color.Transparent,
+            unfocusedContainerColor = Color.Transparent,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent
+        )
+    )
+
+    if (query.isNotEmpty()) {
+        IconButton(onClick = { query = "" }) {
+            Icon(Icons.Default.Close, "Clear", tint = SearchMuted)
+        }
+    } else {
+        IconButton(
+            onClick = { searchMusic() },
+            enabled = !loading
+        ) {
+            Icon(Icons.Default.Search, "Search", tint = SearchLavender)
+        }
     }
+}
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SearchBg)
-    ) {
+Spacer(Modifier.height(17.dp))
+
+var selectedCategory by remember { mutableStateOf("Tracks") }
+
+Row(
+    modifier = Modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.spacedBy(7.dp)
+) {
+    listOf("Tracks", "Podcasts", "Artists", "Albums").forEach { category ->
+        val selected = selectedCategory == category
+
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 20.dp)
+                .weight(1f)
+                .clip(RoundedCornerShape(18.dp))
+                .background(
+                    if (selected) Color(0xFF49395D)
+                    else Color(0xFF17131F)
+                )
+                .border(
+                    1.dp,
+                    if (selected) SearchPurple else SearchBorder,
+                    RoundedCornerShape(18.dp)
+                )
+                .clickable { selectedCategory = category }
+                .padding(vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(22.dp))
+            Text(
+                category,
+                color = if (selected) Color.White else SearchMuted,
+                fontSize = 11.sp,
+                fontWeight = if (selected)
+                    FontWeight.SemiBold
+                else
+                    FontWeight.Medium
+            )
+        }
+    }
+}
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = "MUSIC NOVA",
-                        color = SearchLavender,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 3.sp
-                    )
-
-                    Spacer(Modifier.height(7.dp))
-
-                    Text(
-                        text = "Discover",
-                        color = Color.White,
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Text(
-                        text = "Find the sound that moves you.",
-                        color = SearchMuted,
-                        fontSize = 13.sp
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(
-                                listOf(
-                                    Color(0xFF59456F),
-                                    Color(0xFF292033)
-                                )
-                            )
-                        )
-                        .border(1.dp, SearchBorder, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.GraphicEq,
-                        contentDescription = "Discover music",
-                        tint = SearchLavender,
-                        modifier = Modifier.size(25.dp)
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(25.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(21.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                Color(0xFF292135),
-                                Color(0xFF191520)
-                            )
-                        )
-                    )
-                    .border(
-                        1.dp,
-                        SearchBorder,
-                        RoundedCornerShape(21.dp)
-                    )
-                    .padding(horizontal = 15.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = null,
-                    tint = SearchLavender,
-                    modifier = Modifier.size(23.dp)
-                )
-
-                Spacer(Modifier.width(12.dp))
-
-                androidx.compose.material3.TextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = {
-                        Text(
-                            "Songs, artists, albums...",
-                            color = SearchMuted,
-                            fontSize = 14.sp
-                        )
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        imeAction = ImeAction.Search
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onSearch = { searchMusic() }
-                    ),
-                    colors = TextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        cursorColor = SearchLavender,
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    )
-                )
-
-                if (query.isNotEmpty()) {
-                    IconButton(
-                        onClick = { query = "" }
-                    ) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Clear search",
-                            tint = SearchMuted
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(13.dp))
-
-            Button(
-                onClick = { searchMusic() },
-                enabled = query.isNotBlank() && !loading,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(17.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF59456F),
-                    contentColor = Color.White,
-                    disabledContainerColor = Color(0xFF292330),
-                    disabledContentColor = SearchMuted
-                )
-            ) {
-                Icon(
-                    Icons.Default.Search,
-                    contentDescription = null,
-                    modifier = Modifier.size(19.dp)
-                )
-
-                Spacer(Modifier.width(9.dp))
-
-                Text(
-                    text = if (loading) "Searching..." else "Explore Music",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-
-            Spacer(Modifier.height(25.dp))
+Spacer(Modifier.height(19.dp))
 
             if (loading) {
                 Box(
