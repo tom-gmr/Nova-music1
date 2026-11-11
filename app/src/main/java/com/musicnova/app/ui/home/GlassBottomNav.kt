@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -51,25 +50,39 @@ fun GlassBottomNav(
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
-    val selectedIndex = items.indexOfFirst { it.route == selectedRoute }.coerceAtLeast(0)
-    val shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    val selectedIndex = items.indexOfFirst {
+        it.route == selectedRoute
+    }.coerceAtLeast(0)
+
+    val shape = RoundedCornerShape(24.dp)
 
     Box(
         modifier
             .fillMaxWidth()
-            .liquidGlass(hazeState, shape, tintAlpha = 0.5f)
+            .padding(horizontal = 28.dp, vertical = 4.dp)
+            .liquidGlass(
+                hazeState,
+                shape,
+                tintAlpha = 0.58f
+            )
     ) {
         BoxWithConstraints(
             Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 10.dp)
+                .padding(horizontal = 8.dp, vertical = 5.dp)
         ) {
             val itemWidth = maxWidth / items.size
-            val indicatorWidth = (itemWidth - 10.dp).coerceAtMost(96.dp)
+            val indicatorWidth = (itemWidth - 12.dp)
+                .coerceAtMost(82.dp)
+
             val indicatorX by animateDpAsState(
-                targetValue = itemWidth * selectedIndex + (itemWidth - indicatorWidth) / 2,
-                animationSpec = spring(dampingRatio = 0.72f, stiffness = 380f),
+                targetValue = itemWidth * selectedIndex +
+                    (itemWidth - indicatorWidth) / 2,
+                animationSpec = spring(
+                    dampingRatio = 0.72f,
+                    stiffness = 380f
+                ),
                 label = "indicatorX"
             )
 
@@ -77,9 +90,11 @@ fun GlassBottomNav(
                 Modifier
                     .offset(x = indicatorX)
                     .width(indicatorWidth)
-                    .height(56.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color.White.copy(alpha = 0.14f))
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(17.dp))
+                    .background(
+                        Color(0xFFAA8BFF).copy(alpha = 0.18f)
+                    )
             )
 
             Row(Modifier.fillMaxWidth()) {
@@ -92,7 +107,9 @@ fun GlassBottomNav(
                             if (item.route == selectedRoute) {
                                 onReselect(item.route)
                             } else {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                haptic.performHapticFeedback(
+                                    HapticFeedbackType.TextHandleMove
+                                )
                                 onSelect(item.route)
                             }
                         }
@@ -111,21 +128,31 @@ private fun NavButton(
     modifier: Modifier = Modifier
 ) {
     val color by animateColorAsState(
-        targetValue = if (selected) Color.White else Color.White.copy(alpha = 0.62f),
+        targetValue = if (selected) {
+            Color(0xFFD9C9FF)
+        } else {
+            Color.White.copy(alpha = 0.62f)
+        },
         label = "navColor"
     )
+
     val scale by animateFloatAsState(
-        targetValue = if (selected) 1.08f else 1f,
-        animationSpec = spring(dampingRatio = 0.5f, stiffness = 400f),
+        targetValue = if (selected) 1.12f else 1f,
+        animationSpec = spring(
+            dampingRatio = 0.5f,
+            stiffness = 400f
+        ),
         label = "navScale"
     )
 
     Column(
         modifier
-            .height(56.dp)
+            .height(48.dp)
             .selectable(
                 selected = selected,
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = remember {
+                    MutableInteractionSource()
+                },
                 indication = null,
                 role = Role.Tab,
                 onClick = onClick
@@ -135,26 +162,37 @@ private fun NavButton(
     ) {
         Box {
             Icon(
-                item.icon,
-                contentDescription = null,
+                imageVector = item.icon,
+                contentDescription = item.label,
                 tint = color,
                 modifier = Modifier
-                    .size(26.dp)
-                    .graphicsLayer { scaleX = scale; scaleY = scale }
+                    .size(24.dp)
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }
             )
+
             if (item.badge > 0) {
                 Box(
                     Modifier
                         .align(Alignment.TopEnd)
                         .offset(x = 8.dp, y = (-4).dp)
-                        .defaultMinSize(minWidth = 16.dp, minHeight = 16.dp)
+                        .defaultMinSize(
+                            minWidth = 16.dp,
+                            minHeight = 16.dp
+                        )
                         .clip(CircleShape)
                         .background(Color(0xFFFF5A6E))
                         .padding(horizontal = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        if (item.badge > 99) "99+" else item.badge.toString(),
+                        if (item.badge > 99) {
+                            "99+"
+                        } else {
+                            item.badge.toString()
+                        },
                         color = Color.White,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold
@@ -162,12 +200,16 @@ private fun NavButton(
                 }
             }
         }
-        Spacer(Modifier.height(2.dp))
+
         Text(
             item.label,
             color = color,
-            fontSize = 12.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            fontSize = 10.sp,
+            fontWeight = if (selected) {
+                FontWeight.Bold
+            } else {
+                FontWeight.Medium
+            },
             maxLines = 1
         )
     }
