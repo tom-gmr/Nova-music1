@@ -146,7 +146,13 @@ fun MusicNovaApp() {
     ) {
         currentBrowseId = null
     }
-
+       BackHandler(
+    enabled = selectedTab != "Home" &&
+        !showFullPlayer &&
+        currentBrowseId == null
+) {
+    selectedTab = "Home"
+       }
     fun playTrack(track: YouTubeMusicTrack) {
         if (track.isArtist || track.videoId.isBlank()) return
 
