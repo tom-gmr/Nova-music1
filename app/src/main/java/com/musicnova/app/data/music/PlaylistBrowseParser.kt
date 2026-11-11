@@ -5,28 +5,23 @@ import org.json.JSONObject
 
 internal object PlaylistBrowseParser {
 
+    private val rendererKeys = listOf(
+        "musicResponsiveListItemRenderer",
+        "playlistPanelVideoRenderer",
+        "playlistVideoRenderer",
+        "videoRenderer",
+        "compactVideoRenderer"
+    )
+
     fun parse(root: JSONObject): HomePage {
         val tracks = mutableListOf<HomeShelfItem>()
         val seenIds = mutableSetOf<String>()
 
-        val rendererKeys = listOf(
-            "musicResponsiveListItemRenderer",
-            "playlistPanelVideoRenderer",
-            "playlistVideoRenderer",
-            "videoRenderer",
-            "compactVideoRenderer"
+        collectTracks(
+            node = root,
+            tracks = tracks,
+            seenIds = seenIds
         )
-
-        for (key in rendererKeys) {
-            for (renderer in findObjects(root, key)) {
-                val track = parseTrack(renderer) ?: continue
-
-                if (track.videoId.isBlank()) continue
-                if (!seenIds.add(track.videoId)) continue
-
-                tracks.add(HomeShelfItem.Track(track))
-            }
-        }
 
         val header = findObjects(
             root,
@@ -42,8 +37,8 @@ internal object PlaylistBrowseParser {
             ).firstOrNull()
 
         val playlistTitle = header?.let {
-            readText(it.optJSONObject("title"))
-                ?: readText(it.optJSONObject("titleText"))
+            readText(it.opt("title"))
+                ?: readText(it.opt("titleText"))
         } ?: "Playlist"
 
         val shelf = HomeShelf(
@@ -68,6 +63,53 @@ internal object PlaylistBrowseParser {
         )
     }
 
+    private fun collectTracks(
+        node: Any?,
+        tracks: MutableList<HomeShelfItem>,
+        seenIds: MutableSet<String>
+    ) {
+        when (node) {
+            is JSONObject -> {
+                for (key in rendererKeys) {
+                    val renderer = node.optJSONObject(key)
+                        ?: continue
+
+                    val track = parseTrack(renderer)
+                        ?: continue
+
+                    if (track.videoId.isBlank()) continue
+
+                    if (seenIds.add(track.videoId)) {
+                        tracks.add(
+                            HomeShelfItem.Track(track)
+                        )
+                    }
+                }
+
+                val keys = node.keys()
+
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    collectTracks(
+                        node.opt(key),
+                        tracks,
+                        seenIds
+                    )
+                }
+            }
+
+            is JSONArray -> {
+                for (i in 0 until node.length()) {
+                    collectTracks(
+                        node.opt(i),
+                        tracks,
+                        seenIds
+                    )
+                }
+            }
+        }
+    }
+
     private fun parseTrack(
         row: JSONObject
     ): YouTubeMusicTrack? {
@@ -82,10 +124,10 @@ internal object PlaylistBrowseParser {
             ?.optJSONObject(
                 "musicResponsiveListItemFlexColumnRenderer"
             )
-            ?.optJSONObject("text")
+            ?.opt("text")
             ?.let(::readText)
-            ?: readText(row.optJSONObject("title"))
-            ?: readText(row.optJSONObject("titleText"))
+            ?: readText(row.opt("title"))
+            ?: readText(row.opt("titleText"))
             ?: return null
 
         val artist = columns
@@ -93,11 +135,11 @@ internal object PlaylistBrowseParser {
             ?.optJSONObject(
                 "musicResponsiveListItemFlexColumnRenderer"
             )
-            ?.optJSONObject("text")
+            ?.opt("text")
             ?.let(::readText)
-            ?: readText(row.optJSONObject("longBylineText"))
-            ?: readText(row.optJSONObject("shortBylineText"))
-            ?: readText(row.optJSONObject("ownerText"))
+            ?: readText(row.opt("longBylineText"))
+            ?: readText(row.opt("shortBylineText"))
+            ?: readText(row.opt("ownerText"))
             ?: "Unknown Artist"
 
         return YouTubeMusicTrack(
@@ -123,6 +165,7 @@ internal object PlaylistBrowseParser {
                     }
 
                     val keys = node.keys()
+
                     while (keys.hasNext()) {
                         walk(node.opt(keys.next()))
                     }
@@ -139,7 +182,8 @@ internal object PlaylistBrowseParser {
         walk(value)
         return result
     }
-        private fun readText(
+    
+    private fun readText(
         value: Any?
     ): String? {
         when (value) {
@@ -149,25 +193,31 @@ internal object PlaylistBrowseParser {
 
             is JSONObject -> {
                 val simpleText = value.optString("simpleText")
-                if (simpleText.isNotBlank() && simpleText != "null") {
+
+                if (simpleText.isNotBlank() &&
+                    simpleText != "null"
+                ) {
                     return simpleText
                 }
 
                 val runs = value.optJSONArray("runs")
+
                 if (runs != null) {
                     val combined = buildString {
                         for (i in 0 until runs.length()) {
                             append(
-                                readText(runs.optJSONObject(i))
-                                    .orEmpty()
+                                readText(runs.opt(i)).orEmpty()
                             )
                         }
                     }
 
-                    if (combined.isNotBlank()) return combined
+                    if (combined.isNotBlank()) {
+                        return combined
+                    }
                 }
 
                 val text = value.optString("text")
+
                 if (text.isNotBlank() && text != "null") {
                     return text
                 }
@@ -176,7 +226,9 @@ internal object PlaylistBrowseParser {
             is JSONArray -> {
                 val combined = buildString {
                     for (i in 0 until value.length()) {
-                        append(readText(value.opt(i)).orEmpty())
+                        append(
+                            readText(value.opt(i)).orEmpty()
+                        )
                     }
                 }
 
@@ -203,13 +255,16 @@ internal object PlaylistBrowseParser {
                 }
 
                 val keys = value.keys()
+
                 while (keys.hasNext()) {
                     val result = findString(
                         value.opt(keys.next()),
                         target
                     )
 
-                    if (!result.isNullOrBlank()) return result
+                    if (!result.isNullOrBlank()) {
+                        return result
+                    }
                 }
             }
 
@@ -220,7 +275,9 @@ internal object PlaylistBrowseParser {
                         target
                     )
 
-                    if (!result.isNullOrBlank()) return result
+                    if (!result.isNullOrBlank()) {
+                        return result
+                    }
                 }
             }
         }
@@ -250,19 +307,25 @@ internal object PlaylistBrowseParser {
                 }
 
                 val keys = value.keys()
+
                 while (keys.hasNext()) {
                     val result = thumbnailUrl(
                         value.opt(keys.next())
                     )
 
-                    if (!result.isNullOrBlank()) return result
+                    if (!result.isNullOrBlank()) {
+                        return result
+                    }
                 }
             }
 
             is JSONArray -> {
                 for (i in 0 until value.length()) {
                     val result = thumbnailUrl(value.opt(i))
-                    if (!result.isNullOrBlank()) return result
+
+                    if (!result.isNullOrBlank()) {
+                        return result
+                    }
                 }
             }
         }
