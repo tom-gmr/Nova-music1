@@ -38,7 +38,7 @@ import com.musicnova.app.data.music.YouTubeMusicTrack
 import com.musicnova.app.ui.feed.HomeNativeShelves
 import com.musicnova.app.ui.home.MusicViewModel
 
-private val HomeBg = Color(0xFF09080E)
+private val HomeBg = Color(00xFF000000)
 private val HomeSurface = Color(0xFF17141F)
 private val HomeSurfaceLight = Color(0xFF211B2C)
 private val HomeLavender = Color(0xFFD1C1EB)
@@ -257,8 +257,8 @@ fun RecommendationsHomeScreen(
                 title = "Made for you",
                 subtitle = "Your personal music mix",
                 modifier = Modifier.padding(
-                    top = 26.dp,
-                    bottom = 13.dp
+                    top = 12.dp,
+                    bottom = 9.dp
                 )
             )
         }
@@ -300,8 +300,8 @@ fun RecommendationsHomeScreen(
                 title = "Trending now",
                 subtitle = "Music people are listening to",
                 modifier = Modifier.padding(
-                    top = 29.dp,
-                    bottom = 13.dp
+                    top = 12.dp,
+                    bottom = 9.dp
                 )
             )
         }
@@ -337,8 +337,8 @@ fun RecommendationsHomeScreen(
                 title = "Jump back in",
                 subtitle = "Continue where you left off",
                 modifier = Modifier.padding(
-                    top = 29.dp,
-                    bottom = 13.dp
+                    top = 12.dp,
+                    bottom = 9.dp
                 )
             )
         }
@@ -378,7 +378,7 @@ fun RecommendationsHomeScreen(
                     .fillMaxWidth()
                     .padding(
                         top = 35.dp,
-                        bottom = 15.dp
+                        bottom = 16.dp
                     ),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
