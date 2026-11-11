@@ -1,6 +1,7 @@
 package com.musicnova.app
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -44,7 +45,7 @@ private val HomeSurfaceLight = Color(0xFF211B2C)
 private val HomeLavender = Color(0xFFD1C1EB)
 private val HomeText = Color(0xFFF8F5FC)
 private val HomeMuted = Color(0xFFAAA4B5)
-private val HomeBorder = Color(0xFF393044)
+private val HomeBorder = Color(0xFF25202D)
 
 @Composable
 fun RecommendationsHomeScreen(
@@ -74,6 +75,7 @@ fun RecommendationsHomeScreen(
             .background(HomeBg),
         contentPadding = PaddingValues(bottom = 35.dp)
     ) {
+
         item(key = "top_header") {
             Row(
                 modifier = Modifier
@@ -116,6 +118,7 @@ fun RecommendationsHomeScreen(
                         fontWeight = FontWeight.ExtraBold,
                         letterSpacing = 1.3.sp
                     )
+
                     Text(
                         "YOUR MUSIC UNIVERSE",
                         color = HomeMuted,
@@ -239,8 +242,7 @@ fun RecommendationsHomeScreen(
         }
 
         item(key = "native_shelves") {
-            val shelves = uiState.nativeHomePage?.shelves
-                .orEmpty()
+            val shelves = uiState.nativeHomePage?.shelves.orEmpty()
 
             if (shelves.isNotEmpty()) {
                 HomeNativeShelves(
@@ -252,123 +254,112 @@ fun RecommendationsHomeScreen(
             }
         }
 
-        item(key = "mix_header") {
-            HomeSectionHeader(
+        // MADE FOR YOU BOX
+        item(key = "mix_section") {
+            HomeSectionBox(
                 title = "Made for you",
-                subtitle = "Your personal music mix",
-                modifier = Modifier.padding(
-                    top = 12.dp,
-                    bottom = 9.dp
-                )
-            )
-        }
-
-        if (recommendations.isEmpty() && !refreshing) {
-            item(key = "mix_empty") {
-                HomeEmptyMessage(
-                    if (loadFailed) {
-                        "Couldn't load your mix. Try refreshing."
-                    } else {
-                        "Play music to build your personal mix."
-                    }
-                )
-            }
-        }
-
-        if (recommendations.isNotEmpty()) {
-            item(key = "mix_cards") {
-                LazyRow(
-                    contentPadding = PaddingValues(
-                        horizontal = 16.dp
-                    ),
-                    horizontalArrangement = Arrangement.spacedBy(13.dp)
-                ) {
-                    items(
-                        recommendations.take(12),
-                        key = { "mix_${it.videoId}" }
-                    ) { track ->
-                        HomeMusicCard(track) {
-                            onPlay(track)
-                        }
-                    }
-                }
-            }
-        }
-
-        item(key = "trending_header") {
-            HomeSectionHeader(
-                title = "Trending now",
-                subtitle = "Music people are listening to",
-                modifier = Modifier.padding(
-                    top = 12.dp,
-                    bottom = 9.dp
-                )
-            )
-        }
-
-        if (trending.isEmpty() && !refreshing) {
-            item(key = "trending_empty") {
-                HomeEmptyMessage(
-                    "Trending music is not available right now."
-                )
-            }
-        } else {
-            item(key = "trending_cards") {
-                LazyRow(
-                    contentPadding = PaddingValues(
-                        horizontal = 16.dp
-                    ),
-                    horizontalArrangement = Arrangement.spacedBy(13.dp)
-                ) {
-                    items(
-                        trending,
-                        key = { "trending_${it.videoId}" }
-                    ) { track ->
-                        HomeMusicCard(track) {
-                            onPlay(track)
-                        }
-                    }
-                }
-            }
-        }
-
-        item(key = "recent_header") {
-            HomeSectionHeader(
-                title = "Jump back in",
-                subtitle = "Continue where you left off",
-                modifier = Modifier.padding(
-                    top = 12.dp,
-                    bottom = 9.dp
-                )
-            )
-        }
-
-        if (recentlyPlayed.isEmpty()) {
-            item(key = "recent_empty") {
-                HomeEmptyMessage(
-                    "Your listening history will appear here."
-                )
-            }
-        }
-
-        items(
-            recentlyPlayed.take(10),
-            key = { "recent_${it.videoId}" }
-        ) { song ->
-            HomeTrackRow(
-                title = song.title,
-                artist = song.artist,
-                artwork = song.artworkUrl
+                subtitle = "Your personal music mix"
             ) {
-                onPlay(
-                    YouTubeMusicTrack(
-                        videoId = song.videoId,
-                        title = song.title,
-                        artist = song.artist,
-                        artworkUrl = song.artworkUrl,
-                        isArtist = false
+                if (recommendations.isEmpty()) {
+                    HomeEmptyMessage(
+                        if (loadFailed) {
+                            "Couldn't load your mix. Try refreshing."
+                        } else if (!refreshing) {
+                            "Play music to build your personal mix."
+                        } else {
+                            "Finding music for you..."
+                        }
                     )
-                )
+                } else {
+                    LazyRow(
+                        contentPadding = PaddingValues(
+                            horizontal = 12.dp
+                        ),
+                        horizontalArrangement = Arrangement.spacedBy(13.dp)
+                    ) {
+                        items(
+                            recommendations.take(12),
+                            key = { "mix_${it.videoId}" }
+                        ) { track ->
+                            HomeMusicCard(track) {
+                                onPlay(track)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // TRENDING BOX
+        item(key = "trending_section") {
+            HomeSectionBox(
+                title = "Trending now",
+                subtitle = "Music people are listening to"
+            ) {
+                if (trending.isEmpty()) {
+                    HomeEmptyMessage(
+                        if (refreshing) {
+                            "Finding trending music..."
+                        } else {
+                            "Trending music is not available right now."
+                        }
+                    )
+                } else {
+                    LazyRow(
+                        contentPadding = PaddingValues(
+                            horizontal = 12.dp
+                        ),
+                        horizontalArrangement = Arrangement.spacedBy(13.dp)
+                    ) {
+                        items(
+                            trending,
+                            key = { "trending_${it.videoId}" }
+                        ) { track ->
+                            HomeMusicCard(track) {
+                                onPlay(track)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // RECENTLY PLAYED BOX
+        item(key = "recent_section") {
+            HomeSectionBox(
+                title = "Jump back in",
+                subtitle = "Continue where you left off"
+            ) {
+                if (recentlyPlayed.isEmpty()) {
+                    HomeEmptyMessage(
+                        "Your listening history will appear here."
+                    )
+                } else {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(5.dp),
+                        modifier = Modifier.padding(
+                            horizontal = 8.dp
+                        )
+                    ) {
+                        recentlyPlayed.take(10).forEach { song ->
+                            HomeTrackRow(
+                                title = song.title,
+                                artist = song.artist,
+                                artwork = song.artworkUrl
+                            ) {
+                                onPlay(
+                                    YouTubeMusicTrack(
+                                        videoId = song.videoId,
+                                        title = song.title,
+                                        artist = song.artist,
+                                        artworkUrl = song.artworkUrl,
+                                        isArtist = false
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -401,7 +392,43 @@ fun RecommendationsHomeScreen(
             }
         }
     }
-    
+}
+
+@Composable
+private fun HomeSectionBox(
+    title: String,
+    subtitle: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                horizontal = 12.dp,
+                vertical = 6.dp
+            )
+            .clip(RoundedCornerShape(22.dp))
+            .background(HomeBg)
+            .border(
+                width = 1.dp,
+                color = HomeBorder,
+                shape = RoundedCornerShape(22.dp)
+            )
+            .padding(
+                top = 13.dp,
+                bottom = 13.dp
+            )
+    ) {
+        HomeSectionHeader(
+            title = title,
+            subtitle = subtitle,
+            modifier = Modifier.padding(
+                bottom = 11.dp
+            )
+        )
+
+        content()
+    }
 }
 
 @Composable
@@ -573,6 +600,10 @@ private fun HomeHero(
                     if (refreshing) {
                         "Finding music for you..."
                     } else {
+                        "Your next                 Text(
+                    if (refreshing) {
+                        "Finding music for you..."
+                    } else {
                         "Your next favourite song is waiting."
                     },
                     color = Color.White.copy(alpha = 0.75f),
@@ -699,10 +730,7 @@ private fun HomeTrackRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(
-                horizontal = 16.dp,
-                vertical = 4.dp
-            )
+            .padding(vertical = 3.dp)
             .clip(RoundedCornerShape(17.dp))
             .background(HomeSurface)
             .clickable(onClick = onClick)
