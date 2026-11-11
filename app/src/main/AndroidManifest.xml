@@ -6,6 +6,8 @@
 
     <application
         android:name=".MusicNovaApplication"
+        android:icon="@drawable/nova_logo"
+        android:roundIcon="@drawable/nova_logo"
         android:allowBackup="true"
         android:label="Music Nova"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
