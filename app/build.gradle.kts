@@ -42,7 +42,10 @@ implementation("com.google.firebase:firebase-firestore")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
    implementation("dev.chrisbanes.haze:haze:1.7.2")
-
+// Google Sign-In
+implementation("androidx.credentials:credentials:1.5.0")
+implementation("androidx.credentials:credentials-play-services-auth:1.5.0")
+implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     // Lifecycle + ViewModel
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
