@@ -29,6 +29,7 @@ class MusicPlayer(context: Context) {
     private val appContext = context.applicationContext
 
     private var controller: MediaController? = null
+    private var errorHandler: PlaybackErrorHandler? = null
     private var released = false
     private var pendingPlay: PendingPlay? = null
 
@@ -87,11 +88,6 @@ class MusicPlayer(context: Context) {
                 updatePlaybackState()
             }
 
-            override fun onPlayerError(
-                error: PlaybackException
-            ) {
-                playbackErrorListener?.invoke(error)
-            }
         }
 
     init {
@@ -124,7 +120,13 @@ class MusicPlayer(context: Context) {
 
                     connectedController.addListener(
                         playerListener
-                    )
+                    ) errorHandler = PlaybackErrorHandler(
+    player = connectedController,
+    maxRetries = 3,
+    onGiveUp = { error ->
+        playbackErrorListener?.invoke(error)
+    }
+)
 
                     updatePlaybackState()
 
@@ -313,7 +315,8 @@ class MusicPlayer(context: Context) {
         released = true
         pendingPlay = null
         playbackErrorListener = null
-
+       errorHandler?.release()
+errorHandler = null
         controller?.run {
             removeListener(playerListener)
             release()
