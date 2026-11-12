@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "603968010911",
+    "project_id": "music-nova1-fe95c",
+    "storage_bucket": "music-nova1-fe95c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:603968010911:android:49dc70b39257da5dd600aa",
+        "android_client_info": {
+          "package_name": "com.musicnova.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "603968010911-5i6ighgql089vt2qffmgb7kdnasf6ron.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.musicnova.app",
+            "certificate_hash": "eb0fd46d05cff8489b088568acb5d2ef374f7884"
+          }
+        },
+        {
+          "client_id": "603968010911-nu983aitjie7dv2h6mdv226spfjs41db.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.musicnova.app",
+            "certificate_hash": "f97146a72edb41adc2ca22fa538fb6527f6b4d4b"
+          }
+        },
+        {
+          "client_id": "603968010911-8fkk0miukhrfsgf8f3shfd8jn0b9lgce.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCwzjsE8i6sMqq6ujmJ9Q8jef2nIPdk1pc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "603968010911-8fkk0miukhrfsgf8f3shfd8jn0b9lgce.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
