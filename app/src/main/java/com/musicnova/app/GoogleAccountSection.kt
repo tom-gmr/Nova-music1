@@ -1,3 +1,4 @@
+
 package com.musicnova.app
 
 import androidx.compose.foundation.layout.*
@@ -19,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.musicnova.app.auth.GoogleAuthManager
+import com.musicnova.app.data.music.LibraryStore
 import kotlinx.coroutines.launch
 
 private val AccountCard = Color(0xFF1C1725)
@@ -37,6 +39,8 @@ fun GoogleAccountSection() {
     }
 
     var loading by remember { mutableStateOf(false) }
+    var syncing by remember { mutableStateOf(false) }
+    var syncMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     DisposableEffect(auth) {
@@ -48,6 +52,38 @@ fun GoogleAccountSection() {
 
         onDispose {
             auth.removeAuthStateListener(listener)
+        }
+    }
+
+    // Automatically restore the library whenever a user is signed in.
+    LaunchedEffect(user?.uid) {
+        val signedInUser = user
+
+        if (signedInUser == null) {
+            syncMessage = null
+            syncing = false
+            return@LaunchedEffect
+        }
+
+        syncing = true
+        syncMessage = "Syncing your library..."
+        errorMessage = null
+
+        try {
+            val success = LibraryStore(context).syncWithCloud()
+
+            if (success) {
+                syncMessage = "Your library is backed up and synced."
+            } else {
+                syncMessage = null
+                errorMessage = "Cloud sync could not complete. Please try again."
+            }
+        } catch (e: Exception) {
+            syncMessage = null
+            errorMessage =
+                e.localizedMessage ?: "Cloud sync failed. Check your internet."
+        } finally {
+            syncing = false
         }
     }
 
@@ -121,6 +157,36 @@ fun GoogleAccountSection() {
                     fontSize = 12.sp
                 )
 
+                if (syncing) {
+                    Spacer(Modifier.height(12.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = AccountLavender,
+                            strokeWidth = 2.dp
+                        )
+
+                        Spacer(Modifier.width(8.dp))
+
+                        Text(
+                            syncMessage ?: "Syncing...",
+                            color = AccountMuted,
+                            fontSize = 12.sp
+                        )
+                    }
+                } else if (syncMessage != null) {
+                    Spacer(Modifier.height(10.dp))
+
+                    Text(
+                        syncMessage!!,
+                        color = AccountLavender,
+                        fontSize = 12.sp
+                    )
+                }
+
                 Spacer(Modifier.height(12.dp))
 
                 OutlinedButton(
@@ -139,12 +205,23 @@ fun GoogleAccountSection() {
                             }
                         }
                     },
-                    enabled = !loading,
+                    enabled = !loading && !syncing,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.Logout, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Sign Out")
+                    if (loading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = AccountLavender,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Logout,
+                            contentDescription = null
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Sign Out")
+                    }
                 }
             } else {
                 Text(
@@ -157,7 +234,7 @@ fun GoogleAccountSection() {
                 Spacer(Modifier.height(6.dp))
 
                 Text(
-                    "Cloud playlist backup and sync will be added next.",
+                    "Back up your playlists, liked songs and listening history.",
                     color = AccountMuted,
                     fontSize = 12.sp
                 )
@@ -193,7 +270,10 @@ fun GoogleAccountSection() {
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Icon(Icons.Default.Login, contentDescription = null)
+                        Icon(
+                            Icons.Default.Login,
+                            contentDescription = null
+                        )
                         Spacer(Modifier.width(8.dp))
                         Text("Continue with Google")
                     }
