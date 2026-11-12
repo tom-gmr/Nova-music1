@@ -118,16 +118,16 @@ class MusicPlayer(context: Context) {
 
                     controller = connectedController
 
-                    connectedController.addListener(
-                        playerListener
-                    ) errorHandler = PlaybackErrorHandler(
+                    connectedController.addListener(playerListener)
+
+errorHandler = PlaybackErrorHandler(
     player = connectedController,
     maxRetries = 3,
     onGiveUp = { error ->
         playbackErrorListener?.invoke(error)
     }
 )
-
+                        
                     updatePlaybackState()
 
                     pendingPlay?.let { request ->
@@ -315,8 +315,9 @@ class MusicPlayer(context: Context) {
         released = true
         pendingPlay = null
         playbackErrorListener = null
+        
        errorHandler?.release()
-errorHandler = null
+        errorHandler = null
         controller?.run {
             removeListener(playerListener)
             release()
