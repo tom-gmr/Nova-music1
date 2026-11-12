@@ -4,6 +4,7 @@ import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import android.util.Log
 
 data class HomeMusicData(
     val recommendations: List<YouTubeMusicTrack>,
@@ -22,7 +23,24 @@ class MusicRepository @Inject constructor(
     suspend fun loadHomeMusic(): HomeMusicData {
         val recent = libraryStore.getRecentlyPlayed()
         val liked = libraryStore.getLikedSongs()
-
+    private suspend fun searchSafely(
+    query: String,
+    limit: Int,
+    section: String
+): List<YouTubeMusicTrack> {
+    return try {
+        musicApi.searchSongs(query, limit)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Log.w(
+            "MusicRepository",
+            "$section loading failed: $query",
+            e
+        )
+        emptyList()
+    }
+    }
         val nativeHomePage = try {
             musicApi.fetchHomePage()
         } catch (e: CancellationException) {
