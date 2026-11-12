@@ -1,3 +1,4 @@
+
 package com.musicnova.app
 
 import android.content.Intent
@@ -34,6 +35,7 @@ private val ProfileCard = Color(0xFF1C1725)
 private val ProfilePurple = Color(0xFF9277B8)
 private val ProfileLavender = Color(0xFFD1C1EB)
 private val ProfileMuted = Color(0xFFAAA4B5)
+private val ProfileBorder = Color(0xFF342A40)
 
 private data class ProfileAvatar(
     val id: String,
@@ -77,7 +79,7 @@ fun NovaProfileScreen() {
                     Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
             } catch (_: Exception) {
-                // Some document providers do not support persistable access.
+                // Persistable permission may not be supported.
             }
 
             profilePicture = uri.toString()
@@ -102,94 +104,171 @@ fun NovaProfileScreen() {
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 18.dp)
     ) {
-        Column(
+
+        // TOP HEADER
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 22.dp, bottom = 22.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(top = 24.dp, bottom = 18.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(112.dp)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                Color(0xFF59436F),
-                                Color(0xFF292035)
-                            )
-                        ),
-                        CircleShape
-                    )
-                    .clickable {
-                        showPhotoOptions = true
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                if (profilePicture.startsWith("builtin:")) {
-                    val avatarId = profilePicture.removePrefix("builtin:")
-                    val avatar = profileAvatars.find { it.id == avatarId }
-                        ?: profileAvatars.last()
-
-                    Icon(
-                        imageVector = avatar.icon,
-                        contentDescription = "Profile picture",
-                        tint = ProfileLavender,
-                        modifier = Modifier.size(58.dp)
-                    )
-                } else {
-                    AsyncImage(
-                        model = Uri.parse(profilePicture),
-                        contentDescription = "Profile picture",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(ProfileCard, CircleShape),
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .size(34.dp)
-                        .background(ProfilePurple, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Edit,
-                        contentDescription = "Change picture",
-                        tint = Color.White,
-                        modifier = Modifier.size(17.dp)
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            TextButton(
-                onClick = { showPhotoOptions = true }
-            ) {
+            Column(Modifier.weight(1f)) {
                 Text(
-                    "Change Profile Picture",
-                    color = ProfileLavender,
-                    fontSize = 13.sp
+                    "YOUR SPACE",
+                    color = ProfileMuted,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.sp
+                )
+
+                Spacer(Modifier.height(5.dp))
+
+                Text(
+                    "Profile",
+                    color = Color.White,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
 
-            Text(
-                text = "Music Nova User",
-                color = Color.White,
-                fontSize = 21.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(Modifier.height(5.dp))
-
-            Text(
-                text = "YOUR MUSIC. YOUR WORLD.",
-                color = ProfileMuted,
-                fontSize = 10.sp,
-                letterSpacing = 2.sp
-            )
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(ProfileCard, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    tint = ProfileLavender
+                )
+            }
         }
+
+        // PROFILE HERO CARD
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(26.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = ProfileCard
+            )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color(0xFF30233F),
+                                ProfileCard
+                            )
+                        )
+                    )
+                    .padding(20.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(112.dp)
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(
+                                        Color(0xFF9277B8),
+                                        Color(0xFF392B4A)
+                                    )
+                                ),
+                                CircleShape
+                            )
+                            .padding(4.dp)
+                            .background(ProfileBg, CircleShape)
+                            .clickable {
+                                showPhotoOptions = true
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (profilePicture.startsWith("builtin:")) {
+                            val avatarId =
+                                profilePicture.removePrefix("builtin:")
+                            val avatar =
+                                profileAvatars.find { it.id == avatarId }
+                                    ?: profileAvatars.last()
+
+                            Icon(
+                                avatar.icon,
+                                contentDescription = "Profile picture",
+                                tint = ProfileLavender,
+                                modifier = Modifier.size(54.dp)
+                            )
+                        } else {
+                            AsyncImage(
+                                model = Uri.parse(profilePicture),
+                                contentDescription = "Profile picture",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(ProfileBg, CircleShape)
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    Text(
+                        "Music Nova User",
+                        color = Color.White,
+                        fontSize = 21.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(Modifier.height(5.dp))
+
+                    Text(
+                        "YOUR MUSIC. YOUR WORLD.",
+                        color = ProfileMuted,
+                        fontSize = 10.sp,
+                        letterSpacing = 2.sp
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    OutlinedButton(
+                        onClick = { showPhotoOptions = true },
+                        shape = RoundedCornerShape(50.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = ProfileLavender
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            ProfileBorder
+                        )
+                    ) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(Modifier.width(7.dp))
+                        Text("Edit Profile Picture", fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        // GOOGLE ACCOUNT
+        SectionHeading("CLOUD ACCOUNT")
+        Spacer(Modifier.height(12.dp))
+        GoogleAccountSection()
+
+        Spacer(Modifier.height(25.dp))
+
+        // PREFERENCES
+        SectionHeading("PREFERENCES")
+
+        Spacer(Modifier.height(12.dp))
 
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -198,91 +277,71 @@ fun NovaProfileScreen() {
                 containerColor = ProfileCard
             )
         ) {
-            Column(Modifier.padding(18.dp)) {
-                Text(
-                    "MUSIC NOVA",
-                    color = ProfileLavender,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 2.sp
+            Column(Modifier.padding(horizontal = 16.dp)) {
+                ProfileOption(
+                    Icons.Default.Equalizer,
+                    "Audio Experience",
+                    "Sound quality and playback"
                 )
 
-                Spacer(Modifier.height(9.dp))
+                ProfileDivider()
 
-                Text(
-                    "Feel every beat.",
-                    color = Color.White,
-                    fontSize = 23.sp,
-                    fontWeight = FontWeight.Bold
+                ProfileOption(
+                    Icons.Default.Notifications,
+                    "Notifications",
+                    "Music updates and alerts"
                 )
 
-                Spacer(Modifier.height(5.dp))
+                ProfileDivider()
 
-                Text(
-                    "Discover music and make every moment yours.",
-                    color = ProfileMuted,
-                    fontSize = 12.sp
+                ProfileOption(
+                    Icons.Default.Palette,
+                    "Appearance",
+                    "Dark theme and visual style"
+                )
+
+                ProfileDivider()
+
+                ProfileOption(
+                    Icons.Default.Info,
+                    "About Music Nova",
+                    "App information and version"
                 )
             }
         }
 
-        Spacer(Modifier.height(25.dp))
+        Spacer(Modifier.height(24.dp))
 
-        Text(
-            "PREFERENCES",
-            color = ProfileMuted,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 2.sp
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        ProfileOption(
-            Icons.Default.Equalizer,
-            "Audio Experience",
-            "Sound quality and playback"
-        )
-
-        ProfileOption(
-            Icons.Default.Notifications,
-            "Notifications",
-            "Music updates and alerts"
-        )
-
-        ProfileOption(
-            Icons.Default.Palette,
-            "Appearance",
-            "Dark theme and visual style"
-        )
-
-        ProfileOption(
-            Icons.Default.Info,
-            "About Music Nova",
-            "App information and version"
-        )
-
-        Spacer(Modifier.height(22.dp))
-
+        // FOOTER
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
                 containerColor = Color(0xFF17131E)
             )
         ) {
             Row(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(18.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    Icons.Default.MusicNote,
-                    contentDescription = null,
-                    tint = ProfileLavender,
-                    modifier = Modifier.size(28.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .background(
+                            Color(0xFF30233F),
+                            RoundedCornerShape(15.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = ProfileLavender,
+                        modifier = Modifier.size(25.dp)
+                    )
+                }
 
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(13.dp))
 
                 Column {
                     Text(
@@ -291,6 +350,8 @@ fun NovaProfileScreen() {
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold
                     )
+
+                    Spacer(Modifier.height(4.dp))
 
                     Text(
                         "Music Nova • Version 1.0",
@@ -301,15 +362,19 @@ fun NovaProfileScreen() {
             }
         }
 
-        Spacer(Modifier.height(25.dp))
+        Spacer(Modifier.height(30.dp))
     }
 
+    // PHOTO OPTIONS DIALOG
     if (showPhotoOptions) {
         AlertDialog(
             onDismissRequest = { showPhotoOptions = false },
             containerColor = ProfileCard,
             title = {
-                Text("Change Profile Picture", color = Color.White)
+                Text(
+                    "Change Profile Picture",
+                    color = Color.White
+                )
             },
             text = {
                 Column {
@@ -339,19 +404,25 @@ fun NovaProfileScreen() {
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showPhotoOptions = false }) {
+                TextButton(
+                    onClick = { showPhotoOptions = false }
+                ) {
                     Text("Cancel", color = ProfileLavender)
                 }
             }
         )
     }
 
+    // AVATAR PICKER
     if (showAvatarPicker) {
         AlertDialog(
             onDismissRequest = { showAvatarPicker = false },
             containerColor = ProfileCard,
             title = {
-                Text("Choose Your Avatar", color = Color.White)
+                Text(
+                    "Choose Your Avatar",
+                    color = Color.White
+                )
             },
             text = {
                 LazyVerticalGrid(
@@ -393,12 +464,33 @@ fun NovaProfileScreen() {
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showAvatarPicker = false }) {
+                TextButton(
+                    onClick = { showAvatarPicker = false }
+                ) {
                     Text("Close", color = ProfileLavender)
                 }
             }
         )
     }
+}
+
+@Composable
+private fun SectionHeading(title: String) {
+    Text(
+        title,
+        color = ProfileMuted,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = 2.sp
+    )
+}
+
+@Composable
+private fun ProfileDivider() {
+    HorizontalDivider(
+        color = ProfileBorder.copy(alpha = 0.65f),
+        thickness = 0.7.dp
+    )
 }
 
 @Composable
@@ -439,13 +531,16 @@ private fun ProfileOption(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 9.dp),
+            .padding(vertical = 15.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .size(43.dp)
-                .background(ProfileCard, RoundedCornerShape(14.dp)),
+                .background(
+                    Color(0xFF30263D),
+                    RoundedCornerShape(14.dp)
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -458,7 +553,7 @@ private fun ProfileOption(
 
         Spacer(Modifier.width(13.dp))
 
-        Column {
+        Column(Modifier.weight(1f)) {
             Text(
                 title,
                 color = Color.White,
@@ -466,7 +561,7 @@ private fun ProfileOption(
                 fontWeight = FontWeight.SemiBold
             )
 
-            Spacer(Modifier.height(3.dp))
+            Spacer(Modifier.height(4.dp))
 
             Text(
                 subtitle,
@@ -474,8 +569,6 @@ private fun ProfileOption(
                 fontSize = 11.sp
             )
         }
-
-        Spacer(Modifier.weight(1f))
 
         Icon(
             Icons.Default.ChevronRight,
