@@ -31,20 +31,14 @@ jobs:
             ln -s "$ANDROID_HOME/platforms/android-37.0" "$ANDROID_HOME/platforms/android-37"
           fi
 
-      - name: Cache stable debug signing key
-        uses: actions/cache@v4
-        with:
-          path: ~/.android/debug.keystore
-          key: musicnova-debug-keystore-v1
-
-      - name: Create debug keystore if missing
+      - name: Prepare stable debug keystore
         run: |
-          mkdir -p ~/.android
-          if [ ! -f ~/.android/debug.keystore ]; then
+          mkdir -p "$HOME/.config/.android"
+          if [ ! -f "$HOME/.config/.android/debug.keystore" ]; then
             keytool -genkeypair -v \
-              -keystore ~/.android/debug.keystore \
+              -keystore "$HOME/.config/.android/debug.keystore" \
               -storepass android \
-              -alias androiddebugkey \
+              -alias AndroidDebugKey \
               -keypass android \
               -keyalg RSA \
               -keysize 2048 \
@@ -52,20 +46,23 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
 
+      - name: Cache stable debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.config/.android/debug.keystore
+          key: musicnova-debug-keystore-v2
+
       - name: Build APK
         run: |
           for attempt in 1 2 3; do
             echo "Build attempt $attempt"
-
             if gradle assembleDebug --no-daemon; then
               exit 0
             fi
-
             if [ "$attempt" -eq 3 ]; then
               echo "Build failed after 3 attempts"
               exit 1
             fi
-
             echo "Retrying in 20 seconds..."
             sleep 20
           done
