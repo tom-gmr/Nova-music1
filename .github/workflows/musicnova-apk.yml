@@ -29,8 +29,15 @@ jobs:
         run: |
           if [ -d "$ANDROID_HOME/platforms/android-37.0" ] && [ ! -e "$ANDROID_HOME/platforms/android-37" ]; then
             ln -s "$ANDROID_HOME/platforms/android-37.0" "$ANDROID_HOME/platforms/android-37"
-           fi
-                 - name: Create debug keystore if missing
+          fi
+
+      - name: Cache stable debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: musicnova-debug-keystore-v1
+
+      - name: Create debug keystore if missing
         run: |
           mkdir -p ~/.android
           if [ ! -f ~/.android/debug.keystore ]; then
@@ -44,11 +51,7 @@ jobs:
               -validity 10000 \
               -dname "CN=Android Debug,O=Android,C=US"
           fi
-      - name: Cache stable debug signing key
-        uses: actions/cache@v4
-        with:
-          path: ~/.android/debug.keystore
-          key: musicnova-debug-keystore-v1
+
       - name: Build APK
         run: |
           for attempt in 1 2 3; do
