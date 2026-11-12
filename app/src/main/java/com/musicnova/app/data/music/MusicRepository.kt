@@ -1,10 +1,10 @@
 package com.musicnova.app.data.music
 
 import android.content.Context
+import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
-import android.util.Log
 
 data class HomeMusicData(
     val recommendations: List<YouTubeMusicTrack>,
@@ -21,31 +21,33 @@ class MusicRepository @Inject constructor(
     private val musicApi = InnerTubeMusicApi()
 
     suspend fun loadHomeMusic(): HomeMusicData {
-        val recent = libraryStore.getRecentlyPlayed()
-        val liked = libraryStore.getLikedSongs()
-    private suspend fun searchSafely(
-    query: String,
-    limit: Int,
-    section: String
-): List<YouTubeMusicTrack> {
-    return try {
-        musicApi.searchSongs(query, limit)
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        Log.w(
-            "MusicRepository",
-            "$section loading failed: $query",
-            e
-        )
-        emptyList()
-    }
-    }
+
+        // Load library sections independently.
+        val recent = try {
+            libraryStore.getRecentlyPlayed()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w("MusicRepository", "Recently played loading failed", e)
+            emptyList()
+        }
+
+        val liked = try {
+            libraryStore.getLikedSongs()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w("MusicRepository", "Liked songs loading failed", e)
+            emptyList()
+        }
+
+        // Native home feed should not block other sections.
         val nativeHomePage = try {
             musicApi.fetchHomePage()
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("MusicRepository", "Native home feed failed", e)
             null
         }
 
@@ -57,17 +59,19 @@ class MusicRepository @Inject constructor(
 
         if (seeds.isEmpty()) {
             found.addAll(
-                musicApi.searchSongs(
-                    "popular trending songs India",
-                    30
+                searchSafely(
+                    query = "popular trending songs India",
+                    limit = 30,
+                    section = "Recommendations"
                 )
             )
         } else {
             seeds.forEach { song ->
                 found.addAll(
-                    musicApi.searchSongs(
-                        "songs like ${song.title} by ${song.artist}",
-                        10
+                    searchSafely(
+                        query = "songs like ${song.title} by ${song.artist}",
+                        limit = 10,
+                        section = "Recommendations"
                     )
                 )
             }
@@ -86,9 +90,11 @@ class MusicRepository @Inject constructor(
             .distinctBy { it.videoId }
             .take(15)
 
-        val trending = musicApi.searchSongs(
-            "trending hit songs India",
-            20
+        // Trending loads independently from recommendations.
+        val trending = searchSafely(
+            query = "trending hit songs India",
+            limit = 20,
+            section = "Trending"
         )
             .filterNot {
                 it.isArtist || it.videoId.isBlank()
@@ -103,6 +109,25 @@ class MusicRepository @Inject constructor(
             likedCount = liked.size,
             nativeHomePage = nativeHomePage
         )
+    }
+
+    private suspend fun searchSafely(
+        query: String,
+        limit: Int,
+        section: String
+    ): List<YouTubeMusicTrack> {
+        return try {
+            musicApi.searchSongs(query, limit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(
+                "MusicRepository",
+                "$section loading failed: $query",
+                e
+            )
+            emptyList()
+        }
     }
 
     suspend fun searchSongs(
