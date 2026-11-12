@@ -469,7 +469,7 @@ private fun LibraryPlaylistCard(
                     "${playlist.tracks.size} songs",
                     color = LibMuted,
                     fontSize = 12.sp,
-                    maxLine = 1
+                    maxLines = 1
                 )
             }
 
