@@ -1,7 +1,5 @@
-
 package com.musicnova.app
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,6 +20,11 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.musicnova.app.auth.GoogleAuthManager
 import kotlinx.coroutines.launch
+
+private val AccountCard = Color(0xFF1C1725)
+private val AccountPurple = Color(0xFF9277B8)
+private val AccountLavender = Color(0xFFD1C1EB)
+private val AccountMuted = Color(0xFFAAA4B5)
 
 @Composable
 fun GoogleAccountSection() {
@@ -52,7 +55,7 @@ fun GoogleAccountSection() {
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = ProfileCard
+            containerColor = AccountCard
         )
     ) {
         Column(
@@ -64,7 +67,7 @@ fun GoogleAccountSection() {
                 Icon(
                     Icons.Default.CloudDone,
                     contentDescription = null,
-                    tint = ProfileLavender,
+                    tint = AccountLavender,
                     modifier = Modifier.size(25.dp)
                 )
 
@@ -72,7 +75,7 @@ fun GoogleAccountSection() {
 
                 Text(
                     "CLOUD ACCOUNT",
-                    color = ProfileLavender,
+                    color = AccountLavender,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 2.sp
@@ -88,7 +91,7 @@ fun GoogleAccountSection() {
                     Icon(
                         Icons.Default.AccountCircle,
                         contentDescription = null,
-                        tint = ProfileLavender,
+                        tint = AccountLavender,
                         modifier = Modifier.size(42.dp)
                     )
 
@@ -104,7 +107,7 @@ fun GoogleAccountSection() {
 
                         Text(
                             user?.email ?: "",
-                            color = ProfileMuted,
+                            color = AccountMuted,
                             fontSize = 11.sp
                         )
                     }
@@ -114,7 +117,7 @@ fun GoogleAccountSection() {
 
                 Text(
                     "Google account connected",
-                    color = ProfileLavender,
+                    color = AccountLavender,
                     fontSize = 12.sp
                 )
 
@@ -155,7 +158,7 @@ fun GoogleAccountSection() {
 
                 Text(
                     "Cloud playlist backup and sync will be added next.",
-                    color = ProfileMuted,
+                    color = AccountMuted,
                     fontSize = 12.sp
                 )
 
@@ -180,7 +183,7 @@ fun GoogleAccountSection() {
                     enabled = !loading,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = ProfilePurple
+                        containerColor = AccountPurple
                     )
                 ) {
                     if (loading) {
