@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit
 
 data class YouTubeMusicTrack(
     val videoId: String,
+    val isOfficial: Boolean = false
     val title: String,
     val artist: String,
     val artworkUrl: String?,
@@ -172,7 +173,10 @@ class InnerTubeMusicApi {
         }
 
         collect(root)
-        results.take(limit.coerceIn(1, 100))
+
+results
+    .sortedByDescending { !it.isArtist && it.isOfficial }
+    .take(limit.coerceIn(1, 100))
     }
 
     /** Fetches the native YouTube Music Home feed. */
@@ -310,14 +314,24 @@ suspend fun fetchBrowsePage(
             "Unknown Artist"
         }
 
-        return YouTubeMusicTrack(
-            videoId = videoId,
-            title = title,
-            artist = artist,
-            artworkUrl = thumbnailUrl(renderer),
-            isArtist = false
-        )
-    }
+        val musicVideoType = findStringValue(
+    renderer,
+    "musicVideoType"
+)?.uppercase()
+
+val isOfficial = musicVideoType in setOf(
+    "MUSIC_VIDEO_TYPE_ATV",
+    "MUSIC_VIDEO_TYPE_OMV"
+)
+
+return YouTubeMusicTrack(
+    videoId = videoId,
+    title = title,
+    artist = artist,
+    artworkUrl = thumbnailUrl(renderer),
+    isArtist = false,
+    isOfficial = isOfficial
+)
 
     private fun parseArtist(
         renderer: JSONObject
