@@ -32,6 +32,10 @@ class PlaybackErrorHandler(
     private var retryCount = 0
     private var released = false
 
+    init {
+        player.addListener(this)
+    }
+    
     override fun onPlayerError(error: PlaybackException) {
         if (released) return
 
