@@ -477,7 +477,7 @@ fun NovaSearchScreen(
                                         category = category,
                                         modifier = Modifier.weight(1f),
                                         onClick = { performSearch(category.title) }
-                                    )
+                                    
                                           )
                                 }
 
