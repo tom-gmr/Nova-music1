@@ -12,11 +12,11 @@ import java.util.concurrent.TimeUnit
 
 data class YouTubeMusicTrack(
     val videoId: String,
-    val isOfficial: Boolean = false
     val title: String,
     val artist: String,
     val artworkUrl: String?,
-    val isArtist: Boolean = false
+    val isArtist: Boolean = false,
+    val isOfficial: Boolean = false
 )
 
 class InnerTubeMusicApi {
@@ -332,8 +332,7 @@ return YouTubeMusicTrack(
     isArtist = false,
     isOfficial = isOfficial
 )
-
-    private fun parseArtist(
+    }    private fun parseArtist(
         renderer: JSONObject
     ): YouTubeMusicTrack? {
         val title = textFromNode(renderer.opt("title"))
