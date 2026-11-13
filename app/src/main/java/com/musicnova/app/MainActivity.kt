@@ -261,7 +261,15 @@ fun MusicNovaApp() {
         val previousTrack = playbackQueue.previous() ?: return
         playTrack(previousTrack)
     }
+DisposableEffect(musicPlayer) {
+    musicPlayer.setOnTrackEndedListener {
+        playNextTrack()
+    }
 
+    onDispose {
+        musicPlayer.setOnTrackEndedListener(null)
+    }
+}
     val glassPlayerActions = PlayerActions(
         onTogglePlay = {
             musicPlayer.togglePlayPause()
