@@ -59,7 +59,12 @@ class MusicPlayer(context: Context) {
     ) {
         playbackErrorListener = listener
     }
+   @Volatile
+private var trackEndedListener: (() -> Unit)? = null
 
+fun setOnTrackEndedListener(listener: (() -> Unit)?) {
+    trackEndedListener = listener
+}
     private val playerListener =
         object : Player.Listener {
 
@@ -83,9 +88,13 @@ class MusicPlayer(context: Context) {
             }
 
             override fun onPlaybackStateChanged(
-                playbackState: Int
-            ) {
-                updatePlaybackState()
+    playbackState: Int
+) {
+    updatePlaybackState()
+
+    if (playbackState == Player.STATE_ENDED) {
+        trackEndedListener?.invoke()
+    }
             }
 
         }
