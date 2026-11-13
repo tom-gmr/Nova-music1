@@ -466,13 +466,21 @@ fun MusicNovaApp() {
                                                         bottom = shellPadding.calculateBottomPadding()
                                                     )
                                             ) {
-                                                LibraryScreen(
-                                                    libraryStore = libraryStore,
-                                                    onPlay = { track ->
-                                                        playTrack(track.toMusicTrack())
-                                                    }
-                                                )
-                                            }
+                                            
+                                                    LibraryScreen(
+    libraryStore = libraryStore,
+    onPlay = { track ->
+        playTrack(track.toMusicTrack())
+    },
+    onPlayQueue = { tracks, selectedTrack ->
+        playQueue(
+            tracks = tracks.map { it.toMusicTrack() },
+            selectedTrack = selectedTrack.toMusicTrack()
+        )
+    }
+)
+                                                
+                                            
                                         }
 
                                         "Profile" -> {
