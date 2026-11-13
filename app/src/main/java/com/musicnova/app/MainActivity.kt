@@ -422,6 +422,9 @@ DisposableEffect(musicPlayer) {
                             "Home" -> {
                                 RecommendationsHomeScreen(
                                     onPlay = { track ->
+                                        onPlayQueue = { tracks, selectedTrack ->
+                                        playQueue(tracks, selectedTrack)
+},
                                         playTrack(track)
                                     },
                                     onBrowse = { browseId ->
