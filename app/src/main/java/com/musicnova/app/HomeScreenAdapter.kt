@@ -16,6 +16,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun RecommendationsHomeScreen(
     onPlay: (YouTubeMusicTrack) -> Unit,
+    onPlayQueue: (List<YouTubeMusicTrack>, YouTubeMusicTrack) -> Unit =
+    { _, track -> onPlay(track) },
     onBrowse: (String) -> Unit,
     onPlayNext: (YouTubeMusicTrack) -> Unit = {},
     onAddToQueue: (YouTubeMusicTrack) -> Unit = {},
@@ -68,7 +70,11 @@ contentPadding: PaddingValues = PaddingValues(0.dp)
         }
         .orEmpty()
         .distinctBy { it.id }
-
+ val allHomeTracks = (
+    musicState.recommendations +
+    musicState.trending +
+    nativeTracks
+).distinctBy { it.videoId }
     val homeState = HomeUiState(
         isLoading = musicState.isLoading,
         featured = musicState.recommendations.firstOrNull()?.toHomeSong(),
@@ -94,7 +100,7 @@ contentPadding: PaddingValues = PaddingValues(0.dp)
                 musicState.trending + nativeTracks)
                 .firstOrNull { it.videoId == song.id }
 
-            track?.let(onPlay)
+            track?.let { onPlayQueue(allHomeTracks, it) }
         },
         onPlayNext = { song ->
             val track = (musicState.recommendations +
