@@ -1,4 +1,3 @@
-
 package com.musicnova.app.playback
 
 import android.app.PendingIntent
@@ -6,6 +5,9 @@ import android.content.Intent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.common.Tracks
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
@@ -13,56 +15,91 @@ import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.musicnova.app.MainActivity
 import java.io.File
-import androidx.media3.common.Tracks
-import androidx.media3.common.Player
 
+@UnstableApi
 class MusicPlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
     private var player: ExoPlayer? = null
     private var streamCache: SimpleCache? = null
 
-    private lateinit var httpDataSourceFactory:
-        DefaultHttpDataSource.Factory
-
     override fun onCreate() {
         super.onCreate()
 
-        httpDataSourceFactory =
-            DefaultHttpDataSource.Factory()
-                .setAllowCrossProtocolRedirects(true)
-
         streamCache = SimpleCache(
             File(cacheDir, "music_stream_cache"),
-            LeastRecentlyUsedCacheEvictor(
-                100L * 1024 * 1024
-            ),
+            LeastRecentlyUsedCacheEvictor(100L * 1024 * 1024),
             StandaloneDatabaseProvider(this)
         )
 
-        val cacheDataSourceFactory =
-            CacheDataSource.Factory()
-                .setCache(streamCache!!)
-                .setUpstreamDataSourceFactory(
-                    httpDataSourceFactory
-                )
-                .setFlags(
-                    CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR
-                )
+        val mediaSourceFactory =
+            object : MediaSource.Factory {
+
+                override fun createMediaSource(
+                    mediaItem: MediaItem
+                ): MediaSource {
+
+                    val extras =
+                        mediaItem.mediaMetadata.extras
+
+                    val names = extras?.getStringArrayList(
+                        "nova_header_names"
+                    )
+
+                    val values = extras?.getStringArrayList(
+                        "nova_header_values"
+                    )
+
+                    val headers =
+                        if (
+                            names != null &&
+                            values != null &&
+                            names.size == values.size
+                        ) {
+                            names.indices.associate {
+                                names[it] to values[it]
+                            }
+                        } else {
+                            emptyMap()
+                        }
+
+                    val httpFactory =
+                        DefaultHttpDataSource.Factory()
+                            .setAllowCrossProtocolRedirects(true)
+                            .setDefaultRequestProperties(headers)
+
+                    val cacheFactory =
+                        CacheDataSource.Factory()
+                            .setCache(streamCache!!)
+                            .setUpstreamDataSourceFactory(
+                                httpFactory
+                            )
+                            .setFlags(
+                                CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR
+                            )
+
+                    return DefaultMediaSourceFactory(
+                        cacheFactory
+                    ).createMediaSource(mediaItem)
+                }
+
+                override fun getSupportedTypes(): IntArray {
+                    return DefaultMediaSourceFactory(
+                        DefaultHttpDataSource.Factory()
+                    ).getSupportedTypes()
+                }
+            }
 
         val exoPlayer =
             ExoPlayer.Builder(this)
-                .setMediaSourceFactory(
-                    DefaultMediaSourceFactory(
-                        cacheDataSourceFactory
-                    )
-                )
+                .setMediaSourceFactory(mediaSourceFactory)
                 .setAudioAttributes(
                     AudioAttributes.Builder()
                         .setUsage(C.USAGE_MEDIA)
@@ -75,51 +112,65 @@ class MusicPlaybackService : MediaSessionService() {
                 .build()
 
         player = exoPlayer
+
         exoPlayer.addListener(
-    object : Player.Listener {
+            object : Player.Listener {
 
-        override fun onTracksChanged(tracks: Tracks) {
-            val audioGroup = tracks.groups.firstOrNull {
-                it.type == C.TRACK_TYPE_AUDIO && it.isSelected
+                override fun onTracksChanged(
+                    tracks: Tracks
+                ) {
+                    val audioGroup =
+                        tracks.groups.firstOrNull {
+                            it.type == C.TRACK_TYPE_AUDIO &&
+                                it.isSelected
+                        }
+
+                    val audioFormat =
+                        audioGroup?.let { group ->
+                            (0 until group.length)
+                                .firstOrNull {
+                                    group.isTrackSelected(it)
+                                }
+                                ?.let {
+                                    group.getTrackFormat(it)
+                                }
+                        }
+
+                    if (audioFormat == null) {
+                        AudioSignalPathStore.resetSource()
+                        return
+                    }
+
+                    val metadata =
+                        exoPlayer.currentMediaItem?.mediaMetadata
+
+                    AudioSignalPathStore.updateSource(
+                        AudioSourceInfo(
+                            title = metadata?.title
+                                ?.toString()
+                                .orEmpty(),
+                            artist = metadata?.artist
+                                ?.toString()
+                                .orEmpty(),
+                            mimeType = audioFormat.sampleMimeType,
+                            sampleRateHz = audioFormat.sampleRate
+                                .takeIf { it > 0 },
+                            channelCount = audioFormat.channelCount
+                                .takeIf { it > 0 },
+                            bitrate = audioFormat.bitrate
+                                .takeIf { it > 0 }
+                        )
+                    )
+                }
+
+                override fun onMediaItemTransition(
+                    mediaItem: MediaItem?,
+                    reason: Int
+                ) {
+                    AudioSignalPathStore.resetSource()
+                }
             }
-
-            val audioFormat = audioGroup?.let { group ->
-                (0 until group.length)
-                    .firstOrNull { group.isTrackSelected(it) }
-                    ?.let { group.getTrackFormat(it) }
-            }
-
-            if (audioFormat == null) {
-                AudioSignalPathStore.resetSource()
-                return
-            }
-
-            val metadata =
-                exoPlayer.currentMediaItem?.mediaMetadata
-
-            AudioSignalPathStore.updateSource(
-                AudioSourceInfo(
-                    title = metadata?.title?.toString().orEmpty(),
-                    artist = metadata?.artist?.toString().orEmpty(),
-                    mimeType = audioFormat.sampleMimeType,
-                    sampleRateHz = audioFormat.sampleRate
-                        .takeIf { it > 0 },
-                    channelCount = audioFormat.channelCount
-                        .takeIf { it > 0 },
-                    bitrate = audioFormat.bitrate
-                        .takeIf { it > 0 }
-                )
-            )
-        }
-
-        override fun onMediaItemTransition(
-            mediaItem: MediaItem?,
-            reason: Int
-        ) {
-            AudioSignalPathStore.resetSource()
-        }
-    }
-)
+        )
 
         val activityIntent =
             Intent(this, MainActivity::class.java)
@@ -144,40 +195,6 @@ class MusicPlaybackService : MediaSessionService() {
                             controller: MediaSession.ControllerInfo,
                             mediaItems: List<MediaItem>
                         ): ListenableFuture<List<MediaItem>> {
-
-                            val extras =
-                                mediaItems.firstOrNull()
-                                    ?.mediaMetadata
-                                    ?.extras
-
-                            val names =
-                                extras?.getStringArrayList(
-                                    "nova_header_names"
-                                )
-
-                            val values =
-                                extras?.getStringArrayList(
-                                    "nova_header_values"
-                                )
-
-                            val headers =
-                                if (
-                                    names != null &&
-                                    values != null &&
-                                    names.size == values.size
-                                ) {
-                                    names.indices.associate {
-                                        names[it] to values[it]
-                                    }
-                                } else {
-                                    emptyMap()
-                                }
-
-                            httpDataSourceFactory
-                                .setDefaultRequestProperties(
-                                    headers
-                                )
-
                             return Futures.immediateFuture(
                                 mediaItems
                             )
@@ -203,7 +220,7 @@ class MusicPlaybackService : MediaSessionService() {
 
     override fun onDestroy() {
         mediaSession?.run {
-            player.release()
+            player?.release()
             release()
         }
 
@@ -216,3 +233,4 @@ class MusicPlaybackService : MediaSessionService() {
         super.onDestroy()
     }
 }
+
