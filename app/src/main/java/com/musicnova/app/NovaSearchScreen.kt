@@ -159,6 +159,7 @@ fun NovaGlassMiniPlayer(
         }
     }
 }
+
 /* ---------------- FULL PLAYER ---------------- */
 
 @Composable
@@ -169,7 +170,11 @@ fun NovaFullPlayerScreen(
     onStop: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
-    onOpenQueue: () -> Unit = {}
+    onOpenQueue: () -> Unit = {},
+    shuffleEnabled: Boolean = false,
+    repeatMode: RepeatMode = RepeatMode.OFF,
+    onToggleShuffle: () -> Unit = {},
+    onCycleRepeat: () -> Unit = {}
 ) {
     var currentPosition by remember {
         mutableFloatStateOf(0f)
@@ -244,7 +249,7 @@ fun NovaFullPlayerScreen(
                 while (
                     trackDuration <= 0L &&
                     attempts < 20
-                ) {
+                                    ) {
                     delay(300)
                     trackDuration = musicPlayer.getDuration()
                     attempts++
@@ -494,7 +499,7 @@ fun NovaFullPlayerScreen(
             // Compact Audio Quality pill
 
             Surface(
-                onClick = {
+                                onClick = {
                     showSignalPath = true
                 },
                 shape = RoundedCornerShape(50.dp),
@@ -668,7 +673,7 @@ fun NovaFullPlayerScreen(
 
             Spacer(Modifier.height(18.dp))
 
-            // Bottom actions
+            // Bottom Player Controls
 
             Row(
                 modifier = Modifier
@@ -677,64 +682,64 @@ fun NovaFullPlayerScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(
-                    onClick = onOpenQueue
-                ) {
-                    Icon(
-                        Icons.Default.QueueMusic,
-                        contentDescription = null,
-                        tint = PlayerLavender
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        "Queue",
-                        color = PlayerLavender,
-                        fontSize = 12.sp
-                    )
+                TextButton(onClick = onToggleShuffle) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.Shuffle,
+                            contentDescription = "Shuffle",
+                            tint = if (shuffleEnabled) PlayerLavender else PlayerMuted
+                        )
+                        Text(
+                            "Shuffle",
+                            color = if (shuffleEnabled) PlayerLavender else PlayerMuted,
+                            fontSize = 11.sp
+                        )
+                    }
                 }
 
-                TextButton(
-                    onClick = {
-                        showSignalPath = true
+                TextButton(onClick = { showSignalPath = true }) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.VolumeUp,
+                            contentDescription = "Audio Output",
+                            tint = PlayerLavender
+                        )
+                        Text(
+                            "Audio Output",
+                            color = PlayerLavender,
+                            fontSize = 11.sp
+                        )
                     }
-                ) {
-                    Icon(
-                        Icons.Default.VolumeUp,
-                        contentDescription = null,
-                        tint = PlayerLavender
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        "Audio",
-                        color = PlayerLavender,
-                        fontSize = 12.sp
-                    )
                 }
 
-                TextButton(
-                    onClick = {
-                        showLyricsScreen = true
+                TextButton(onClick = onCycleRepeat) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = if (repeatMode == RepeatMode.ONE) {
+                                Icons.Default.RepeatOne
+                            } else {
+                                Icons.Default.Repeat
+                            },
+                            contentDescription = "Repeat",
+                            tint = if (repeatMode != RepeatMode.OFF) PlayerLavender else PlayerMuted
+                        )
+                        Text(
+                            text = when (repeatMode) {
+                                RepeatMode.OFF -> "Repeat Off"
+                                RepeatMode.ALL -> "Repeat All"
+                                RepeatMode.ONE -> "Repeat One"
+                            },
+                            color = if (repeatMode != RepeatMode.OFF) PlayerLavender else PlayerMuted,
+                            fontSize = 11.sp
+                        )
                     }
-                ) {
-                    Icon(
-                        Icons.Default.Lyrics,
-                        contentDescription = null,
-                        tint = PlayerLavender
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        "Lyrics",
-                        color = PlayerLavender,
-                        fontSize = 12.sp
-                    )
                 }
             }
         }
     }
 
     // Audio Signal Path dialog
-
-    if (showSignalPath) {
+        if (showSignalPath) {
         Dialog(
             onDismissRequest = {
                 showSignalPath = false
@@ -983,15 +988,15 @@ fun NovaDedicatedLyricsScreen(
                                 .background(
                                     Brush.verticalGradient(
                                         listOf(
-                                            Color(0xFF292035),
-                                            Color(0xFF17121F),
+                                                                                        PlayerBackground,
+                                            PlayerSurface,
                                             PlayerBackground
                                         )
                                     )
                                 )
                                 .padding(
-                                    horizontal = 15.dp,
-                                    vertical = 22.dp
+                                    horizontal = 12.dp,
+                                    vertical = 18.dp
                                 ),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
@@ -1196,4 +1201,3 @@ fun NovaBottomNavigation(
         }
     }
 }
-
