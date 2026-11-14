@@ -19,6 +19,8 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.musicnova.app.MainActivity
 import java.io.File
+import androidx.media3.common.Tracks
+import androidx.media3.common.Player
 
 class MusicPlaybackService : MediaSessionService() {
 
@@ -73,6 +75,51 @@ class MusicPlaybackService : MediaSessionService() {
                 .build()
 
         player = exoPlayer
+        exoPlayer.addListener(
+    object : Player.Listener {
+
+        override fun onTracksChanged(tracks: Tracks) {
+            val audioGroup = tracks.groups.firstOrNull {
+                it.type == C.TRACK_TYPE_AUDIO && it.isSelected
+            }
+
+            val audioFormat = audioGroup?.let { group ->
+                (0 until group.length)
+                    .firstOrNull { group.isTrackSelected(it) }
+                    ?.let { group.getTrackFormat(it) }
+            }
+
+            if (audioFormat == null) {
+                AudioSignalPathStore.resetSource()
+                return
+            }
+
+            val metadata =
+                exoPlayer.currentMediaItem?.mediaMetadata
+
+            AudioSignalPathStore.updateSource(
+                AudioSourceInfo(
+                    title = metadata?.title?.toString().orEmpty(),
+                    artist = metadata?.artist?.toString().orEmpty(),
+                    mimeType = audioFormat.sampleMimeType,
+                    sampleRateHz = audioFormat.sampleRate
+                        .takeIf { it > 0 },
+                    channelCount = audioFormat.channelCount
+                        .takeIf { it > 0 },
+                    bitrate = audioFormat.bitrate
+                        .takeIf { it > 0 }
+                )
+            )
+        }
+
+        override fun onMediaItemTransition(
+            mediaItem: MediaItem?,
+            reason: Int
+        ) {
+            AudioSignalPathStore.resetSource()
+        }
+    }
+)
 
         val activityIntent =
             Intent(this, MainActivity::class.java)
