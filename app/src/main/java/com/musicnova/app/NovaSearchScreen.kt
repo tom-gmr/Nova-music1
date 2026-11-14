@@ -1,3 +1,4 @@
+
 package com.musicnova.app
 
 import androidx.compose.animation.animateColorAsState
@@ -334,7 +335,7 @@ fun NovaFullPlayerScreen(
             }
         }
     }
-
+    
     // Main player background and artwork-based gradient
 
     Box(
@@ -494,7 +495,8 @@ fun NovaFullPlayerScreen(
             }
 
             Spacer(Modifier.height(12.dp))
-                    // Track information
+
+            // Track information
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -710,9 +712,9 @@ fun NovaFullPlayerScreen(
                     )
                 }
             }
-                    } // Main Column
+        } // Main Column
     } // Root Box
-
+    
     // Audio Signal Path dialog
 
     if (showSignalPath) {
@@ -769,6 +771,7 @@ fun NovaFullPlayerScreen(
         }
     }
 } // NovaFullPlayerScreen
+
 /* ---------------- DEDICATED LYRICS SCREEN ---------------- */
 
 @Composable
@@ -942,6 +945,7 @@ fun NovaDedicatedLyricsScreen(
                 }
 
                 is LyricsUiState.Success -> {
+                    
                     val result = currentLyrics.result
                     val lines = result.lines
 
@@ -1075,7 +1079,6 @@ fun NovaDedicatedLyricsScreen(
         }
     }
 }
-
 /* ---------------- TIME FORMATTER ---------------- */
 
 private fun formatPlayerTime(milliseconds: Long): String {
