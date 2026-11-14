@@ -419,9 +419,15 @@ fun MusicNovaApp() {
                         playNextTrack()
                     },
 
-                    onPrevious = {
-                        playPreviousTrack()
-                    }
+                    
+onPrevious = {
+    playPreviousTrack()
+},
+
+onOpenQueue = {
+    showQueueScreen = true
+}
+
                 )
 
             } else {
