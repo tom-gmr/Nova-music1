@@ -157,6 +157,7 @@ fun NovaGlassMiniPlayer(
         }
     }
 }
+
 /* ---------------- FULL PLAYER ---------------- */
 
 @Composable
@@ -166,20 +167,39 @@ fun NovaFullPlayerScreen(
     onClose: () -> Unit,
     onStop: () -> Unit,
     onNext: () -> Unit,
-    onPrevious: () -> Unit
+    onPrevious: () -> Unit,
+    onOpenQueue: () -> Unit = {}
 ) {
-    var currentPosition by remember { mutableFloatStateOf(0f) }
-    var duration by remember { mutableFloatStateOf(1f) }
-    var isSeeking by remember { mutableStateOf(false) }
-    var showSignalPath by remember { mutableStateOf(false) }
+    var currentPosition by remember {
+        mutableFloatStateOf(0f)
+    }
+
+    var duration by remember {
+        mutableFloatStateOf(1f)
+    }
+
+    var isSeeking by remember {
+        mutableStateOf(false)
+    }
+
+    var showSignalPath by remember {
+        mutableStateOf(false)
+    }
+
+    var showLyricsScreen by remember {
+        mutableStateOf(false)
+    }
+
+    val lyricsRepository = remember {
+        LyricsRepository()
+    }
 
     var lyricsState by remember {
         mutableStateOf<LyricsUiState>(LyricsUiState.Idle)
     }
 
-    val lyricsRepository = remember { LyricsRepository() }
-
     // Playback position update
+
     LaunchedEffect(musicPlayer) {
         while (true) {
             val total = musicPlayer.getDuration()
@@ -202,63 +222,63 @@ fun NovaFullPlayerScreen(
     }
 
     // Fetch lyrics for the currently playing song
-LaunchedEffect(state.title, state.artist) {
-    if (state.title.isBlank() || state.artist.isBlank()) {
-        lyricsState = LyricsUiState.Empty
-    } else {
-        lyricsState = LyricsUiState.Loading
 
-        try {
-            var trackDuration = musicPlayer.getDuration()
-            var attempts = 0
+    LaunchedEffect(state.title, state.artist) {
+        if (state.title.isBlank() || state.artist.isBlank()) {
+            lyricsState = LyricsUiState.Empty
+        } else {
+            lyricsState = LyricsUiState.Loading
 
-            // Wait up to 6 seconds for the actual track duration
-            while (trackDuration <= 0L && attempts < 20) {
-                delay(300)
-                trackDuration = musicPlayer.getDuration()
-                attempts++
-            }
+            try {
+                var trackDuration = musicPlayer.getDuration()
+                var attempts = 0
 
-            val result = lyricsRepository.findLyrics(
-                artist = state.artist,
-                track = state.title,
-                durationMs = trackDuration
-            )
-
-            lyricsState = if (result == null) {
-                LyricsUiState.Empty
-            } else {
-                when (
-                    val parsed = parseLyrics(
-                        syncedLyrics = result.syncedLyrics,
-                        plainLyrics = result.plainLyrics,
-                        source = "LRCLIB"
-                    )
-                ) {
-                    is LyricsResult.Success ->
-                        LyricsUiState.Success(parsed)
-
-                    LyricsResult.Empty ->
-                        LyricsUiState.Empty
-
-                    is LyricsResult.Error ->
-                        LyricsUiState.Error(parsed.message)
+                while (trackDuration <= 0L && attempts < 20) {
+                    delay(300)
+                    trackDuration = musicPlayer.getDuration()
+                    attempts++
                 }
+
+                val result = lyricsRepository.findLyrics(
+                    artist = state.artist,
+                    track = state.title,
+                    durationMs = trackDuration
+                )
+
+                lyricsState = if (result == null) {
+                    LyricsUiState.Empty
+                } else {
+                    when (
+                        val parsed = parseLyrics(
+                            syncedLyrics = result.syncedLyrics,
+                            plainLyrics = result.plainLyrics,
+                            source = "LRCLIB"
+                        )
+                    ) {
+                        is LyricsResult.Success ->
+                            LyricsUiState.Success(parsed)
+
+                        LyricsResult.Empty ->
+                            LyricsUiState.Empty
+
+                        is LyricsResult.Error ->
+                            LyricsUiState.Error(parsed.message)
+                    }
+                }
+            } catch (exception: Exception) {
+                lyricsState = LyricsUiState.Error(
+                    exception.message ?: "Unable to load lyrics"
+                )
             }
-        } catch (exception: Exception) {
-            lyricsState = LyricsUiState.Error(
-                exception.message ?: "Unable to load lyrics"
-            )
         }
     }
-}
-
+    
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(PlayerBackground)
     ) {
-        // Artwork background
+        // Background artwork remains
         AsyncImage(
             model = state.artworkUrl,
             contentDescription = null,
@@ -334,6 +354,14 @@ LaunchedEffect(state.title, state.artist) {
 
                 Spacer(Modifier.weight(1f))
 
+                IconButton(onClick = onOpenQueue) {
+                    Icon(
+                        Icons.Default.QueueMusic,
+                        contentDescription = "Open queue",
+                        tint = PlayerLavender
+                    )
+                }
+
                 IconButton(onClick = onStop) {
                     Icon(
                         Icons.Default.Close,
@@ -343,63 +371,22 @@ LaunchedEffect(state.title, state.artist) {
                 }
             }
 
-            Spacer(Modifier.height(28.dp))
+            // No static circular artwork here
 
-            // Static album artwork (rotation removed)
-            Box(
-                modifier = Modifier
-                    .size(292.dp)
-                    .clip(CircleShape)
-                    .border(
-                        2.dp,
-                        Color.White.copy(alpha = 0.28f),
-                        CircleShape
-                    )
-            ) {
-                AsyncImage(
-                    model = state.artworkUrl,
-                    contentDescription = "Album artwork",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
+            Spacer(Modifier.height(38.dp))
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(
-                                    Color.White.copy(alpha = 0.13f),
-                                    Color.Transparent,
-                                    Color.Black.copy(alpha = 0.18f)
-                                )
-                            )
-                        )
-                )
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .size(18.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.75f))
-                        .border(
-                            3.dp,
-                            Color.Black.copy(alpha = 0.35f),
-                            CircleShape
-                        )
-                )
-            }
-
-            Spacer(Modifier.height(35.dp))
-                        // Song information
+            // Song information and dedicated lyrics button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text(
-                        text = state.title.ifBlank { "Unknown Track" },
+                        text = state.title.ifBlank {
+                            "Unknown Track"
+                        },
                         color = Color.White,
                         fontSize = 23.sp,
                         fontWeight = FontWeight.Bold,
@@ -410,7 +397,9 @@ LaunchedEffect(state.title, state.artist) {
                     Spacer(Modifier.height(7.dp))
 
                     Text(
-                        text = state.artist.ifBlank { "Unknown Artist" },
+                        text = state.artist.ifBlank {
+                            "Unknown Artist"
+                        },
                         color = PlayerMuted,
                         fontSize = 15.sp,
                         maxLines = 1,
@@ -419,29 +408,37 @@ LaunchedEffect(state.title, state.artist) {
                 }
 
                 Surface(
+                    onClick = {
+                        showLyricsScreen = true
+                    },
+                    modifier = Modifier.size(52.dp),
                     shape = CircleShape,
                     color = PlayerPurple.copy(alpha = 0.20f),
                     border = androidx.compose.foundation.BorderStroke(
                         1.dp,
-                        PlayerLavender.copy(alpha = 0.25f)
+                        PlayerLavender.copy(alpha = 0.35f)
                     )
                 ) {
-                    Icon(
-                        Icons.Default.GraphicEq,
-                        contentDescription = "Now playing",
-                        tint = PlayerLavender,
-                        modifier = Modifier
-                            .padding(12.dp)
-                            .size(23.dp)
-                    )
+                    Box(
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.GraphicEq,
+                            contentDescription = "Open lyrics",
+                            tint = PlayerLavender,
+                            modifier = Modifier.size(25.dp)
+                        )
+                    }
                 }
             }
 
             Spacer(Modifier.height(18.dp))
 
-            // Audio Signal Path entry
+            // Audio Signal Path
             Surface(
-                onClick = { showSignalPath = true },
+                onClick = {
+                    showSignalPath = true
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
@@ -461,13 +458,16 @@ LaunchedEffect(state.title, state.artist) {
                         contentDescription = "Audio Signal Path",
                         tint = PlayerLavender
                     )
+
                     Spacer(Modifier.width(10.dp))
+
                     Text(
                         "Audio Details • Signal Path",
                         color = Color.White,
                         modifier = Modifier.weight(1f),
                         fontSize = 13.sp
                     )
+
                     Icon(
                         Icons.Default.ChevronRight,
                         contentDescription = "Open Signal Path",
@@ -489,7 +489,9 @@ LaunchedEffect(state.title, state.artist) {
                     currentPosition = it
                 },
                 onValueChangeFinished = {
-                    musicPlayer.seekTo(currentPosition.toLong())
+                    musicPlayer.seekTo(
+                        currentPosition.toLong()
+                    )
                     isSeeking = false
                 },
                 valueRange = 0f..duration.coerceAtLeast(1f),
@@ -540,13 +542,17 @@ LaunchedEffect(state.title, state.artist) {
                 Spacer(Modifier.width(28.dp))
 
                 Surface(
-                    onClick = { musicPlayer.togglePlayPause() },
+                    onClick = {
+                        musicPlayer.togglePlayPause()
+                    },
                     modifier = Modifier.size(78.dp),
                     shape = CircleShape,
                     color = PlayerPurple,
                     shadowElevation = 16.dp
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
+                    Box(
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
                             imageVector = if (state.isPlaying) {
                                 Icons.Default.Pause
@@ -576,217 +582,327 @@ LaunchedEffect(state.title, state.artist) {
             }
 
             Spacer(Modifier.height(28.dp))
-            
-            // ---------------- LYRICS SECTION ----------------
+        }
+    }
 
-            Spacer(Modifier.height(30.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+    // Audio Signal Path screen
+    if (showSignalPath) {
+        Dialog(
+            onDismissRequest = {
+                showSignalPath = false
+            },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false
+            )
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = PlayerBackground
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "LYRICS",
-                        color = PlayerLavender,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 2.sp
-                    )
+                AudioSignalPathScreen(
+                    onBack = {
+                        showSignalPath = false
+                    }
+                )
+            }
+        }
+    }
 
-                    Spacer(Modifier.height(4.dp))
+    // Dedicated Lyrics screen
+    if (showLyricsScreen) {
+        Dialog(
+            onDismissRequest = {
+                showLyricsScreen = false
+            },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false
+            )
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = PlayerBackground
+            ) {
+                NovaDedicatedLyricsScreen(
+                    title = state.title,
+                    artist = state.artist,
+                    lyricsState = lyricsState,
+                    currentPosition = currentPosition,
+                    onBack = {
+                        showLyricsScreen = false
+                    },
+                    onSeek = { position ->
+                        musicPlayer.seekTo(position)
+                        currentPosition = position.toFloat()
+                    }
+                )
+            }
+        }
+    }
+}
+/* ---------------- DEDICATED LYRICS SCREEN ---------------- */
 
-                    Text(
-                        text = "Feel every word",
-                        color = PlayerMuted,
-                        fontSize = 12.sp
-                    )
-                }
+@Composable
+fun NovaDedicatedLyricsScreen(
+    title: String,
+    artist: String,
+    lyricsState: LyricsUiState,
+    currentPosition: Float,
+    onBack: () -> Unit,
+    onSeek: (Long) -> Unit
+) {
+    val scrollState = rememberScrollState()
 
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = PlayerPurple.copy(alpha = 0.18f)
-                ) {
-                    Text(
-                        text = when (val currentState = lyricsState) {
-                            is LyricsUiState.Success -> {
-                                if (currentState.result.isWordSynced) {
-                                    "WORD SYNC"
-                                } else if (currentState.result.isSynced) {
-                                    "LINE SYNC"
-                                } else {
-                                    "PLAIN"
-                                }
-                            }
-                            LyricsUiState.Loading -> "LOADING"
-                            LyricsUiState.Empty -> "NO LYRICS"
-                            is LyricsUiState.Error -> "ERROR"
-                            LyricsUiState.Idle -> "WAITING"
-                        },
-                        color = PlayerLavender,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(
-                            horizontal = 12.dp,
-                            vertical = 8.dp
-                        )
-                    )
-                }
+    val activeIndex = remember(lyricsState, currentPosition) {
+        val success = lyricsState as? LyricsUiState.Success
+
+        success?.result?.lines?.indexOfLast {
+            it.timeMs <= currentPosition.toLong()
+        } ?: -1
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(PlayerBackground)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
+
+        // Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = 16.dp,
+                    vertical = 12.dp
+                ),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    Icons.Default.ArrowBack,
+                    contentDescription = "Back to player",
+                    tint = Color.White,
+                    modifier = Modifier.size(27.dp)
+                )
             }
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.width(10.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = "LYRICS",
+                    color = PlayerLavender,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.sp
+                )
+
+                Text(
+                    text = "Now playing",
+                    color = PlayerMuted,
+                    fontSize = 11.sp
+                )
+            }
+
+            Icon(
+                Icons.Default.GraphicEq,
+                contentDescription = null,
+                tint = PlayerLavender,
+                modifier = Modifier.size(25.dp)
+            )
+        }
+
+        HorizontalDivider(
+            color = Color.White.copy(alpha = 0.10f)
+        )
+
+        // Song information
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = 24.dp,
+                    vertical = 22.dp
+                )
+        ) {
+            Text(
+                text = title.ifBlank { "Unknown Track" },
+                color = Color.White,
+                fontSize = 21.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(Modifier.height(5.dp))
+
+            Text(
+                text = artist.ifBlank { "Unknown Artist" },
+                color = PlayerMuted,
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        // Lyrics content
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(
+                    horizontal = 18.dp,
+                    vertical = 10.dp
+                ),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
 
             when (val currentLyrics = lyricsState) {
 
                 LyricsUiState.Idle,
                 LyricsUiState.Loading -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(PlayerSurface.copy(alpha = 0.75f))
-                            .padding(28.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        CircularProgressIndicator(
-                            color = PlayerLavender,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(28.dp)
-                        )
 
-                        Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(100.dp))
 
-                        Text(
-                            text = "Finding lyrics...",
-                            color = PlayerMuted,
-                            fontSize = 14.sp
-                        )
-                    }
+                    CircularProgressIndicator(
+                        color = PlayerLavender,
+                        strokeWidth = 3.dp,
+                        modifier = Modifier.size(38.dp)
+                    )
+
+                    Spacer(Modifier.height(20.dp))
+
+                    Text(
+                        text = "Finding lyrics...",
+                        color = PlayerMuted,
+                        fontSize = 15.sp
+                    )
                 }
 
                 LyricsUiState.Empty -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(PlayerSurface.copy(alpha = 0.75f))
-                            .padding(26.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            Icons.Default.MusicOff,
-                            contentDescription = null,
-                            tint = PlayerLavender,
-                            modifier = Modifier.size(34.dp)
-                        )
 
-                        Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(100.dp))
 
-                        Text(
-                            text = "Lyrics not available",
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                    Icon(
+                        Icons.Default.MusicOff,
+                        contentDescription = null,
+                        tint = PlayerLavender,
+                        modifier = Modifier.size(45.dp)
+                    )
 
-                        Spacer(Modifier.height(5.dp))
+                    Spacer(Modifier.height(16.dp))
 
-                        Text(
-                            text = "Try another track",
-                            color = PlayerMuted,
-                            fontSize = 12.sp
-                        )
-                    }
+                    Text(
+                        text = "Lyrics not available",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    Spacer(Modifier.height(7.dp))
+
+                    Text(
+                        text = "Try another track",
+                        color = PlayerMuted,
+                        fontSize = 13.sp
+                    )
                 }
 
                 is LyricsUiState.Error -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(PlayerSurface.copy(alpha = 0.75f))
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            Icons.Default.ErrorOutline,
-                            contentDescription = null,
-                            tint = PlayerLavender,
-                            modifier = Modifier.size(32.dp)
-                        )
 
-                        Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(100.dp))
 
-                        Text(
-                            text = currentLyrics.message,
-                            color = PlayerMuted,
-                            fontSize = 13.sp
-                        )
-                    }
+                    Icon(
+                        Icons.Default.ErrorOutline,
+                        contentDescription = null,
+                        tint = PlayerLavender,
+                        modifier = Modifier.size(42.dp)
+                    )
+
+                    Spacer(Modifier.height(15.dp))
+
+                    Text(
+                        text = currentLyrics.message,
+                        color = PlayerMuted,
+                        fontSize = 14.sp
+                    )
                 }
 
                 is LyricsUiState.Success -> {
+
                     val result = currentLyrics.result
                     val lines = result.lines
 
                     if (result.isInstrumental) {
+
+                        Spacer(Modifier.height(100.dp))
+
                         Text(
                             text = "♪ Instrumental ♪",
                             color = PlayerLavender,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 35.dp),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
-                    } else if (result.isSynced) {
-                        val activeIndex = lines.indexOfLast {
-                            it.timeMs <= currentPosition.toLong()
-                        }
 
+                    } else if (result.isSynced) {
+
+                        Spacer(Modifier.height(25.dp))
+
+                        // Synced karaoke lyrics
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(24.dp))
+                                .clip(RoundedCornerShape(26.dp))
                                 .background(
                                     Brush.verticalGradient(
                                         listOf(
                                             Color(0xFF292035),
-                                            Color(0xFF17121F)
+                                            Color(0xFF17121F),
+                                            PlayerBackground
                                         )
                                     )
                                 )
-                                .padding(horizontal = 18.dp, vertical = 22.dp),
+                                .padding(
+                                    horizontal = 15.dp,
+                                    vertical = 22.dp
+                                ),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
+
                             lines.forEachIndexed { index, line ->
+
                                 val isActive = index == activeIndex
 
-                                if (index in (activeIndex - 1)..(activeIndex + 2)) {
+                                if (
+                                    index in
+                                    (activeIndex - 2)..(activeIndex + 3)
+                                ) {
                                     KaraokeLyricText(
                                         line = line,
                                         currentPositionMs =
                                             currentPosition.toLong(),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clip(RoundedCornerShape(14.dp))
+                                            .clip(
+                                                RoundedCornerShape(14.dp)
+                                            )
                                             .clickable {
-                                                musicPlayer.seekTo(line.timeMs)
-                                                currentPosition =
-                                                    line.timeMs.toFloat()
+                                                onSeek(line.timeMs)
                                             }
                                             .padding(
                                                 horizontal = 10.dp,
                                                 vertical = if (isActive) {
-                                                    17.dp
+                                                    18.dp
                                                 } else {
-                                                    12.dp
+                                                    13.dp
                                                 }
                                             ),
                                         style = MaterialTheme.typography.bodyLarge.copy(
                                             fontSize = if (isActive) {
-                                                21.sp
+                                                22.sp
                                             } else {
                                                 16.sp
                                             },
@@ -804,30 +920,43 @@ LaunchedEffect(state.title, state.artist) {
                                 }
                             }
                         }
+
+                        Spacer(Modifier.height(15.dp))
+
+                        Text(
+                            text = "Tap any lyric line to jump to that part",
+                            color = PlayerMuted,
+                            fontSize = 11.sp
+                        )
+
                     } else {
-                        // Plain lyrics: show all lines
+
+                        // Plain lyrics
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(24.dp))
-                                .background(PlayerSurface.copy(alpha = 0.75f))
+                                .background(
+                                    PlayerSurface.copy(alpha = 0.75f)
+                                )
                                 .padding(20.dp)
                         ) {
                             lines.forEach { line ->
+
                                 Text(
                                     text = line.text,
-                                    color = Color.White.copy(alpha = 0.88f),
-                                    fontSize = 16.sp,
-                                    lineHeight = 27.sp,
+                                    color = Color.White.copy(alpha = 0.90f),
+                                    fontSize = 17.sp,
+                                    lineHeight = 29.sp,
                                     modifier = Modifier.padding(
-                                        vertical = 7.dp
+                                        vertical = 8.dp
                                     )
                                 )
                             }
                         }
                     }
 
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(18.dp))
 
                     Text(
                         text = "Lyrics source: ${result.source ?: "Unknown"}",
@@ -838,45 +967,18 @@ LaunchedEffect(state.title, state.artist) {
                 }
             }
 
-            Spacer(Modifier.height(30.dp))
-
-            // Footer
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(35.dp))
 
             Text(
                 text = "FEEL THE SOUND",
                 color = PlayerLavender.copy(alpha = 0.75f),
                 fontSize = 10.sp,
                 letterSpacing = 3.sp,
-                modifier = Modifier.padding(bottom = 22.dp)
+                modifier = Modifier.padding(bottom = 25.dp)
             )
-        }
-
-        // Signal Path full-screen dialog
-        if (showSignalPath) {
-            Dialog(
-                onDismissRequest = {
-                    showSignalPath = false
-                },
-                properties = DialogProperties(
-                    usePlatformDefaultWidth = false
-                )
-            ) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = PlayerBackground
-                ) {
-                    AudioSignalPathScreen(
-                        onBack = {
-                            showSignalPath = false
-                        }
-                    )
-                }
-            }
         }
     }
 }
-
 /* ---------------- TIME FORMATTER ---------------- */
 
 private fun formatPlayerTime(milliseconds: Long): String {
