@@ -35,6 +35,8 @@ import com.musicnova.app.data.lyrics.parseLyrics
 import com.musicnova.app.ui.player.LyricsUiState
 import com.musicnova.app.ui.player.KaraokeLyricText
 import kotlinx.coroutines.delay
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 
 private val PlayerBackground = Color(0xFF09070F)
 private val PlayerSurface = Color(0xFF211B2B)
@@ -323,7 +325,39 @@ fun NovaFullPlayerScreen(
                     )
                 )
         )
+        // Dynamic artwork-matched bottom gradient
 
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.48f)
+                .align(Alignment.BottomCenter)
+        ) {
+            AsyncImage(
+                model = state.artworkUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(38.dp)
+                    .alpha(0.55f)
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color(0x5509070F),
+                                Color(0xB309070F),
+                                Color(0xE609070F)
+                            )
+                        )
+                    )
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
