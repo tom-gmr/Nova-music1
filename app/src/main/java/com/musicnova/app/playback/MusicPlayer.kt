@@ -32,6 +32,7 @@ class MusicPlayer(context: Context) {
     private var errorHandler: PlaybackErrorHandler? = null
     private var released = false
     private var pendingPlay: PendingPlay? = null
+    private var pendingQueue: PendingQueue? = null
 
     private lateinit var controllerFuture:
         ListenableFuture<MediaController>
@@ -46,6 +47,9 @@ class MusicPlayer(context: Context) {
     private var playbackErrorListener:
         ((PlaybackException) -> Unit)? = null
 
+    @Volatile
+    private var trackEndedListener: (() -> Unit)? = null
+
     private data class PendingPlay(
         val streamUrl: String,
         val title: String,
@@ -54,17 +58,23 @@ class MusicPlayer(context: Context) {
         val requestHeaders: Map<String, String>
     )
 
+    private data class PendingQueue(
+        val items: List<MediaItem>,
+        val startIndex: Int
+    )
+
     fun setOnPlaybackErrorListener(
         listener: ((PlaybackException) -> Unit)?
     ) {
         playbackErrorListener = listener
     }
-   @Volatile
-private var trackEndedListener: (() -> Unit)? = null
 
-fun setOnTrackEndedListener(listener: (() -> Unit)?) {
-    trackEndedListener = listener
-}
+    fun setOnTrackEndedListener(
+        listener: (() -> Unit)?
+    ) {
+        trackEndedListener = listener
+    }
+
     private val playerListener =
         object : Player.Listener {
 
@@ -88,15 +98,19 @@ fun setOnTrackEndedListener(listener: (() -> Unit)?) {
             }
 
             override fun onPlaybackStateChanged(
-    playbackState: Int
-) {
-    updatePlaybackState()
+                playbackState: Int
+            ) {
+                updatePlaybackState()
 
-    if (playbackState == Player.STATE_ENDED) {
-        trackEndedListener?.invoke()
-    }
+                val currentController = controller
+
+                if (
+                    playbackState == Player.STATE_ENDED &&
+                    (currentController?.mediaItemCount ?: 0) <= 1
+                ) {
+                    trackEndedListener?.invoke()
+                }
             }
-
         }
 
     init {
@@ -127,19 +141,28 @@ fun setOnTrackEndedListener(listener: (() -> Unit)?) {
 
                     controller = connectedController
 
-                    connectedController.addListener(playerListener)
+                    connectedController.addListener(
+                        playerListener
+                    )
 
-errorHandler = PlaybackErrorHandler(
-    player = connectedController,
-    maxRetries = 3,
-    onGiveUp = { error ->
-        playbackErrorListener?.invoke(error)
-    }
-)
-                        
+                    errorHandler = PlaybackErrorHandler(
+                        player = connectedController,
+                        maxRetries = 3,
+                        onGiveUp = { error ->
+                            playbackErrorListener?.invoke(error)
+                        }
+                    )
+
                     updatePlaybackState()
 
-                    pendingPlay?.let { request ->
+                    pendingQueue?.let { queue ->
+                        pendingQueue = null
+                        startQueue(
+                            connectedController,
+                            queue.items,
+                            queue.startIndex
+                        )
+                    } ?: pendingPlay?.let { request ->
                         pendingPlay = null
                         startPlayback(
                             connectedController,
@@ -181,6 +204,8 @@ errorHandler = PlaybackErrorHandler(
             requestHeaders = requestHeaders
         )
 
+        pendingQueue = null
+
         _playbackState.value = PlaybackState(
             title = title,
             artist = artist,
@@ -196,16 +221,17 @@ errorHandler = PlaybackErrorHandler(
             return
         }
 
+        pendingPlay = null
+
         startPlayback(
             connectedController,
             request
         )
     }
 
-    private fun startPlayback(
-        player: MediaController,
+    private fun buildMediaItem(
         request: PendingPlay
-    ) {
+    ): MediaItem {
         val headers = request.requestHeaders
 
         val extras = Bundle().apply {
@@ -234,19 +260,180 @@ errorHandler = PlaybackErrorHandler(
                 .setExtras(extras)
                 .build()
 
-        val mediaItem =
-            MediaItem.Builder()
-                .setMediaId(request.streamUrl)
-                .setUri(Uri.parse(request.streamUrl))
-                .setMediaMetadata(metadata)
-                .setCustomCacheKey(request.streamUrl)
-                .build()
+        return MediaItem.Builder()
+            .setMediaId(request.streamUrl)
+            .setUri(Uri.parse(request.streamUrl))
+            .setMediaMetadata(metadata)
+            .setCustomCacheKey(request.streamUrl)
+            .build()
+    }
+
+    private fun startPlayback(
+        player: MediaController,
+        request: PendingPlay
+    ) {
+        val mediaItem = buildMediaItem(request)
 
         player.setMediaItem(mediaItem)
         player.prepare()
         player.play()
 
         updatePlaybackState()
+    }
+
+    // Media3 playlist support
+
+    fun setQueue(
+        items: List<MediaItem>,
+        startIndex: Int = 0
+    ) {
+        if (items.isEmpty()) {
+            clearQueue()
+            return
+        }
+
+        val safeIndex = startIndex.coerceIn(
+            0,
+            items.lastIndex
+        )
+
+        pendingPlay = null
+
+        val connectedController = controller
+
+        if (connectedController == null) {
+            pendingQueue = PendingQueue(
+                items = items.toList(),
+                startIndex = safeIndex
+            )
+            return
+        }
+
+        pendingQueue = null
+
+        startQueue(
+            connectedController,
+            items,
+            safeIndex
+        )
+    }
+
+    private fun startQueue(
+        player: MediaController,
+        items: List<MediaItem>,
+        startIndex: Int
+    ) {
+        if (items.isEmpty()) return
+
+        val safeIndex = startIndex.coerceIn(
+            0,
+            items.lastIndex
+        )
+
+        player.setMediaItems(
+            items,
+            safeIndex,
+            0L
+        )
+
+        player.prepare()
+        player.play()
+
+        updatePlaybackState()
+    }
+
+    fun addQueueItems(
+        items: List<MediaItem>
+    ) {
+        if (items.isEmpty()) return
+
+        controller?.addMediaItems(items)
+    }
+
+    fun removeQueueItem(index: Int): Boolean {
+        val player = controller ?: return false
+
+        if (index !in 0 until player.mediaItemCount) {
+            return false
+        }
+
+        player.removeMediaItem(index)
+        return true
+    }
+
+    fun moveQueueItem(
+        fromIndex: Int,
+        toIndex: Int
+    ): Boolean {
+        val player = controller ?: return false
+
+        if (
+            fromIndex !in 0 until player.mediaItemCount ||
+            toIndex !in 0 until player.mediaItemCount
+        ) {
+            return false
+        }
+
+        player.moveMediaItem(
+            fromIndex,
+            toIndex
+        )
+
+        return true
+    }
+
+    fun clearQueue() {
+        pendingQueue = null
+        pendingPlay = null
+
+        controller?.run {
+            stop()
+            clearMediaItems()
+        }
+
+        _playbackState.value = PlaybackState()
+    }
+
+    fun setShuffleEnabled(enabled: Boolean) {
+        controller?.shuffleModeEnabled = enabled
+    }
+
+    fun isShuffleEnabled(): Boolean {
+        return controller?.shuffleModeEnabled == true
+    }
+
+    fun setRepeatMode(mode: RepeatMode) {
+        val playerMode = when (mode) {
+            RepeatMode.OFF -> Player.REPEAT_MODE_OFF
+            RepeatMode.ALL -> Player.REPEAT_MODE_ALL
+            RepeatMode.ONE -> Player.REPEAT_MODE_ONE
+        }
+
+        controller?.repeatMode = playerMode
+    }
+
+    fun getRepeatMode(): RepeatMode {
+        return when (controller?.repeatMode) {
+            Player.REPEAT_MODE_ALL -> RepeatMode.ALL
+            Player.REPEAT_MODE_ONE -> RepeatMode.ONE
+            else -> RepeatMode.OFF
+        }
+    }
+
+    fun playNextMediaItem() {
+        controller?.seekToNextMediaItem()
+    }
+
+    fun playPreviousMediaItem() {
+        controller?.seekToPreviousMediaItem()
+    }
+
+    fun getMediaItemCount(): Int {
+        return controller?.mediaItemCount ?: 0
+    }
+
+    fun getCurrentMediaItemIndex(): Int {
+        return controller?.currentMediaItemIndex ?: -1
     }
 
     private fun updatePlaybackState() {
@@ -265,6 +452,7 @@ errorHandler = PlaybackErrorHandler(
     }
 
     // Full Player progress support
+
     fun getCurrentPosition(): Long {
         return controller?.currentPosition
             ?.coerceAtLeast(0L) ?: 0L
@@ -298,14 +486,7 @@ errorHandler = PlaybackErrorHandler(
     }
 
     fun stop() {
-        pendingPlay = null
-
-        controller?.run {
-            stop()
-            clearMediaItems()
-        }
-
-        _playbackState.value = PlaybackState()
+        clearQueue()
     }
 
     fun seekTo(positionMs: Long) {
@@ -323,10 +504,13 @@ errorHandler = PlaybackErrorHandler(
 
         released = true
         pendingPlay = null
+        pendingQueue = null
         playbackErrorListener = null
-        
-       errorHandler?.release()
+        trackEndedListener = null
+
+        errorHandler?.release()
         errorHandler = null
+
         controller?.run {
             removeListener(playerListener)
             release()
@@ -335,4 +519,3 @@ errorHandler = PlaybackErrorHandler(
         controller = null
     }
 }
-
