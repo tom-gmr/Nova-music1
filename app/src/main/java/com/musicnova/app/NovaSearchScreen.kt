@@ -18,8 +18,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -337,120 +339,151 @@ fun NovaFullPlayerScreen(
             }
         }
     }
+    
+    // modern-style full-screen ambient background
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(PlayerBackground)
     ) {
-                // Background artwork
+
+        // 1. Full-screen blurred artwork
 
         AsyncImage(
             model = state.artworkUrl,
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.78f)
-                .align(Alignment.TopCenter)
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = 1.35f
+                    scaleY = 1.35f
+                    alpha = 0.9f
+                }
+                .blur(20.dp)
         )
 
-        // Dark cinematic overlay
+        // 2. Base dark overlay
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Color.Black.copy(alpha = 0.35f)
+                )
+        )
+
+        // 3. Primary radial ambient colour
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .drawBehind {
+                    drawRect(
+                        brush = Brush.radialGradient(
+                            colorStops = arrayOf(
+                                0.0f to ambientPrimary.copy(alpha = 0.58f),
+                                0.45f to ambientPrimary.copy(alpha = 0.22f),
+                                1.0f to Color.Transparent
+                            ),
+                            center = Offset(
+                                size.width * 0.25f,
+                                size.height * 0.20f
+                            ),
+                            radius = size.maxDimension * 0.85f
+                        )
+                    )
+                }
+        )
+
+        // 4. Secondary radial ambient colour
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .drawBehind {
+                    drawRect(
+                        brush = Brush.radialGradient(
+                            colorStops = arrayOf(
+                                0.0f to ambientSecondary.copy(alpha = 0.52f),
+                                0.50f to ambientSecondary.copy(alpha = 0.20f),
+                                1.0f to Color.Transparent
+                            ),
+                            center = Offset(
+                                size.width * 0.88f,
+                                size.height * 0.65f
+                            ),
+                            radius = size.maxDimension * 0.78f
+                        )
+                    )
+                }
+        )
+
+        // 5. Tertiary radial ambient colour
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .drawBehind {
+                    drawRect(
+                        brush = Brush.radialGradient(
+                            colorStops = arrayOf(
+                                0.0f to ambientTertiary.copy(alpha = 0.42f),
+                                0.55f to ambientTertiary.copy(alpha = 0.14f),
+                                1.0f to Color.Transparent
+                            ),
+                            center = Offset(
+                                size.width * 0.15f,
+                                size.height * 0.82f
+                            ),
+                            radius = size.maxDimension * 0.70f
+                        )
+                    )
+                }
+        )
+
+        // 6. Vertical cinematic contrast scrim
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0x44000000),
-                            Color(0x6609070F),
-                            Color(0xCC09070F),
-                            PlayerBackground
+                        colorStops = arrayOf(
+                            0.00f to Color.Black.copy(alpha = 0.35f),
+                            0.28f to Color.Black.copy(alpha = 0.15f),
+                            0.65f to Color.Black.copy(alpha = 0.40f),
+                            1.00f to Color.Black.copy(alpha = 0.72f)
                         )
                     )
                 )
         )
 
-        // LastWave-style dynamic artwork ambient gradient
+        // 7. Edge vignette
 
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.48f)
-                .align(Alignment.BottomCenter)
+                .fillMaxSize()
                 .drawBehind {
-                    val radius = size.maxDimension * 0.95f
-
-                    // Primary artwork colour
-
                     drawRect(
                         brush = Brush.radialGradient(
-                            colors = listOf(
-                                ambientPrimary.copy(alpha = 0.62f),
-                                ambientPrimary.copy(alpha = 0.30f),
-                                Color.Transparent
+                            colorStops = arrayOf(
+                                0.0f to Color.Transparent,
+                                0.65f to Color.Transparent,
+                                1.0f to Color.Black.copy(alpha = 0.30f)
                             ),
                             center = Offset(
-                                size.width * 0.18f,
-                                size.height * 0.88f
+                                size.width * 0.50f,
+                                size.height * 0.40f
                             ),
-                            radius = radius
-                        )
-                    )
-
-                    // Secondary artwork colour
-
-                    drawRect(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                ambientSecondary.copy(alpha = 0.55f),
-                                ambientSecondary.copy(alpha = 0.24f),
-                                Color.Transparent
-                            ),
-                            center = Offset(
-                                size.width * 0.88f,
-                                size.height * 0.62f
-                            ),
-                            radius = radius * 0.82f
-                        )
-                    )
-
-                    // Tertiary artwork colour
-
-                    drawRect(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                ambientTertiary.copy(alpha = 0.48f),
-                                ambientTertiary.copy(alpha = 0.20f),
-                                Color.Transparent
-                            ),
-                            center = Offset(
-                                size.width * 0.52f,
-                                size.height * 0.98f
-                            ),
-                            radius = radius * 0.72f
+                            radius = size.maxDimension * 0.80f
                         )
                     )
                 }
-        ) {
-            // Dark contrast layer
+        )
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                PlayerBackground.copy(alpha = 0.28f),
-                                PlayerBackground.copy(alpha = 0.78f),
-                                PlayerBackground
-                            )
-                        )
-                    )
-            )
-        }
+        // 8. Full Player content
 
         Column(
             modifier = Modifier
@@ -574,7 +607,7 @@ fun NovaFullPlayerScreen(
             }
 
             Spacer(Modifier.weight(1f))
-
+            
             // Song information
 
             Row(
@@ -583,13 +616,9 @@ fun NovaFullPlayerScreen(
                     .padding(bottom = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = state.title.ifBlank {
-                            "Unknown Track"
-                        },
+                        text = state.title.ifBlank { "Unknown Track" },
                         color = Color.White,
                         fontSize = 25.sp,
                         fontWeight = FontWeight.Bold,
@@ -600,9 +629,7 @@ fun NovaFullPlayerScreen(
                     Spacer(Modifier.height(5.dp))
 
                     Text(
-                        text = state.artist.ifBlank {
-                            "Unknown Artist"
-                        },
+                        text = state.artist.ifBlank { "Unknown Artist" },
                         color = Color.White.copy(alpha = 0.72f),
                         fontSize = 15.sp,
                         maxLines = 1,
@@ -610,11 +637,7 @@ fun NovaFullPlayerScreen(
                     )
                 }
 
-                IconButton(
-                    onClick = {
-                        showLyricsScreen = true
-                    }
-                ) {
+                IconButton(onClick = { showLyricsScreen = true }) {
                     Icon(
                         Icons.Default.Lyrics,
                         contentDescription = "Open lyrics",
@@ -624,12 +647,10 @@ fun NovaFullPlayerScreen(
                 }
             }
 
-            // Compact Audio Quality pill
+            // Audio Quality
 
             Surface(
-                onClick = {
-                    showSignalPath = true
-                },
+                onClick = { showSignalPath = true },
                 shape = RoundedCornerShape(50.dp),
                 color = Color.White.copy(alpha = 0.13f),
                 border = androidx.compose.foundation.BorderStroke(
@@ -654,7 +675,7 @@ fun NovaFullPlayerScreen(
                     Spacer(Modifier.width(7.dp))
 
                     Text(
-                        text = "Audio Quality",
+                        "Audio Quality",
                         color = Color.White,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
@@ -685,18 +706,14 @@ fun NovaFullPlayerScreen(
                     currentPosition = value
                 },
                 onValueChangeFinished = {
-                    musicPlayer.seekTo(
-                        currentPosition.toLong()
-                    )
+                    musicPlayer.seekTo(currentPosition.toLong())
                     isSeeking = false
                 },
                 valueRange = 0f..duration.coerceAtLeast(1f),
                 colors = SliderDefaults.colors(
                     thumbColor = Color.White,
                     activeTrackColor = Color.White,
-                    inactiveTrackColor = Color.White.copy(
-                        alpha = 0.28f
-                    )
+                    inactiveTrackColor = Color.White.copy(alpha = 0.28f)
                 )
             )
 
@@ -709,15 +726,13 @@ fun NovaFullPlayerScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = formatPlayerTime(
-                        currentPosition.toLong()
-                    ),
+                    formatPlayerTime(currentPosition.toLong()),
                     color = Color.White.copy(alpha = 0.80f),
                     fontSize = 11.sp
                 )
 
                 Text(
-                    text = "-${formatPlayerTime(
+                    "-${formatPlayerTime(
                         (duration - currentPosition)
                             .coerceAtLeast(0f)
                             .toLong()
@@ -753,9 +768,7 @@ fun NovaFullPlayerScreen(
                 Spacer(Modifier.width(25.dp))
 
                 Surface(
-                    onClick = {
-                        musicPlayer.togglePlayPause()
-                    },
+                    onClick = { musicPlayer.togglePlayPause() },
                     shape = RoundedCornerShape(50.dp),
                     color = Color.White,
                     modifier = Modifier
@@ -798,7 +811,8 @@ fun NovaFullPlayerScreen(
                     )
                 }
             }
-                        Spacer(Modifier.height(18.dp))
+
+            Spacer(Modifier.height(18.dp))
 
             // Bottom Player Controls
 
@@ -885,15 +899,13 @@ fun NovaFullPlayerScreen(
                 }
             }
         }
-    }
+}
 
     // Audio Signal Path dialog
 
     if (showSignalPath) {
         Dialog(
-            onDismissRequest = {
-                showSignalPath = false
-            },
+            onDismissRequest = { showSignalPath = false },
             properties = DialogProperties(
                 usePlatformDefaultWidth = false
             )
@@ -903,9 +915,7 @@ fun NovaFullPlayerScreen(
                 color = PlayerBackground
             ) {
                 AudioSignalPathScreen(
-                    onBack = {
-                        showSignalPath = false
-                    }
+                    onBack = { showSignalPath = false }
                 )
             }
         }
@@ -915,9 +925,7 @@ fun NovaFullPlayerScreen(
 
     if (showLyricsScreen) {
         Dialog(
-            onDismissRequest = {
-                showLyricsScreen = false
-            },
+            onDismissRequest = { showLyricsScreen = false },
             properties = DialogProperties(
                 usePlatformDefaultWidth = false
             )
@@ -931,9 +939,7 @@ fun NovaFullPlayerScreen(
                     artist = state.artist,
                     lyricsState = lyricsState,
                     currentPosition = currentPosition,
-                    onBack = {
-                        showLyricsScreen = false
-                    },
+                    onBack = { showLyricsScreen = false },
                     onSeek = { position ->
                         musicPlayer.seekTo(position)
                         currentPosition = position.toFloat()
@@ -1197,7 +1203,7 @@ fun NovaDedicatedLyricsScreen(
                                 }
                             }
                         }
-
+                       
                         Spacer(Modifier.height(15.dp))
 
                         Text(
@@ -1237,7 +1243,8 @@ fun NovaDedicatedLyricsScreen(
                     )
                 }
             }
-                        Spacer(Modifier.height(35.dp))
+
+            Spacer(Modifier.height(35.dp))
 
             Text(
                 "FEEL THE SOUND",
@@ -1303,51 +1310,43 @@ fun NovaBottomNavigation(
         items.forEach { item ->
             val isSelected = selectedTab == item.first
 
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(18.dp))
-                    .clickable {
-                        onSelect(item.first)
-                    }
-                    .background(
-                        if (isSelected) {
-                            Color(0xFF40334F).copy(alpha = 0.85f)
+            TextButton(
+                onClick = { onSelect(item.first) }
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = item.second,
+                        contentDescription = item.third,
+                        tint = if (isSelected) {
+                            PlayerLavender
                         } else {
-                            Color.Transparent
+                            PlayerMuted
+                        },
+                        modifier = Modifier.size(23.dp)
+                    )
+
+                    Spacer(Modifier.height(3.dp))
+
+                    Text(
+                        text = item.first,
+                        color = if (isSelected) {
+                            PlayerLavender
+                        } else {
+                            PlayerMuted
+                        },
+                        fontSize = 10.sp,
+                        fontWeight = if (isSelected) {
+                            FontWeight.Bold
+                        } else {
+                            FontWeight.Normal
                         }
                     )
-                    .padding(vertical = 9.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(
-                    imageVector = item.second,
-                    contentDescription = item.third,
-                    tint = if (isSelected) {
-                        PlayerLavender
-                    } else {
-                        PlayerMuted
-                    },
-                    modifier = Modifier.size(22.dp)
-                )
-
-                Spacer(Modifier.height(5.dp))
-
-                Text(
-                    item.first,
-                    color = if (isSelected) {
-                        PlayerLavender
-                    } else {
-                        PlayerMuted
-                    },
-                    fontSize = 10.sp,
-                    fontWeight = if (isSelected) {
-                        FontWeight.Bold
-                    } else {
-                        FontWeight.Normal
-                    }
-                )
+                }
             }
         }
     }
 }
+
+            
