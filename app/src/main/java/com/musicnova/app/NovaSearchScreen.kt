@@ -370,7 +370,7 @@ fun NovaFullPlayerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    Color.Black.copy(alpha = 0.35f)
+                    Color.Black.copy(alpha = 0.52f)
                 )
         )
 
