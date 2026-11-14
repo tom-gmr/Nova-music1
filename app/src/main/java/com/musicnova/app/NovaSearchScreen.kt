@@ -1,5 +1,7 @@
 package com.musicnova.app
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,9 +17,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -35,8 +40,6 @@ import com.musicnova.app.data.lyrics.parseLyrics
 import com.musicnova.app.ui.player.LyricsUiState
 import com.musicnova.app.ui.player.KaraokeLyricText
 import kotlinx.coroutines.delay
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
 
 private val PlayerBackground = Color(0xFF09070F)
 private val PlayerSurface = Color(0xFF211B2B)
@@ -210,6 +213,50 @@ fun NovaFullPlayerScreen(
         mutableStateOf<LyricsUiState>(LyricsUiState.Idle)
     }
 
+    // Dynamic artwork palette extraction
+
+    val artworkContext = LocalContext.current
+
+    var artworkPalette by remember(state.artworkUrl) {
+        mutableStateOf<NovaArtworkPalette?>(null)
+    }
+
+    LaunchedEffect(state.artworkUrl) {
+        artworkPalette = null
+
+        val url = state.artworkUrl.orEmpty()
+
+        if (url.isNotBlank()) {
+            artworkPalette = extractNovaArtworkPalette(
+                context = artworkContext,
+                artworkUrl = url
+            )
+        }
+    }
+
+    // Smooth artwork colour transitions
+
+    val ambientPrimary by animateColorAsState(
+        targetValue = artworkPalette?.primary
+            ?: Color(0xFF49345F),
+        animationSpec = tween(durationMillis = 700),
+        label = "ArtworkPrimary"
+    )
+
+    val ambientSecondary by animateColorAsState(
+        targetValue = artworkPalette?.secondary
+            ?: Color(0xFF352B50),
+        animationSpec = tween(durationMillis = 700),
+        label = "ArtworkSecondary"
+    )
+
+    val ambientTertiary by animateColorAsState(
+        targetValue = artworkPalette?.tertiary
+            ?: Color(0xFF241D39),
+        animationSpec = tween(durationMillis = 700),
+        label = "ArtworkTertiary"
+    )
+
     // Playback position synchronization
 
     LaunchedEffect(musicPlayer) {
@@ -251,7 +298,7 @@ fun NovaFullPlayerScreen(
                 while (
                     trackDuration <= 0L &&
                     attempts < 20
-                                    ) {
+                ) {
                     delay(300)
                     trackDuration = musicPlayer.getDuration()
                     attempts++
@@ -296,8 +343,7 @@ fun NovaFullPlayerScreen(
             .fillMaxSize()
             .background(PlayerBackground)
     ) {
-
-        // Background artwork
+                // Background artwork
 
         AsyncImage(
             model = state.artworkUrl,
@@ -325,23 +371,70 @@ fun NovaFullPlayerScreen(
                     )
                 )
         )
-        // Dynamic artwork-matched bottom gradient
+
+        // LastWave-style dynamic artwork ambient gradient
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.48f)
                 .align(Alignment.BottomCenter)
+                .drawBehind {
+                    val radius = size.maxDimension * 0.95f
+
+                    // Primary artwork colour
+
+                    drawRect(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                ambientPrimary.copy(alpha = 0.62f),
+                                ambientPrimary.copy(alpha = 0.30f),
+                                Color.Transparent
+                            ),
+                            center = Offset(
+                                size.width * 0.18f,
+                                size.height * 0.88f
+                            ),
+                            radius = radius
+                        )
+                    )
+
+                    // Secondary artwork colour
+
+                    drawRect(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                ambientSecondary.copy(alpha = 0.55f),
+                                ambientSecondary.copy(alpha = 0.24f),
+                                Color.Transparent
+                            ),
+                            center = Offset(
+                                size.width * 0.88f,
+                                size.height * 0.62f
+                            ),
+                            radius = radius * 0.82f
+                        )
+                    )
+
+                    // Tertiary artwork colour
+
+                    drawRect(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                ambientTertiary.copy(alpha = 0.48f),
+                                ambientTertiary.copy(alpha = 0.20f),
+                                Color.Transparent
+                            ),
+                            center = Offset(
+                                size.width * 0.52f,
+                                size.height * 0.98f
+                            ),
+                            radius = radius * 0.72f
+                        )
+                    )
+                }
         ) {
-            AsyncImage(
-                model = state.artworkUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .blur(38.dp)
-                    .alpha(0.55f)
-            )
+            // Dark contrast layer
 
             Box(
                 modifier = Modifier
@@ -350,14 +443,15 @@ fun NovaFullPlayerScreen(
                         Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color(0x5509070F),
-                                Color(0xB309070F),
-                                Color(0xE609070F)
+                                PlayerBackground.copy(alpha = 0.28f),
+                                PlayerBackground.copy(alpha = 0.78f),
+                                PlayerBackground
                             )
                         )
                     )
             )
         }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -533,7 +627,7 @@ fun NovaFullPlayerScreen(
             // Compact Audio Quality pill
 
             Surface(
-                                onClick = {
+                onClick = {
                     showSignalPath = true
                 },
                 shape = RoundedCornerShape(50.dp),
@@ -704,8 +798,7 @@ fun NovaFullPlayerScreen(
                     )
                 }
             }
-
-            Spacer(Modifier.height(18.dp))
+                        Spacer(Modifier.height(18.dp))
 
             // Bottom Player Controls
 
@@ -717,22 +810,34 @@ fun NovaFullPlayerScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = onToggleShuffle) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         Icon(
                             Icons.Default.Shuffle,
                             contentDescription = "Shuffle",
-                            tint = if (shuffleEnabled) PlayerLavender else PlayerMuted
+                            tint = if (shuffleEnabled) {
+                                PlayerLavender
+                            } else {
+                                PlayerMuted
+                            }
                         )
                         Text(
                             "Shuffle",
-                            color = if (shuffleEnabled) PlayerLavender else PlayerMuted,
+                            color = if (shuffleEnabled) {
+                                PlayerLavender
+                            } else {
+                                PlayerMuted
+                            },
                             fontSize = 11.sp
                         )
                     }
                 }
 
                 TextButton(onClick = { showSignalPath = true }) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         Icon(
                             Icons.Default.VolumeUp,
                             contentDescription = "Audio Output",
@@ -747,7 +852,9 @@ fun NovaFullPlayerScreen(
                 }
 
                 TextButton(onClick = onCycleRepeat) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         Icon(
                             imageVector = if (repeatMode == RepeatMode.ONE) {
                                 Icons.Default.RepeatOne
@@ -755,7 +862,11 @@ fun NovaFullPlayerScreen(
                                 Icons.Default.Repeat
                             },
                             contentDescription = "Repeat",
-                            tint = if (repeatMode != RepeatMode.OFF) PlayerLavender else PlayerMuted
+                            tint = if (repeatMode != RepeatMode.OFF) {
+                                PlayerLavender
+                            } else {
+                                PlayerMuted
+                            }
                         )
                         Text(
                             text = when (repeatMode) {
@@ -763,7 +874,11 @@ fun NovaFullPlayerScreen(
                                 RepeatMode.ALL -> "Repeat All"
                                 RepeatMode.ONE -> "Repeat One"
                             },
-                            color = if (repeatMode != RepeatMode.OFF) PlayerLavender else PlayerMuted,
+                            color = if (repeatMode != RepeatMode.OFF) {
+                                PlayerLavender
+                            } else {
+                                PlayerMuted
+                            },
                             fontSize = 11.sp
                         )
                     }
@@ -773,7 +888,8 @@ fun NovaFullPlayerScreen(
     }
 
     // Audio Signal Path dialog
-        if (showSignalPath) {
+
+    if (showSignalPath) {
         Dialog(
             onDismissRequest = {
                 showSignalPath = false
@@ -827,6 +943,7 @@ fun NovaFullPlayerScreen(
         }
     }
 }
+
 /* ---------------- DEDICATED LYRICS SCREEN ---------------- */
 
 @Composable
@@ -1022,7 +1139,7 @@ fun NovaDedicatedLyricsScreen(
                                 .background(
                                     Brush.verticalGradient(
                                         listOf(
-                                                                                        PlayerBackground,
+                                            PlayerBackground,
                                             PlayerSurface,
                                             PlayerBackground
                                         )
@@ -1120,8 +1237,7 @@ fun NovaDedicatedLyricsScreen(
                     )
                 }
             }
-
-            Spacer(Modifier.height(35.dp))
+                        Spacer(Modifier.height(35.dp))
 
             Text(
                 "FEEL THE SOUND",
