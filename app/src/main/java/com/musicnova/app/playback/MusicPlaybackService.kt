@@ -14,8 +14,10 @@ import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.drm.DrmSessionManagerProvider
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
+import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.google.common.util.concurrent.Futures
@@ -38,6 +40,19 @@ class MusicPlaybackService : MediaSessionService() {
             LeastRecentlyUsedCacheEvictor(100L * 1024 * 1024),
             StandaloneDatabaseProvider(this)
         )
+
+        val baseMediaSourceFactory =
+            DefaultMediaSourceFactory(
+                CacheDataSource.Factory()
+                    .setCache(streamCache!!)
+                    .setUpstreamDataSourceFactory(
+                        DefaultHttpDataSource.Factory()
+                            .setAllowCrossProtocolRedirects(true)
+                    )
+                    .setFlags(
+                        CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR
+                    )
+            )
 
         val mediaSourceFactory =
             object : MediaSource.Factory {
@@ -70,30 +85,48 @@ class MusicPlaybackService : MediaSessionService() {
                             emptyMap()
                         }
 
-                    val httpFactory =
+                    val itemHttpFactory =
                         DefaultHttpDataSource.Factory()
                             .setAllowCrossProtocolRedirects(true)
                             .setDefaultRequestProperties(headers)
 
-                    val cacheFactory =
+                    val itemCacheFactory =
                         CacheDataSource.Factory()
                             .setCache(streamCache!!)
                             .setUpstreamDataSourceFactory(
-                                httpFactory
+                                itemHttpFactory
                             )
                             .setFlags(
                                 CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR
                             )
 
                     return DefaultMediaSourceFactory(
-                        cacheFactory
+                        itemCacheFactory
                     ).createMediaSource(mediaItem)
                 }
 
                 override fun getSupportedTypes(): IntArray {
-                    return DefaultMediaSourceFactory(
-                        DefaultHttpDataSource.Factory()
-                    ).getSupportedTypes()
+                    return baseMediaSourceFactory.getSupportedTypes()
+                }
+
+                override fun setDrmSessionManagerProvider(
+                    drmSessionManagerProvider: DrmSessionManagerProvider
+                ): MediaSource.Factory {
+                    baseMediaSourceFactory
+                        .setDrmSessionManagerProvider(
+                            drmSessionManagerProvider
+                        )
+                    return this
+                }
+
+                override fun setLoadErrorHandlingPolicy(
+                    loadErrorHandlingPolicy: LoadErrorHandlingPolicy
+                ): MediaSource.Factory {
+                    baseMediaSourceFactory
+                        .setLoadErrorHandlingPolicy(
+                            loadErrorHandlingPolicy
+                        )
+                    return this
                 }
             }
 
