@@ -1,11 +1,5 @@
 package com.musicnova.app
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,15 +17,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.musicnova.app.playback.MusicPlayer
 import com.musicnova.app.playback.PlaybackState
+import com.musicnova.app.playback.AudioSignalPathScreen
 import com.musicnova.app.data.lyrics.LyricsRepository
 import com.musicnova.app.data.lyrics.LyricsResult
 import com.musicnova.app.data.lyrics.parseLyrics
@@ -175,29 +171,13 @@ fun NovaFullPlayerScreen(
     var currentPosition by remember { mutableFloatStateOf(0f) }
     var duration by remember { mutableFloatStateOf(1f) }
     var isSeeking by remember { mutableStateOf(false) }
+    var showSignalPath by remember { mutableStateOf(false) }
 
     var lyricsState by remember {
         mutableStateOf<LyricsUiState>(LyricsUiState.Idle)
     }
 
     val lyricsRepository = remember { LyricsRepository() }
-
-    val rotationTransition = rememberInfiniteTransition(
-        label = "NovaAlbumRotation"
-    )
-
-    val albumRotation by rotationTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = 18000,
-                easing = LinearEasing
-            ),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "AlbumRotation"
-    )
 
     // Playback position update
     LaunchedEffect(musicPlayer) {
@@ -365,17 +345,10 @@ LaunchedEffect(state.title, state.artist) {
 
             Spacer(Modifier.height(28.dp))
 
-            // Animated album artwork
+            // Static album artwork (rotation removed)
             Box(
                 modifier = Modifier
                     .size(292.dp)
-                    .graphicsLayer {
-                        rotationZ = if (state.isPlaying) {
-                            albumRotation
-                        } else {
-                            0f
-                        }
-                    }
                     .clip(CircleShape)
                     .border(
                         2.dp,
@@ -464,7 +437,46 @@ LaunchedEffect(state.title, state.artist) {
                 }
             }
 
-            Spacer(Modifier.height(25.dp))
+            Spacer(Modifier.height(18.dp))
+
+            // Audio Signal Path entry
+            Surface(
+                onClick = { showSignalPath = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(14.dp),
+                color = PlayerSurface,
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    PlayerLavender.copy(alpha = 0.22f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.GraphicEq,
+                        contentDescription = "Audio Signal Path",
+                        tint = PlayerLavender
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        "Audio Details • Signal Path",
+                        color = Color.White,
+                        modifier = Modifier.weight(1f),
+                        fontSize = 13.sp
+                    )
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = "Open Signal Path",
+                        tint = PlayerLavender
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(18.dp))
 
             // Seekbar
             Slider(
@@ -564,7 +576,8 @@ LaunchedEffect(state.title, state.artist) {
             }
 
             Spacer(Modifier.height(28.dp))
-                        // ---------------- LYRICS SECTION ----------------
+            
+            // ---------------- LYRICS SECTION ----------------
 
             Spacer(Modifier.height(30.dp))
 
@@ -596,22 +609,20 @@ LaunchedEffect(state.title, state.artist) {
                 ) {
                     Text(
                         text = when (val currentState = lyricsState) {
-    is LyricsUiState.Success -> {
-        if (currentState.result.isWordSynced) {
-            "WORD SYNC"
-        } else if (currentState.result.isSynced) {
-            "LINE SYNC"
-        } else {
-            "PLAIN"
-        }
-    }
-    LyricsUiState.Loading -> "LOADING"
-    LyricsUiState.Empty -> "NO LYRICS"
-    is LyricsUiState.Error -> "ERROR"
-    LyricsUiState.Idle -> "WAITING"
-},
-                            
-                            
+                            is LyricsUiState.Success -> {
+                                if (currentState.result.isWordSynced) {
+                                    "WORD SYNC"
+                                } else if (currentState.result.isSynced) {
+                                    "LINE SYNC"
+                                } else {
+                                    "PLAIN"
+                                }
+                            }
+                            LyricsUiState.Loading -> "LOADING"
+                            LyricsUiState.Empty -> "NO LYRICS"
+                            is LyricsUiState.Error -> "ERROR"
+                            LyricsUiState.Idle -> "WAITING"
+                        },
                         color = PlayerLavender,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
@@ -794,8 +805,7 @@ LaunchedEffect(state.title, state.artist) {
                             }
                         }
                     } else {
-                        // Plain lyrics: show all lines instead of
-                        // treating every line as the active timestamp.
+                        // Plain lyrics: show all lines
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -829,7 +839,8 @@ LaunchedEffect(state.title, state.artist) {
             }
 
             Spacer(Modifier.height(30.dp))
-                        // Footer
+
+            // Footer
             Spacer(Modifier.height(20.dp))
 
             Text(
@@ -839,6 +850,29 @@ LaunchedEffect(state.title, state.artist) {
                 letterSpacing = 3.sp,
                 modifier = Modifier.padding(bottom = 22.dp)
             )
+        }
+
+        // Signal Path full-screen dialog
+        if (showSignalPath) {
+            Dialog(
+                onDismissRequest = {
+                    showSignalPath = false
+                },
+                properties = DialogProperties(
+                    usePlatformDefaultWidth = false
+                )
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = PlayerBackground
+                ) {
+                    AudioSignalPathScreen(
+                        onBack = {
+                            showSignalPath = false
+                        }
+                    )
+                }
+            }
         }
     }
 }
