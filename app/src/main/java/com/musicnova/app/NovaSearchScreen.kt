@@ -18,10 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -258,8 +256,7 @@ fun NovaFullPlayerScreen(
         animationSpec = tween(durationMillis = 700),
         label = "ArtworkTertiary"
     )
-
-    // Playback position synchronization
+        // Playback position synchronization
 
     LaunchedEffect(musicPlayer) {
         while (true) {
@@ -339,158 +336,21 @@ fun NovaFullPlayerScreen(
             }
         }
     }
-    
-    // modern-style full-screen ambient background
+
+    // Full Player
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(PlayerBackground)
     ) {
-
-        // 1. Full-screen blurred artwork
-
-        AsyncImage(
-            model = state.artworkUrl,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = 1.35f
-                    scaleY = 1.35f
-                    alpha = 0.9f
-                }
-                .blur(20.dp)
-        )
-
-        // 2. Base dark overlay
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Color.Black.copy(alpha = 0.52f)
-                )
-        )
-
-        // 3. Primary radial ambient colour
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .drawBehind {
-                    drawRect(
-                        brush = Brush.radialGradient(
-                            colorStops = arrayOf(
-                                0.0f to ambientPrimary.copy(alpha = 0.58f),
-                                0.45f to ambientPrimary.copy(alpha = 0.22f),
-                                1.0f to Color.Transparent
-                            ),
-                            center = Offset(
-                                size.width * 0.25f,
-                                size.height * 0.20f
-                            ),
-                            radius = size.maxDimension * 0.85f
-                        )
-                    )
-                }
-        )
-
-        // 4. Secondary radial ambient colour
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .drawBehind {
-                    drawRect(
-                        brush = Brush.radialGradient(
-                            colorStops = arrayOf(
-                                0.0f to ambientSecondary.copy(alpha = 0.52f),
-                                0.50f to ambientSecondary.copy(alpha = 0.20f),
-                                1.0f to Color.Transparent
-                            ),
-                            center = Offset(
-                                size.width * 0.88f,
-                                size.height * 0.65f
-                            ),
-                            radius = size.maxDimension * 0.78f
-                        )
-                    )
-                }
-        )
-
-        // 5. Tertiary radial ambient colour
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .drawBehind {
-                    drawRect(
-                        brush = Brush.radialGradient(
-                            colorStops = arrayOf(
-                                0.0f to ambientTertiary.copy(alpha = 0.42f),
-                                0.55f to ambientTertiary.copy(alpha = 0.14f),
-                                1.0f to Color.Transparent
-                            ),
-                            center = Offset(
-                                size.width * 0.15f,
-                                size.height * 0.82f
-                            ),
-                            radius = size.maxDimension * 0.70f
-                        )
-                    )
-                }
-        )
-
-        // 6. Vertical cinematic contrast scrim
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0.00f to Color.Black.copy(alpha = 0.35f),
-                            0.28f to Color.Black.copy(alpha = 0.15f),
-                            0.65f to Color.Black.copy(alpha = 0.40f),
-                            1.00f to Color.Black.copy(alpha = 0.72f)
-                        )
-                    )
-                )
-        )
-
-        // 7. Edge vignette
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .drawBehind {
-                    drawRect(
-                        brush = Brush.radialGradient(
-                            colorStops = arrayOf(
-                                0.0f to Color.Transparent,
-                                0.65f to Color.Transparent,
-                                1.0f to Color.Black.copy(alpha = 0.30f)
-                            ),
-                            center = Offset(
-                                size.width * 0.50f,
-                                size.height * 0.40f
-                            ),
-                            radius = size.maxDimension * 0.80f
-                        )
-                    )
-                }
-        )
-
-        // 8. Full Player content
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
             // Top bar
@@ -606,8 +466,42 @@ fun NovaFullPlayerScreen(
                 }
             }
 
-            Spacer(Modifier.weight(1f))
-            
+            // Album artwork
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(260.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = state.artworkUrl,
+                    contentDescription = "Album artwork",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(250.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                )
+            }
+
+            // Dynamic gradient begins at the bottom edge of artwork
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.0f to ambientPrimary.copy(alpha = 0.62f),
+                                0.35f to ambientSecondary.copy(alpha = 0.38f),
+                                0.72f to ambientTertiary.copy(alpha = 0.18f),
+                                1.0f to PlayerBackground
+                            )
+                        )
+                    )
+            )
+
             // Song information
 
             Row(
@@ -616,9 +510,13 @@ fun NovaFullPlayerScreen(
                     .padding(bottom = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text(
-                        text = state.title.ifBlank { "Unknown Track" },
+                        text = state.title.ifBlank {
+                            "Unknown Track"
+                        },
                         color = Color.White,
                         fontSize = 25.sp,
                         fontWeight = FontWeight.Bold,
@@ -629,7 +527,9 @@ fun NovaFullPlayerScreen(
                     Spacer(Modifier.height(5.dp))
 
                     Text(
-                        text = state.artist.ifBlank { "Unknown Artist" },
+                        text = state.artist.ifBlank {
+                            "Unknown Artist"
+                        },
                         color = Color.White.copy(alpha = 0.72f),
                         fontSize = 15.sp,
                         maxLines = 1,
@@ -637,7 +537,11 @@ fun NovaFullPlayerScreen(
                     )
                 }
 
-                IconButton(onClick = { showLyricsScreen = true }) {
+                IconButton(
+                    onClick = {
+                        showLyricsScreen = true
+                    }
+                ) {
                     Icon(
                         Icons.Default.Lyrics,
                         contentDescription = "Open lyrics",
@@ -650,7 +554,9 @@ fun NovaFullPlayerScreen(
             // Audio Quality
 
             Surface(
-                onClick = { showSignalPath = true },
+                onClick = {
+                    showSignalPath = true
+                },
                 shape = RoundedCornerShape(50.dp),
                 color = Color.White.copy(alpha = 0.13f),
                 border = androidx.compose.foundation.BorderStroke(
@@ -691,8 +597,7 @@ fun NovaFullPlayerScreen(
                     )
                 }
             }
-
-            Spacer(Modifier.height(20.dp))
+                        Spacer(Modifier.height(20.dp))
 
             // Progress slider
 
@@ -900,7 +805,6 @@ fun NovaFullPlayerScreen(
             }
         }
 }
-
     // Audio Signal Path dialog
 
     if (showSignalPath) {
@@ -1102,8 +1006,7 @@ fun NovaDedicatedLyricsScreen(
                         fontSize = 13.sp
                     )
                 }
-
-                is LyricsUiState.Error -> {
+                                is LyricsUiState.Error -> {
                     Spacer(Modifier.height(100.dp))
 
                     Icon(
@@ -1203,7 +1106,7 @@ fun NovaDedicatedLyricsScreen(
                                 }
                             }
                         }
-                       
+
                         Spacer(Modifier.height(15.dp))
 
                         Text(
@@ -1348,5 +1251,3 @@ fun NovaBottomNavigation(
         }
     }
 }
-
-            
