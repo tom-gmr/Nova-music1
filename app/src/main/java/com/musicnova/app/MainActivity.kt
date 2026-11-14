@@ -402,6 +402,7 @@ fun MusicNovaApp() {
 
             } else if (showFullPlayer && playbackState.hasMedia) {
 
+                
                 NovaFullPlayerScreen(
                     state = playbackState,
                     musicPlayer = musicPlayer,
@@ -419,14 +420,29 @@ fun MusicNovaApp() {
                         playNextTrack()
                     },
 
-                    
-onPrevious = {
-    playPreviousTrack()
-},
+                    onPrevious = {
+                        playPreviousTrack()
+                    },
 
-onOpenQueue = {
-    showQueueScreen = true
-}
+                    onOpenQueue = {
+                        showQueueScreen = true
+                    },
+
+                    shuffleEnabled = queueState.shuffleEnabled,
+
+                    repeatMode = queueState.repeatMode,
+
+                    onToggleShuffle = {
+                        val enabled = playbackQueue.toggleShuffle()
+                        musicPlayer.setShuffleEnabled(enabled)
+                    },
+
+                    onCycleRepeat = {
+                        val mode = playbackQueue.cycleRepeatMode()
+                        musicPlayer.setRepeatMode(mode)
+                    }
+                )
+                
 
                 )
 
