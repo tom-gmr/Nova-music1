@@ -1,3 +1,4 @@
+
 package com.musicnova.app.data.music
 
 import android.content.Context
@@ -20,9 +21,10 @@ class MusicRepository @Inject constructor(
     private val libraryStore = LibraryStore(context)
     private val musicApi = InnerTubeMusicApi()
 
-    suspend fun loadHomeMusic(): HomeMusicData {
+    suspend fun loadHomeMusic(
+        currentTrack: YouTubeMusicTrack? = null
+    ): HomeMusicData {
 
-        // Load library sections independently.
         val recent = try {
             libraryStore.getRecentlyPlayed()
         } catch (e: CancellationException) {
@@ -41,7 +43,6 @@ class MusicRepository @Inject constructor(
             emptyList()
         }
 
-        // Native home feed should not block other sections.
         val nativeHomePage = try {
             musicApi.fetchHomePage()
         } catch (e: CancellationException) {
@@ -51,10 +52,23 @@ class MusicRepository @Inject constructor(
             null
         }
 
-        // Build recommendation search seeds.
-        val seeds = (liked + recent)
+        // Current playing song gets first priority as a recommendation seed.
+        val currentSeed = currentTrack
+            ?.takeIf { it.videoId.isNotBlank() && !it.isArtist }
+            ?.let {
+                LibraryTrack(
+                    videoId = it.videoId,
+                    title = it.title,
+                    artist = it.artist,
+                    artworkUrl = it.artworkUrl
+                )
+            }
+
+        val seeds = (
+            listOfNotNull(currentSeed) + liked + recent
+        )
             .distinctBy { it.videoId }
-            .take(5)
+            .take(8)
 
         val found = mutableListOf<YouTubeMusicTrack>()
 
@@ -78,12 +92,14 @@ class MusicRepository @Inject constructor(
             }
         }
 
-        // Exclude songs already in the user's library history.
-        val excluded = (liked + recent)
-            .map { it.videoId }
-            .toSet()
+        // Avoid recommending songs already present in recent/liked history,
+        // and avoid recommending the song that is currently playing.
+        val excluded = (
+            liked.map { it.videoId } +
+                recent.map { it.videoId } +
+                listOfNotNull(currentSeed?.videoId)
+            ).toSet()
 
-        // Connect saved playback behaviour to recommendations.
         val playbackStats = try {
             libraryStore.readPlaybackStats()
         } catch (e: CancellationException) {
@@ -113,14 +129,12 @@ class MusicRepository @Inject constructor(
             }
         )
 
-        // Rank candidates using listening time and skip behaviour.
         val recommendations = RecommendationEngine.rank(
             candidates = found,
             signals = recommendationSignals,
             limit = 15
         )
 
-        // Trending loads independently from recommendations.
         val trending = searchSafely(
             query = "trending hit songs India",
             limit = 20,
