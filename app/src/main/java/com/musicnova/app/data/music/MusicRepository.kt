@@ -51,6 +51,7 @@ class MusicRepository @Inject constructor(
             null
         }
 
+        // Build recommendation search seeds.
         val seeds = (liked + recent)
             .distinctBy { it.videoId }
             .take(5)
@@ -77,23 +78,47 @@ class MusicRepository @Inject constructor(
             }
         }
 
+        // Exclude songs already in the user's library history.
         val excluded = (liked + recent)
             .map { it.videoId }
             .toSet()
 
-        
+        // Connect saved playback behaviour to recommendations.
+        val playbackStats = try {
+            libraryStore.readPlaybackStats()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w("MusicRepository", "Playback stats loading failed", e)
+            emptyMap()
+        }
+
         val recommendationSignals = RecommendationSignals(
-            likedVideoIds = liked.map { it.videoId }.toSet(),
-            recentlyPlayedVideoIds = recent.map { it.videoId }.toSet(),
-            excludedVideoIds = excluded
+            likedVideoIds = liked
+                .map { it.videoId }
+                .toSet(),
+
+            recentlyPlayedVideoIds = recent
+                .map { it.videoId }
+                .toSet(),
+
+            excludedVideoIds = excluded,
+
+            listenedDurationMs = playbackStats.mapValues {
+                (_, stats) -> stats.listenedDurationMs
+            },
+
+            skipCounts = playbackStats.mapValues {
+                (_, stats) -> stats.skipCount
+            }
         )
 
+        // Rank candidates using listening time and skip behaviour.
         val recommendations = RecommendationEngine.rank(
             candidates = found,
             signals = recommendationSignals,
             limit = 15
         )
-        
 
         // Trending loads independently from recommendations.
         val trending = searchSafely(
