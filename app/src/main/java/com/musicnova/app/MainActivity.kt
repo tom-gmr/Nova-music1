@@ -636,14 +636,15 @@ fun MusicNovaApp() {
                                                 },
 
                                                 onBrowse = { browseId ->
-                                              currentBrowseId = browseId
-},                                           currentTrack = activeTrack,
- 
-                                                currentTrack = activeTrack,
+    currentBrowseId = browseId
+},
 
-                                                contentPadding = PaddingValues(
-                                                    bottom = shellPadding.calculateBottomPadding()
-                                                )
+currentTrack = activeTrack,
+
+contentPadding = PaddingValues(
+    bottom = shellPadding.calculateBottomPadding()
+)
+
                                             )
                                         }
 
