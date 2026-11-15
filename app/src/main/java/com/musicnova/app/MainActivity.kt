@@ -111,7 +111,6 @@ fun MusicNovaApp() {
     }
 
     val playbackState by musicPlayer.playbackState.collectAsState()
-
     val queueState by playbackQueue.state.collectAsState()
 
     var positionMs by remember {
@@ -171,7 +170,8 @@ fun MusicNovaApp() {
             musicPlayer.release()
         }
     }
-        fun saveTrackedSession() {
+
+    fun saveTrackedSession() {
 
         val videoId = trackedVideoId ?: return
 
@@ -394,7 +394,8 @@ fun MusicNovaApp() {
             musicPlayer.setOnTrackEndedListener(null)
         }
     }
-        val glassPlayerActions = PlayerActions(
+
+    val glassPlayerActions = PlayerActions(
 
         onTogglePlay = {
             musicPlayer.togglePlayPause()
@@ -636,15 +637,14 @@ fun MusicNovaApp() {
                                                 },
 
                                                 onBrowse = { browseId ->
-    currentBrowseId = browseId
-},
+                                                    currentBrowseId = browseId
+                                                },
 
-currentTrack = activeTrack,
+                                                currentTrack = activeTrack,
 
-contentPadding = PaddingValues(
-    bottom = shellPadding.calculateBottomPadding()
-)
-
+                                                contentPadding = PaddingValues(
+                                                    bottom = shellPadding.calculateBottomPadding()
+                                                )
                                             )
                                         }
 
@@ -730,6 +730,8 @@ contentPadding = PaddingValues(
                                                     currentBrowseId = browseId
                                                 },
 
+                                                currentTrack = activeTrack,
+
                                                 contentPadding = PaddingValues(
                                                     bottom = shellPadding.calculateBottomPadding()
                                                 )
@@ -744,7 +746,9 @@ contentPadding = PaddingValues(
             }
         }
     }
+  
 }
+
 @Composable
 private fun NovaTopHeader(
     selectedTab: String,
@@ -867,3 +871,4 @@ private fun LibraryTrack.toMusicTrack(): YouTubeMusicTrack {
         isArtist = false
     )
 }
+
