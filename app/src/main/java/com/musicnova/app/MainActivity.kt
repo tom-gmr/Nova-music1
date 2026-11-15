@@ -121,7 +121,17 @@ fun MusicNovaApp() {
     var durationMs by remember {
         mutableLongStateOf(0L)
     }
+var trackedVideoId by remember {
+    mutableStateOf<String?>(null)
+}
 
+var lastTrackedPositionMs by remember {
+    mutableLongStateOf(0L)
+}
+
+var sessionListenedMs by remember {
+    mutableLongStateOf(0L)
+}
     LaunchedEffect(playbackState.hasMedia) {
 
         while (playbackState.hasMedia) {
