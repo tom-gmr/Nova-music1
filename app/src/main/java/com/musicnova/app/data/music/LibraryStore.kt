@@ -25,6 +25,11 @@ data class MusicPlaylist(
     val tracks: List<LibraryTrack>
 )
 
+data class TrackPlaybackStats(
+    val listenedDurationMs: Long = 0L,
+    val skipCount: Int = 0
+)
+
 class LibraryStore(context: Context) {
 
     private val preferences = context.getSharedPreferences(
@@ -36,6 +41,7 @@ class LibraryStore(context: Context) {
         private const val KEY_LIKED = "liked_songs"
         private const val KEY_RECENT = "recently_played"
         private const val KEY_PLAYLISTS = "playlists"
+        private const val KEY_PLAYBACK_STATS = "playback_stats"
         private const val MAX_RECENT = 30
 
         @Volatile
@@ -139,7 +145,7 @@ class LibraryStore(context: Context) {
             }
         }
     }
-
+    
     private fun trackToJson(
         track: LibraryTrack
     ): JSONObject {
@@ -268,6 +274,81 @@ class LibraryStore(context: Context) {
 
     fun getRecentlyPlayed(): List<LibraryTrack> {
         return readTracks(KEY_RECENT)
+    }
+    
+    fun recordPlaybackStats(
+        videoId: String,
+        listenedDurationMs: Long,
+        skipped: Boolean
+    ) {
+        if (videoId.isBlank()) return
+
+        synchronized(this) {
+            val allStats = readPlaybackStats().toMutableMap()
+            val oldStats = allStats[videoId] ?: TrackPlaybackStats()
+
+            allStats[videoId] = TrackPlaybackStats(
+                listenedDurationMs =
+                    oldStats.listenedDurationMs +
+                        listenedDurationMs.coerceAtLeast(0L),
+                skipCount = oldStats.skipCount +
+                    if (skipped) 1 else 0
+            )
+
+            val json = JSONObject()
+
+            allStats.forEach { (id, stats) ->
+                json.put(
+                    id,
+                    JSONObject()
+                        .put(
+                            "listenedDurationMs",
+                            stats.listenedDurationMs
+                        )
+                        .put("skipCount", stats.skipCount)
+                )
+            }
+
+            preferences.edit()
+                .putString(KEY_PLAYBACK_STATS, json.toString())
+                .apply()
+        }
+    }
+
+    fun readPlaybackStats(): Map<String, TrackPlaybackStats> {
+        return try {
+            val json = JSONObject(
+                preferences.getString(
+                    KEY_PLAYBACK_STATS,
+                    "{}"
+                ) ?: "{}"
+            )
+
+            buildMap {
+                val keys = json.keys()
+
+                while (keys.hasNext()) {
+                    val id = keys.next()
+                    val item = json.optJSONObject(id) ?: continue
+
+                    put(
+                        id,
+                        TrackPlaybackStats(
+                            listenedDurationMs = item.optLong(
+                                "listenedDurationMs",
+                                0L
+                            ),
+                            skipCount = item.optInt(
+                                "skipCount",
+                                0
+                            )
+                        )
+                    )
+                }
+            }
+        } catch (_: Exception) {
+            emptyMap()
+        }
     }
 
     fun getPlaylists(): List<MusicPlaylist> {
