@@ -11,6 +11,7 @@ import com.musicnova.app.data.music.YouTubeMusicTrack
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -43,18 +44,36 @@ class MusicViewModel @Inject constructor(
 
     private val artworkSemaphore = Semaphore(6)
 
-    fun loadHomeMusic() {
-        if (_uiState.value.isLoading) return
+    private var currentTrack: YouTubeMusicTrack? = null
+    private var homeLoadJob: Job? = null
 
-        viewModelScope.launch {
+    /**
+     * Called whenever the currently playing song changes.
+     * A new song becomes the recommendation search seed.
+     */
+    fun setCurrentTrack(track: YouTubeMusicTrack?) {
+        val oldId = currentTrack?.videoId
+        val newId = track?.videoId
+
+        if (oldId == newId) return
+
+        currentTrack = track
+        loadHomeMusic(track)
+    }
+
+    fun loadHomeMusic(
+        seedTrack: YouTubeMusicTrack? = currentTrack
+    ) {
+        homeLoadJob?.cancel()
+
+        homeLoadJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(isLoading = true, error = null)
             }
 
             try {
-                val data = repository.loadHomeMusic()
+                val data = repository.loadHomeMusic(seedTrack)
 
-                // Publish music data immediately.
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -67,7 +86,6 @@ class MusicViewModel @Inject constructor(
                     )
                 }
 
-                // Resolve artwork independently in background.
                 scheduleArtworkResolution(
                     data.recommendations +
                         data.trending +
@@ -133,7 +151,7 @@ class MusicViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                // Keep the existing artwork if lookup fails.
+                // Keep existing artwork if lookup fails.
             }
         }
     }
@@ -153,10 +171,13 @@ class MusicViewModel @Inject constructor(
                             recentlyPlayed = state.recentlyPlayed.map {
                                 if (it.videoId == track.videoId) {
                                     it.copy(artworkUrl = artwork)
-                                } else it
+                                } else {
+                                    it
+                                }
                             }
                         )
                     }
+
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
@@ -175,19 +196,25 @@ class MusicViewModel @Inject constructor(
             val recommendations = state.recommendations.map {
                 if (it.videoId == videoId) {
                     it.copy(artworkUrl = artwork)
-                } else it
+                } else {
+                    it
+                }
             }
 
             val trending = state.trending.map {
                 if (it.videoId == videoId) {
                     it.copy(artworkUrl = artwork)
-                } else it
+                } else {
+                    it
+                }
             }
 
             val searchResults = state.searchResults.map {
                 if (it.videoId == videoId) {
                     it.copy(artworkUrl = artwork)
-                } else it
+                } else {
+                    it
+                }
             }
 
             val nativePage = state.nativeHomePage?.let { page ->
@@ -206,7 +233,9 @@ class MusicViewModel @Inject constructor(
                                                     largeArtworkUrl = artwork
                                                 )
                                             )
-                                        } else item
+                                        } else {
+                                            item
+                                        }
                                     }
 
                                     is HomeShelfItem.Playlist -> {
@@ -214,7 +243,9 @@ class MusicViewModel @Inject constructor(
                                             previewSongs = item.previewSongs.map {
                                                 if (it.videoId == videoId) {
                                                     it.copy(artworkUrl = artwork)
-                                                } else it
+                                                } else {
+                                                    it
+                                                }
                                             }
                                         )
                                     }
@@ -260,7 +291,6 @@ class MusicViewModel @Inject constructor(
             try {
                 val results = repository.searchSongs(query.trim())
 
-                // Show search results without waiting for artwork.
                 _uiState.update {
                     it.copy(
                         isSearching = false,
@@ -299,4 +329,3 @@ class MusicViewModel @Inject constructor(
         loadHomeMusic()
     }
 }
-
