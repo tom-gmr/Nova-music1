@@ -1,8 +1,9 @@
-
 package com.musicnova.app
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.musicnova.app.data.music.YouTubeMusicTrack
 import com.musicnova.app.ui.home.HomeActions
@@ -11,25 +12,29 @@ import com.musicnova.app.ui.home.HomeScreen
 import com.musicnova.app.ui.home.HomeSong
 import com.musicnova.app.ui.home.HomeUiState
 import com.musicnova.app.ui.home.MusicViewModel
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.ui.unit.dp
+
 @Composable
 fun RecommendationsHomeScreen(
     onPlay: (YouTubeMusicTrack) -> Unit,
     onPlayQueue: (List<YouTubeMusicTrack>, YouTubeMusicTrack) -> Unit =
-    { _, track -> onPlay(track) },
+        { _, track -> onPlay(track) },
     onBrowse: (String) -> Unit,
     onPlayNext: (YouTubeMusicTrack) -> Unit = {},
     onAddToQueue: (YouTubeMusicTrack) -> Unit = {},
-contentPadding: PaddingValues = PaddingValues(0.dp)
+    currentTrack: YouTubeMusicTrack? = null,
+    contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val viewModel: MusicViewModel = hiltViewModel()
     val musicState by viewModel.uiState.collectAsState()
 
     var selectedMood by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(Unit) {
-        viewModel.loadHomeMusic()
+    LaunchedEffect(currentTrack?.videoId) {
+        if (currentTrack == null) {
+            viewModel.loadHomeMusic()
+        } else {
+            viewModel.setCurrentTrack(currentTrack)
+        }
     }
 
     fun YouTubeMusicTrack.toHomeSong() = HomeSong(
@@ -70,11 +75,13 @@ contentPadding: PaddingValues = PaddingValues(0.dp)
         }
         .orEmpty()
         .distinctBy { it.id }
- val allHomeTracks = (
-    musicState.recommendations +
-    musicState.trending +
-    nativeTracks
-).distinctBy { it.videoId }
+
+    val allHomeTracks = (
+        musicState.recommendations +
+            musicState.trending +
+            nativeTracks
+        ).distinctBy { it.videoId }
+
     val homeState = HomeUiState(
         isLoading = musicState.isLoading,
         featured = musicState.recommendations.firstOrNull()?.toHomeSong(),
@@ -96,30 +103,32 @@ contentPadding: PaddingValues = PaddingValues(0.dp)
 
     val actions = HomeActions(
         onPlaySong = { song ->
-            val track = (musicState.recommendations +
-                musicState.trending + nativeTracks)
-                .firstOrNull { it.videoId == song.id }
+            val track = allHomeTracks.firstOrNull {
+                it.videoId == song.id
+            }
 
-            track?.let { onPlayQueue(allHomeTracks, it) }
+            track?.let {
+                onPlayQueue(allHomeTracks, it)
+            }
         },
         onPlayNext = { song ->
-            val track = (musicState.recommendations +
-                musicState.trending + nativeTracks)
-                .firstOrNull { it.videoId == song.id }
+            val track = allHomeTracks.firstOrNull {
+                it.videoId == song.id
+            }
 
             track?.let(onPlayNext)
         },
         onAddToQueue = { song ->
-            val track = (musicState.recommendations +
-                musicState.trending + nativeTracks)
-                .firstOrNull { it.videoId == song.id }
+            val track = allHomeTracks.firstOrNull {
+                it.videoId == song.id
+            }
 
             track?.let(onAddToQueue)
         },
         onToggleLike = { song ->
-            val track = (musicState.recommendations +
-                musicState.trending + nativeTracks)
-                .firstOrNull { it.videoId == song.id }
+            val track = allHomeTracks.firstOrNull {
+                it.videoId == song.id
+            }
 
             track?.let(viewModel::toggleLike)
         },
