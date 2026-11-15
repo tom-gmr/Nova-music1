@@ -85,7 +85,7 @@ class MusicRepository @Inject constructor(
         val recommendationSignals = RecommendationSignals(
             likedVideoIds = liked.map { it.videoId }.toSet(),
             recentlyPlayedVideoIds = recent.map { it.videoId }.toSet(),
-            excludedVideoIds = emptySet()
+            excludedVideoIds = excluded
         )
 
         val recommendations = RecommendationEngine.rank(
