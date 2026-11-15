@@ -81,14 +81,19 @@ class MusicRepository @Inject constructor(
             .map { it.videoId }
             .toSet()
 
-        val recommendations = found
-            .filterNot {
-                it.isArtist ||
-                    it.videoId.isBlank() ||
-                    it.videoId in excluded
-            }
-            .distinctBy { it.videoId }
-            .take(15)
+        
+        val recommendationSignals = RecommendationSignals(
+            likedVideoIds = liked.map { it.videoId }.toSet(),
+            recentlyPlayedVideoIds = recent.map { it.videoId }.toSet(),
+            excludedVideoIds = emptySet()
+        )
+
+        val recommendations = RecommendationEngine.rank(
+            candidates = found,
+            signals = recommendationSignals,
+            limit = 15
+        )
+        
 
         // Trending loads independently from recommendations.
         val trending = searchSafely(
