@@ -637,8 +637,8 @@ fun MusicNovaApp() {
 
                                                 onBrowse = { browseId ->
                                               currentBrowseId = browseId
-},
-
+},                                           currentTrack = activeTrack,
+ 
                                                 currentTrack = activeTrack,
 
                                                 contentPadding = PaddingValues(
