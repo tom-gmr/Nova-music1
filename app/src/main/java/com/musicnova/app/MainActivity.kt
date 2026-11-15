@@ -121,17 +121,19 @@ fun MusicNovaApp() {
     var durationMs by remember {
         mutableLongStateOf(0L)
     }
-var trackedVideoId by remember {
-    mutableStateOf<String?>(null)
-}
 
-var lastTrackedPositionMs by remember {
-    mutableLongStateOf(0L)
-}
+    var trackedVideoId by remember {
+        mutableStateOf<String?>(null)
+    }
 
-var sessionListenedMs by remember {
-    mutableLongStateOf(0L)
-}
+    var lastTrackedPositionMs by remember {
+        mutableLongStateOf(0L)
+    }
+
+    var sessionListenedMs by remember {
+        mutableLongStateOf(0L)
+    }
+
     LaunchedEffect(playbackState.hasMedia) {
 
         while (playbackState.hasMedia) {
@@ -167,6 +169,68 @@ var sessionListenedMs by remember {
     DisposableEffect(musicPlayer) {
         onDispose {
             musicPlayer.release()
+        }
+    }
+        fun saveTrackedSession() {
+
+        val videoId = trackedVideoId ?: return
+
+        if (sessionListenedMs > 0L) {
+            libraryStore.recordPlaybackStats(
+                videoId = videoId,
+                listenedDurationMs = sessionListenedMs,
+                skipped = sessionListenedMs < 30_000L
+            )
+        }
+
+        trackedVideoId = null
+        lastTrackedPositionMs = 0L
+        sessionListenedMs = 0L
+    }
+
+    LaunchedEffect(
+        activeTrack?.videoId,
+        playbackState.hasMedia,
+        playbackState.isPlaying
+    ) {
+
+        val currentVideoId = activeTrack?.videoId
+
+        if (trackedVideoId != null && trackedVideoId != currentVideoId) {
+            saveTrackedSession()
+        }
+
+        if (!playbackState.hasMedia || currentVideoId.isNullOrBlank()) {
+            saveTrackedSession()
+            return@LaunchedEffect
+        }
+
+        if (trackedVideoId != currentVideoId) {
+            trackedVideoId = currentVideoId
+            lastTrackedPositionMs = musicPlayer.getCurrentPosition()
+            sessionListenedMs = 0L
+        }
+
+        while (
+            playbackState.hasMedia &&
+            activeTrack?.videoId == currentVideoId
+        ) {
+
+            val currentPosition = musicPlayer.getCurrentPosition()
+
+            if (playbackState.isPlaying) {
+
+                val listenedDelta =
+                    currentPosition - lastTrackedPositionMs
+
+                if (listenedDelta in 0L..1500L) {
+                    sessionListenedMs += listenedDelta
+                }
+            }
+
+            lastTrackedPositionMs = currentPosition
+
+            delay(500)
         }
     }
 
@@ -247,7 +311,7 @@ var sessionListenedMs by remember {
     ) {
         selectedTab = "Home"
     }
-    
+
     fun playTrack(track: YouTubeMusicTrack) {
 
         if (track.isArtist || track.videoId.isBlank()) return
@@ -330,8 +394,7 @@ var sessionListenedMs by remember {
             musicPlayer.setOnTrackEndedListener(null)
         }
     }
-
-    val glassPlayerActions = PlayerActions(
+        val glassPlayerActions = PlayerActions(
 
         onTogglePlay = {
             musicPlayer.togglePlayPause()
@@ -350,6 +413,7 @@ var sessionListenedMs by remember {
         },
 
         onDismiss = {
+            saveTrackedSession()
             musicPlayer.stop()
             activeTrack = null
         },
@@ -360,7 +424,7 @@ var sessionListenedMs by remember {
             }
         }
     )
-    
+
     NovaTheme {
 
         Box(
@@ -412,7 +476,6 @@ var sessionListenedMs by remember {
 
             } else if (showFullPlayer && playbackState.hasMedia) {
 
-                
                 NovaFullPlayerScreen(
                     state = playbackState,
                     musicPlayer = musicPlayer,
@@ -422,6 +485,7 @@ var sessionListenedMs by remember {
                     },
 
                     onStop = {
+                        saveTrackedSession()
                         musicPlayer.stop()
                         showFullPlayer = false
                     },
@@ -451,9 +515,6 @@ var sessionListenedMs by remember {
                         val mode = playbackQueue.cycleRepeatMode()
                         musicPlayer.setRepeatMode(mode)
                     }
-                
-                
-
                 )
 
             } else {
@@ -562,7 +623,7 @@ var sessionListenedMs by remember {
                                 ) { tab ->
 
                                     when (tab) {
-                                        
+
                                         "Home" -> {
 
                                             RecommendationsHomeScreen(
@@ -681,7 +742,6 @@ var sessionListenedMs by remember {
         }
     }
 }
-
 @Composable
 private fun NovaTopHeader(
     selectedTab: String,
@@ -730,7 +790,6 @@ private fun NovaTopHeader(
         Spacer(Modifier.weight(1f))
 
         IconButton(onClick = onSearchClick) {
-
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = "Search",
