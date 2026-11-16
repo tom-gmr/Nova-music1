@@ -1,4 +1,3 @@
-
 package com.musicnova.app.data.music
 
 import android.content.Context
@@ -20,9 +19,11 @@ class MusicRepository @Inject constructor(
 ) {
     private val libraryStore = LibraryStore(context)
     private val musicApi = InnerTubeMusicApi()
+    private val recommendationCache = RecommendationCache(context)
 
     suspend fun loadHomeMusic(
-        currentTrack: YouTubeMusicTrack? = null
+        currentTrack: YouTubeMusicTrack? = null,
+        onCachedRecommendations: (List<YouTubeMusicTrack>) -> Unit = {}
     ): HomeMusicData {
 
         val recent = try {
@@ -43,16 +44,6 @@ class MusicRepository @Inject constructor(
             emptyList()
         }
 
-        val nativeHomePage = try {
-            musicApi.fetchHomePage()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Log.w("MusicRepository", "Native home feed failed", e)
-            null
-        }
-
-        // Current playing song gets first priority as a recommendation seed.
         val currentSeed = currentTrack
             ?.takeIf { it.videoId.isNotBlank() && !it.isArtist }
             ?.let {
@@ -69,6 +60,42 @@ class MusicRepository @Inject constructor(
         )
             .distinctBy { it.videoId }
             .take(8)
+
+        // Cache key follows the current playing track.
+        val cacheKey = currentSeed?.videoId ?: "discover"
+
+        // Show valid cached recommendations before network requests.
+        val cachedRecommendations = recommendationCache.read(cacheKey)
+
+        if (cachedRecommendations.isNotEmpty()) {
+            val excludedCachedIds = (
+                liked.map { it.videoId } +
+                    recent.map { it.videoId } +
+                    listOfNotNull(currentSeed?.videoId)
+                ).toSet()
+
+            val visibleCached = cachedRecommendations
+                .filterNot {
+                    it.isArtist ||
+                        it.videoId.isBlank() ||
+                        it.videoId in excludedCachedIds
+                }
+                .distinctBy { it.videoId }
+                .take(15)
+
+            if (visibleCached.isNotEmpty()) {
+                onCachedRecommendations(visibleCached)
+            }
+        }
+
+        val nativeHomePage = try {
+            musicApi.fetchHomePage()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w("MusicRepository", "Native home feed failed", e)
+            null
+        }
 
         val found = mutableListOf<YouTubeMusicTrack>()
 
@@ -92,8 +119,6 @@ class MusicRepository @Inject constructor(
             }
         }
 
-        // Avoid recommending songs already present in recent/liked history,
-        // and avoid recommending the song that is currently playing.
         val excluded = (
             liked.map { it.videoId } +
                 recent.map { it.videoId } +
@@ -134,6 +159,14 @@ class MusicRepository @Inject constructor(
             signals = recommendationSignals,
             limit = 15
         )
+
+        // Save fresh recommendations for the next instant load.
+        if (recommendations.isNotEmpty()) {
+            recommendationCache.write(
+                seedKey = cacheKey,
+                tracks = recommendations
+            )
+        }
 
         val trending = searchSafely(
             query = "trending hit songs India",
