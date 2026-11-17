@@ -1,3 +1,4 @@
+
 package com.musicnova.app.ui.home
 
 import androidx.lifecycle.ViewModel
@@ -46,10 +47,10 @@ class MusicViewModel @Inject constructor(
 
     private var currentTrack: YouTubeMusicTrack? = null
     private var homeLoadJob: Job? = null
+    private var searchJob: Job? = null
 
     /**
      * Called whenever the currently playing song changes.
-     * A new song becomes the recommendation search seed.
      */
     fun setCurrentTrack(track: YouTubeMusicTrack?) {
         val oldId = currentTrack?.videoId
@@ -61,6 +62,10 @@ class MusicViewModel @Inject constructor(
         loadHomeMusic(track)
     }
 
+    /**
+     * Loads cached recommendations immediately when available,
+     * then updates the screen with fresh repository results.
+     */
     fun loadHomeMusic(
         seedTrack: YouTubeMusicTrack? = currentTrack
     ) {
@@ -68,11 +73,24 @@ class MusicViewModel @Inject constructor(
 
         homeLoadJob = viewModelScope.launch {
             _uiState.update {
-                it.copy(isLoading = true, error = null)
+                it.copy(
+                    isLoading = true,
+                    error = null
+                )
             }
 
             try {
-                val data = repository.loadHomeMusic(seedTrack)
+                val data = repository.loadHomeMusic(seedTrack) { cached ->
+
+                    _uiState.update {
+                        it.copy(
+                            recommendations = cached,
+                            error = null
+                        )
+                    }
+
+                    scheduleArtworkResolution(cached)
+                }
 
                 _uiState.update {
                     it.copy(
@@ -121,13 +139,15 @@ class MusicViewModel @Inject constructor(
             }
         }
     }
-
+    
     private fun scheduleArtworkResolution(
         tracks: List<YouTubeMusicTrack>
     ) {
         tracks
             .filter { !it.isArtist && it.title.isNotBlank() }
-            .distinctBy { it.videoId.ifBlank { it.title + it.artist } }
+            .distinctBy {
+                it.videoId.ifBlank { it.title + it.artist }
+            }
             .forEach { track ->
                 viewModelScope.launch {
                     resolveTrackArtwork(track)
@@ -156,7 +176,9 @@ class MusicViewModel @Inject constructor(
         }
     }
 
-    private fun resolveRecentArtwork(track: LibraryTrack) {
+    private fun resolveRecentArtwork(
+        track: LibraryTrack
+    ) {
         viewModelScope.launch {
             artworkSemaphore.withPermit {
                 try {
@@ -181,7 +203,7 @@ class MusicViewModel @Inject constructor(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
-                    // Preserve current cover.
+                    // Preserve current artwork.
                 }
             }
         }
@@ -242,7 +264,9 @@ class MusicViewModel @Inject constructor(
                                         item.copy(
                                             previewSongs = item.previewSongs.map {
                                                 if (it.videoId == videoId) {
-                                                    it.copy(artworkUrl = artwork)
+                                                    it.copy(
+                                                        artworkUrl = artwork
+                                                    )
                                                 } else {
                                                     it
                                                 }
@@ -266,9 +290,11 @@ class MusicViewModel @Inject constructor(
             )
         }
     }
-
+    
     fun searchSongs(query: String) {
         if (query.isBlank()) {
+            searchJob?.cancel()
+
             _uiState.update {
                 it.copy(
                     searchResults = emptyList(),
@@ -279,7 +305,9 @@ class MusicViewModel @Inject constructor(
             return
         }
 
-        viewModelScope.launch {
+        searchJob?.cancel()
+
+        searchJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
                     isSearching = true,
@@ -307,7 +335,8 @@ class MusicViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isSearching = false,
-                        searchError = e.message ?: "Search failed. Try again."
+                        searchError = e.message
+                            ?: "Search failed. Try again."
                     )
                 }
             }
@@ -320,7 +349,10 @@ class MusicViewModel @Inject constructor(
             loadHomeMusic()
         } catch (e: Exception) {
             _uiState.update {
-                it.copy(error = e.message ?: "Unable to update liked songs")
+                it.copy(
+                    error = e.message
+                        ?: "Unable to update liked songs"
+                )
             }
         }
     }
