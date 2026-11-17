@@ -5,6 +5,11 @@ import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 data class HomeMusicData(
     val recommendations: List<YouTubeMusicTrack>,
@@ -21,10 +26,16 @@ class MusicRepository @Inject constructor(
     private val musicApi = InnerTubeMusicApi()
     private val recommendationCache = RecommendationCache(context)
 
-    suspend fun loadHomeMusic(
+    companion object {
+        private const val MAX_SEEDS = 8
+        private const val MAX_PARALLEL_REQUESTS = 4
+        private const val RECOMMENDATION_LIMIT = 15
+        private const val TRENDING_LIMIT = 12
+    }
+        suspend fun loadHomeMusic(
         currentTrack: YouTubeMusicTrack? = null,
         onCachedRecommendations: (List<YouTubeMusicTrack>) -> Unit = {}
-    ): HomeMusicData {
+    ): HomeMusicData = coroutineScope {
 
         val recent = try {
             libraryStore.getRecentlyPlayed()
@@ -55,75 +66,82 @@ class MusicRepository @Inject constructor(
                 )
             }
 
-        val seeds = (
-            listOfNotNull(currentSeed) + liked + recent
-        )
+        val seeds = (listOfNotNull(currentSeed) + liked + recent)
             .distinctBy { it.videoId }
-            .take(8)
+            .take(MAX_SEEDS)
 
-        // Cache key follows the current playing track.
         val cacheKey = currentSeed?.videoId ?: "discover"
-
-        // Show valid cached recommendations before network requests.
-        val cachedRecommendations = recommendationCache.read(cacheKey)
-
-        if (cachedRecommendations.isNotEmpty()) {
-            val excludedCachedIds = (
-                liked.map { it.videoId } +
-                    recent.map { it.videoId } +
-                    listOfNotNull(currentSeed?.videoId)
-                ).toSet()
-
-            val visibleCached = cachedRecommendations
-                .filterNot {
-                    it.isArtist ||
-                        it.videoId.isBlank() ||
-                        it.videoId in excludedCachedIds
-                }
-                .distinctBy { it.videoId }
-                .take(15)
-
-            if (visibleCached.isNotEmpty()) {
-                onCachedRecommendations(visibleCached)
-            }
-        }
-
-        val nativeHomePage = try {
-            musicApi.fetchHomePage()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Log.w("MusicRepository", "Native home feed failed", e)
-            null
-        }
-
-        val found = mutableListOf<YouTubeMusicTrack>()
-
-        if (seeds.isEmpty()) {
-            found.addAll(
-                searchSafely(
-                    query = "popular trending songs India",
-                    limit = 30,
-                    section = "Recommendations"
-                )
-            )
-        } else {
-            seeds.forEach { song ->
-                found.addAll(
-                    searchSafely(
-                        query = "songs like ${song.title} by ${song.artist}",
-                        limit = 10,
-                        section = "Recommendations"
-                    )
-                )
-            }
-        }
 
         val excluded = (
             liked.map { it.videoId } +
                 recent.map { it.videoId } +
                 listOfNotNull(currentSeed?.videoId)
             ).toSet()
+
+        // Cache-first: show saved recommendations immediately.
+        val cachedRecommendations = recommendationCache.read(cacheKey)
+            .filterNot {
+                it.isArtist ||
+                    it.videoId.isBlank() ||
+                    it.videoId in excluded
+            }
+            .distinctBy { it.videoId }
+            .take(RECOMMENDATION_LIMIT)
+
+        if (cachedRecommendations.isNotEmpty()) {
+            onCachedRecommendations(cachedRecommendations)
+        }
+
+        // Limit simultaneous YouTube Music requests.
+        val requestSemaphore = Semaphore(MAX_PARALLEL_REQUESTS)
+
+        // Load Home feed, recommendation candidates and Trending together.
+        val homeJob = async {
+            try {
+                musicApi.fetchHomePage()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w("MusicRepository", "Native home feed failed", e)
+                null
+            }
+        }
+
+        val recommendationJob = async {
+            val queries = if (seeds.isEmpty()) {
+                listOf("popular trending songs India")
+            } else {
+                seeds.map {
+                    "songs like ${it.title} by ${it.artist}"
+                }
+            }
+
+            queries.map { query ->
+                async {
+                    requestSemaphore.withPermit {
+                        searchSafely(
+                            query = query,
+                            limit = 10,
+                            section = "Recommendations"
+                        )
+                    }
+                }
+            }.awaitAll().flatten()
+        }
+
+        val trendingJob = async {
+            requestSemaphore.withPermit {
+                searchSafely(
+                    query = "trending hit songs India",
+                    limit = 20,
+                    section = "Trending"
+                )
+            }
+        }
+
+        val nativeHomePage = homeJob.await()
+        val found = recommendationJob.await()
+        val trendingCandidates = trendingJob.await()
 
         val playbackStats = try {
             libraryStore.readPlaybackStats()
@@ -135,20 +153,12 @@ class MusicRepository @Inject constructor(
         }
 
         val recommendationSignals = RecommendationSignals(
-            likedVideoIds = liked
-                .map { it.videoId }
-                .toSet(),
-
-            recentlyPlayedVideoIds = recent
-                .map { it.videoId }
-                .toSet(),
-
+            likedVideoIds = liked.map { it.videoId }.toSet(),
+            recentlyPlayedVideoIds = recent.map { it.videoId }.toSet(),
             excludedVideoIds = excluded,
-
             listenedDurationMs = playbackStats.mapValues {
                 (_, stats) -> stats.listenedDurationMs
             },
-
             skipCounts = playbackStats.mapValues {
                 (_, stats) -> stats.skipCount
             }
@@ -157,10 +167,9 @@ class MusicRepository @Inject constructor(
         val recommendations = RecommendationEngine.rank(
             candidates = found,
             signals = recommendationSignals,
-            limit = 15
+            limit = RECOMMENDATION_LIMIT
         )
 
-        // Save fresh recommendations for the next instant load.
         if (recommendations.isNotEmpty()) {
             recommendationCache.write(
                 seedKey = cacheKey,
@@ -168,27 +177,22 @@ class MusicRepository @Inject constructor(
             )
         }
 
-        val trending = searchSafely(
-            query = "trending hit songs India",
-            limit = 20,
-            section = "Trending"
-        )
+        val trending = trendingCandidates
             .filterNot {
                 it.isArtist || it.videoId.isBlank()
             }
             .distinctBy { it.videoId }
-            .take(12)
+            .take(TRENDING_LIMIT)
 
-        return HomeMusicData(
+        HomeMusicData(
             recommendations = recommendations,
             trending = trending,
             recentlyPlayed = recent,
             likedCount = liked.size,
             nativeHomePage = nativeHomePage
         )
-    }
-
-    private suspend fun searchSafely(
+        }
+            private suspend fun searchSafely(
         query: String,
         limit: Int,
         section: String
@@ -225,7 +229,9 @@ class MusicRepository @Inject constructor(
         return musicApi.fetchPlaylistPreview(playlistId)
     }
 
-    fun toggleLike(track: YouTubeMusicTrack): Boolean {
+    fun toggleLike(
+        track: YouTubeMusicTrack
+    ): Boolean {
         return libraryStore.toggleLike(
             LibraryTrack(
                 videoId = track.videoId,
