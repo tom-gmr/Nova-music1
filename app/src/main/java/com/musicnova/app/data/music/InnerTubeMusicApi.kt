@@ -339,7 +339,7 @@ class InnerTubeMusicApi {
         val request = browseRequest(config, "VL$id")
         val root = executeJson(request, "Playlist preview")
 
-        PlaylistBrowseParser.parse(root)
+        PlaylistPreviewParser.parse(root)
     }
 
     private fun parseSong(
