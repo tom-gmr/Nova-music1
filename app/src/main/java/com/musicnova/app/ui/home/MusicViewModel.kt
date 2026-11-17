@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.delay
 
 data class MusicUiState(
     val isLoading: Boolean = false,
@@ -317,7 +318,9 @@ class MusicViewModel @Inject constructor(
             }
 
             try {
-                val results = repository.searchSongs(query.trim())
+    delay(350)
+
+    val results = repository.searchSongs(query.trim())
 
                 _uiState.update {
                     it.copy(
