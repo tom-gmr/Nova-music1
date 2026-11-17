@@ -96,16 +96,18 @@ class MusicRepository @Inject constructor(
         val requestSemaphore = Semaphore(MAX_PARALLEL_REQUESTS)
 
         // Load Home feed, recommendation candidates and Trending together.
-        val homeJob = async {
-            try {
-                musicApi.fetchHomePage()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w("MusicRepository", "Native home feed failed", e)
-                null
+                val homeJob = async {
+            requestSemaphore.withPermit {
+                try {
+                    musicApi.fetchHomePage()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w("MusicRepository", "Native home feed failed", e)
+                    null
+                }
             }
-        }
+                }
 
         val recommendationJob = async {
             val queries = if (seeds.isEmpty()) {
