@@ -1,8 +1,9 @@
-
 package com.musicnova.app.data.music
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -33,33 +34,53 @@ class InnerTubeMusicApi {
         val clientVersion: String
     )
 
+    private val webConfigMutex = Mutex()
+
+    @Volatile
+    private var cachedWebConfig: WebConfig? = null
+
     private suspend fun getWebConfig(): WebConfig =
         withContext(Dispatchers.IO) {
-            val request = Request.Builder()
-                .url("$musicUrl/")
-                .header("User-Agent", USER_AGENT)
-                .header("Accept-Language", "en-US,en;q=0.9")
-                .build()
+            cachedWebConfig?.let {
+                return@withContext it
+            }
 
-            http.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    error("YouTube Music config failed: ${response.code}")
+            webConfigMutex.withLock {
+                cachedWebConfig?.let {
+                    return@withLock it
                 }
 
-                val html = response.body?.string()
-                    ?: error("Empty YouTube Music response")
+                val request = Request.Builder()
+                    .url("$musicUrl/")
+                    .header("User-Agent", USER_AGENT)
+                    .header("Accept-Language", "en-US,en;q=0.9")
+                    .build()
 
-                val apiKey = Regex(
-                    "\"INNERTUBE_API_KEY\"\\s*:\\s*\"([^\"]+)\""
-                ).find(html)?.groupValues?.get(1)
-                    ?: error("YouTube Music API key not found")
+                val config = http.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        error(
+                            "YouTube Music config failed: ${response.code}"
+                        )
+                    }
 
-                val version = Regex(
-                    "\"INNERTUBE_CLIENT_VERSION\"\\s*:\\s*\"([^\"]+)\""
-                ).find(html)?.groupValues?.get(1)
-                    ?: error("YouTube Music client version not found")
+                    val html = response.body?.string()
+                        ?: error("Empty YouTube Music response")
 
-                WebConfig(apiKey, version)
+                    val apiKey = Regex(
+                        "\"INNERTUBE_API_KEY\"\\s*:\\s*\"([^\"]+)\""
+                    ).find(html)?.groupValues?.get(1)
+                        ?: error("YouTube Music API key not found")
+
+                    val version = Regex(
+                        "\"INNERTUBE_CLIENT_VERSION\"\\s*:\\s*\"([^\"]+)\""
+                    ).find(html)?.groupValues?.get(1)
+                        ?: error("YouTube Music client version not found")
+
+                    WebConfig(apiKey, version)
+                }
+
+                cachedWebConfig = config
+                config
             }
         }
 
@@ -94,7 +115,10 @@ class InnerTubeMusicApi {
             .build()
     }
 
-    private fun executeJson(request: Request, errorLabel: String): JSONObject {
+    private fun executeJson(
+        request: Request,
+        errorLabel: String
+    ): JSONObject {
         return http.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 error("$errorLabel failed: ${response.code}")
@@ -106,14 +130,17 @@ class InnerTubeMusicApi {
             )
         }
     }
-
-    suspend fun searchSongs(
+        suspend fun searchSongs(
         query: String,
         limit: Int = 30
     ): List<YouTubeMusicTrack> = withContext(Dispatchers.IO) {
-        if (query.isBlank()) return@withContext emptyList()
+
+        if (query.isBlank()) {
+            return@withContext emptyList()
+        }
 
         val config = getWebConfig()
+
         val body = JSONObject()
             .put("context", createContext(config))
             .put("query", query.trim())
@@ -131,6 +158,7 @@ class InnerTubeMusicApi {
             .build()
 
         val root = executeJson(request, "YouTube Music search")
+
         val results = mutableListOf<YouTubeMusicTrack>()
         val seen = mutableSetOf<String>()
 
@@ -143,22 +171,31 @@ class InnerTubeMusicApi {
                 "song:${track.videoId}"
             }
 
-            if (seen.add(key)) results.add(track)
+            if (seen.add(key)) {
+                results.add(track)
+            }
         }
 
         fun collect(value: Any?) {
             when (value) {
                 is JSONObject -> {
-                    value.optJSONObject("musicResponsiveListItemRenderer")
-                        ?.let { renderer ->
-                            val song = parseSong(renderer)
-                            addResult(song ?: parseResponsiveArtist(renderer))
-                        }
+                    value.optJSONObject(
+                        "musicResponsiveListItemRenderer"
+                    )?.let { renderer ->
+                        val song = parseSong(renderer)
+                        addResult(
+                            song ?: parseResponsiveArtist(renderer)
+                        )
+                    }
 
-                    value.optJSONObject("musicTwoRowItemRenderer")
-                        ?.let { addResult(parseArtist(it)) }
+                    value.optJSONObject(
+                        "musicTwoRowItemRenderer"
+                    )?.let {
+                        addResult(parseArtist(it))
+                    }
 
                     val keys = value.keys()
+
                     while (keys.hasNext()) {
                         collect(value.opt(keys.next()))
                     }
@@ -174,9 +211,11 @@ class InnerTubeMusicApi {
 
         collect(root)
 
-results
-    .sortedByDescending { !it.isArtist && it.isOfficial }
-    .take(limit.coerceIn(1, 100))
+        results
+            .sortedByDescending {
+                !it.isArtist && it.isOfficial
+            }
+            .take(limit.coerceIn(1, 100))
     }
 
     /** Fetches the native YouTube Music Home feed. */
@@ -185,115 +224,128 @@ results
             val config = getWebConfig()
             val request = browseRequest(config, "FEmusic_home")
             val root = executeJson(request, "YouTube Music Home")
+
             HomeFeedParser.parseHomePage(root)
         }
 
-/** Fetches a YouTube Music browse page using its browse ID. */
-suspend fun fetchBrowsePage(
-    browseId: String
-): HomePage = withContext(Dispatchers.IO) {
+    /** Fetches a YouTube Music browse page using its browse ID. */
+    suspend fun fetchBrowsePage(
+        browseId: String
+    ): HomePage = withContext(Dispatchers.IO) {
 
-    val rawId = browseId.trim()
+        val rawId = browseId.trim()
 
-    require(rawId.isNotBlank()) {
-        "Browse ID cannot be empty"
-    }
-
-    val id = when {
-        rawId.startsWith("VL") ||
-        rawId.startsWith("RD") ||
-        rawId.startsWith("FE") ||
-        rawId.startsWith("MPRE") ||
-        rawId.startsWith("UC") -> rawId
-
-        else -> "VL$rawId"
-    }
-
-    val config = getWebConfig()
-
-    // RD Mix: try browse first, then use the /next fallback.
-    if (id.startsWith("RD")) {
-
-        val browsePage = runCatching {
-            val request = browseRequest(config, id)
-            val root = executeJson(
-                request,
-                "YouTube Music browse"
-            )
-            PlaylistBrowseParser.parse(root)
-        }.getOrNull()
-
-        if (browsePage?.shelves?.any {
-                it.items.isNotEmpty()
-            } == true
-        ) {
-            return@withContext browsePage
+        require(rawId.isNotBlank()) {
+            "Browse ID cannot be empty"
         }
 
-        val nextBody = JSONObject()
-            .put("context", createContext(config))
-            .put("playlistId", id)
-            .put("isAudioOnly", true)
-            .toString()
+        val id = when {
+            rawId.startsWith("VL") ||
+            rawId.startsWith("RD") ||
+            rawId.startsWith("FE") ||
+            rawId.startsWith("MPRE") ||
+            rawId.startsWith("UC") -> rawId
 
-        val nextRequest = Request.Builder()
-            .url("$musicUrl/youtubei/v1/next?key=${config.apiKey}&prettyPrint=false")
-            .post(
-                nextBody.toRequestBody(
-                    "application/json".toMediaType()
+            else -> "VL$rawId"
+        }
+
+        val config = getWebConfig()
+
+        // RD Mix: try browse first, then use the /next fallback.
+        if (id.startsWith("RD")) {
+
+            val browsePage = runCatching {
+                val request = browseRequest(config, id)
+
+                val root = executeJson(
+                    request,
+                    "YouTube Music browse"
                 )
+
+                PlaylistBrowseParser.parse(root)
+            }.getOrNull()
+
+            if (browsePage?.shelves?.any {
+                    it.items.isNotEmpty()
+                } == true
+            ) {
+                return@withContext browsePage
+            }
+
+            val nextBody = JSONObject()
+                .put("context", createContext(config))
+                .put("playlistId", id)
+                .put("isAudioOnly", true)
+                .toString()
+
+            val nextRequest = Request.Builder()
+                .url(
+                    "$musicUrl/youtubei/v1/next?key=${config.apiKey}&prettyPrint=false"
+                )
+                .post(
+                    nextBody.toRequestBody(
+                        "application/json".toMediaType()
+                    )
+                )
+                .header("User-Agent", USER_AGENT)
+                .header("Origin", musicUrl)
+                .header("Referer", "$musicUrl/")
+                .header("Content-Type", "application/json")
+                .header("X-YouTube-Client-Name", "67")
+                .header("X-YouTube-Client-Version", config.clientVersion)
+                .build()
+
+            val nextRoot = executeJson(
+                nextRequest,
+                "YouTube Music RD Mix"
             )
-            .header("User-Agent", USER_AGENT)
-            .header("Origin", musicUrl)
-            .header("Referer", "$musicUrl/")
-            .header("Content-Type", "application/json")
-            .header("X-YouTube-Client-Name", "67")
-            .header("X-YouTube-Client-Version", config.clientVersion)
-            .build()
 
-        val nextRoot = executeJson(
-            nextRequest,
-            "YouTube Music RD Mix"
-        )
+            val nextPage = PlaylistBrowseParser.parse(nextRoot)
 
-        val nextPage = PlaylistBrowseParser.parse(nextRoot)
+            return@withContext if (
+                nextPage.shelves.any {
+                    it.items.isNotEmpty()
+                }
+            ) {
+                nextPage
+            } else {
+                browsePage ?: nextPage
+            }
+        }
 
-        return@withContext if (
-            nextPage.shelves.any { it.items.isNotEmpty() }
-        ) {
-            nextPage
-        } else {
-            browsePage ?: nextPage
+        val request = browseRequest(config, id)
+        val root = executeJson(request, "YouTube Music browse")
+
+        when {
+            id.startsWith("VL") ->
+                PlaylistBrowseParser.parse(root)
+
+            else ->
+                HomeFeedParser.parseHomePage(root)
         }
     }
-
-    val request = browseRequest(config, id)
-    val root = executeJson(request, "YouTube Music browse")
-
-    when {
-        id.startsWith("VL") -> PlaylistBrowseParser.parse(root)
-        else -> HomeFeedParser.parseHomePage(root)
-    }
-}
-
-
-    /** Fetches the first page of a playlist for card previews. */
+        /** Fetches the first page of a playlist for card previews. */
     suspend fun fetchPlaylistPreview(
         playlistId: String
     ): PlaylistPreview? = withContext(Dispatchers.IO) {
+
         val id = playlistId.trim().removePrefix("VL")
-        if (id.isBlank()) return@withContext null
+
+        if (id.isBlank()) {
+            return@withContext null
+        }
 
         val config = getWebConfig()
         val request = browseRequest(config, "VL$id")
         val root = executeJson(request, "Playlist preview")
 
-        PlaylistPreviewParser.parse(root)
+        PlaylistBrowseParser.parse(root)
     }
 
     private fun parseSong(
         renderer: JSONObject
     ): YouTubeMusicTrack? {
+
         val videoId = findStringValue(renderer, "videoId")
             ?: return null
 
@@ -315,26 +367,29 @@ suspend fun fetchBrowsePage(
         }
 
         val musicVideoType = findStringValue(
-    renderer,
-    "musicVideoType"
-)?.uppercase()
+            renderer,
+            "musicVideoType"
+        )?.uppercase()
 
-val isOfficial = musicVideoType in setOf(
-    "MUSIC_VIDEO_TYPE_ATV",
-    "MUSIC_VIDEO_TYPE_OMV"
-)
+        val isOfficial = musicVideoType in setOf(
+            "MUSIC_VIDEO_TYPE_ATV",
+            "MUSIC_VIDEO_TYPE_OMV"
+        )
 
-return YouTubeMusicTrack(
-    videoId = videoId,
-    title = title,
-    artist = artist,
-    artworkUrl = thumbnailUrl(renderer),
-    isArtist = false,
-    isOfficial = isOfficial
-)
-    }    private fun parseArtist(
+        return YouTubeMusicTrack(
+            videoId = videoId,
+            title = title,
+            artist = artist,
+            artworkUrl = thumbnailUrl(renderer),
+            isArtist = false,
+            isOfficial = isOfficial
+        )
+    }
+
+    private fun parseArtist(
         renderer: JSONObject
     ): YouTubeMusicTrack? {
+
         val title = textFromNode(renderer.opt("title"))
             ?.takeIf { it.isNotBlank() }
             ?: return null
@@ -342,7 +397,10 @@ return YouTubeMusicTrack(
         val browseId = findStringValue(renderer, "browseId")
             ?: return null
 
-        val subtitle = textFromNode(renderer.opt("subtitle")) ?: ""
+        val subtitle = textFromNode(
+            renderer.opt("subtitle")
+        ) ?: ""
+
         val isArtist = browseId.startsWith("UC") ||
             subtitle.contains("artist", ignoreCase = true)
 
@@ -360,6 +418,7 @@ return YouTubeMusicTrack(
     private fun parseResponsiveArtist(
         renderer: JSONObject
     ): YouTubeMusicTrack? {
+
         val browseId = findStringValue(renderer, "browseId")
             ?: return null
 
@@ -394,15 +453,18 @@ return YouTubeMusicTrack(
 
     private fun textFromNode(value: Any?): String? {
         when (value) {
-            is String -> return value.takeIf { it.isNotBlank() }
+            is String ->
+                return value.takeIf { it.isNotBlank() }
 
             is JSONObject -> {
                 val simpleText = value.optString("simpleText")
+
                 if (simpleText.isNotBlank() && simpleText != "null") {
                     return simpleText
                 }
 
                 val runs = value.optJSONArray("runs")
+
                 if (runs != null) {
                     val combined = buildString {
                         for (i in 0 until runs.length()) {
@@ -413,31 +475,45 @@ return YouTubeMusicTrack(
                             )
                         }
                     }
-                    if (combined.isNotBlank()) return combined
+
+                    if (combined.isNotBlank()) {
+                        return combined
+                    }
                 }
 
                 val textValue = textFromNode(value.opt("text"))
-                if (!textValue.isNullOrBlank()) return textValue
+
+                if (!textValue.isNullOrBlank()) {
+                    return textValue
+                }
 
                 val keys = value.keys()
+
                 while (keys.hasNext()) {
-                    val result = textFromNode(value.opt(keys.next()))
-                    if (!result.isNullOrBlank()) return result
+                    val result = textFromNode(
+                        value.opt(keys.next())
+                    )
+
+                    if (!result.isNullOrBlank()) {
+                        return result
+                    }
                 }
             }
 
             is org.json.JSONArray -> {
                 for (i in 0 until value.length()) {
                     val result = textFromNode(value.opt(i))
-                    if (!result.isNullOrBlank()) return result
+
+                    if (!result.isNullOrBlank()) {
+                        return result
+                    }
                 }
             }
         }
 
         return null
     }
-
-    private fun thumbnailUrl(value: Any?): String? {
+       private fun thumbnailUrl(value: Any?): String? {
         when (value) {
             is JSONObject -> {
                 val thumbnails = value.optJSONArray("thumbnails")
@@ -447,12 +523,16 @@ return YouTubeMusicTrack(
                     var bestQuality = -1L
 
                     for (i in 0 until thumbnails.length()) {
-                        val item = thumbnails.optJSONObject(i) ?: continue
+                        val item = thumbnails.optJSONObject(i)
+                            ?: continue
+
                         val url = item.optString("url").orEmpty()
 
                         if (!url.startsWith("https://") &&
                             !url.startsWith("http://")
-                        ) continue
+                        ) {
+                            continue
+                        }
 
                         val width = item.optLong("width", 0L)
                         val height = item.optLong("height", 0L)
@@ -464,20 +544,31 @@ return YouTubeMusicTrack(
                         }
                     }
 
-                    if (!bestUrl.isNullOrBlank()) return bestUrl
+                    if (!bestUrl.isNullOrBlank()) {
+                        return bestUrl
+                    }
                 }
 
                 val keys = value.keys()
+
                 while (keys.hasNext()) {
-                    val result = thumbnailUrl(value.opt(keys.next()))
-                    if (!result.isNullOrBlank()) return result
+                    val result = thumbnailUrl(
+                        value.opt(keys.next())
+                    )
+
+                    if (!result.isNullOrBlank()) {
+                        return result
+                    }
                 }
             }
 
             is org.json.JSONArray -> {
                 for (i in 0 until value.length()) {
                     val result = thumbnailUrl(value.opt(i))
-                    if (!result.isNullOrBlank()) return result
+
+                    if (!result.isNullOrBlank()) {
+                        return result
+                    }
                 }
             }
         }
@@ -489,6 +580,7 @@ return YouTubeMusicTrack(
         value: Any?,
         target: String
     ): String? {
+
         when (value) {
             is JSONObject -> {
                 val direct = value.opt(target)
@@ -501,19 +593,29 @@ return YouTubeMusicTrack(
                 }
 
                 val keys = value.keys()
+
                 while (keys.hasNext()) {
                     val result = findStringValue(
                         value.opt(keys.next()),
                         target
                     )
-                    if (!result.isNullOrBlank()) return result
+
+                    if (!result.isNullOrBlank()) {
+                        return result
+                    }
                 }
             }
 
             is org.json.JSONArray -> {
                 for (i in 0 until value.length()) {
-                    val result = findStringValue(value.opt(i), target)
-                    if (!result.isNullOrBlank()) return result
+                    val result = findStringValue(
+                        value.opt(i),
+                        target
+                    )
+
+                    if (!result.isNullOrBlank()) {
+                        return result
+                    }
                 }
             }
         }
@@ -527,4 +629,4 @@ return YouTubeMusicTrack(
                 "AppleWebKit/537.36 (KHTML, like Gecko) " +
                 "Chrome/131.0.0.0 Safari/537.36"
     }
-}
+} 
