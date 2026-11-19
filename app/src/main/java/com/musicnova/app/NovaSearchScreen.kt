@@ -1,4 +1,3 @@
-
 package com.musicnova.app
 
 import androidx.compose.animation.animateColorAsState
@@ -265,7 +264,8 @@ fun NovaFullPlayerScreen(
         animationSpec = tween(durationMillis = 700),
         label = "ArtworkTertiary"
     )
-        // Playback position synchronization
+
+    // Playback position synchronization
 
     LaunchedEffect(musicPlayer) {
         while (true) {
@@ -335,7 +335,7 @@ fun NovaFullPlayerScreen(
             }
         }
     }
-    
+
     // Main player background and artwork-based gradient
 
     Box(
@@ -476,7 +476,7 @@ fun NovaFullPlayerScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(280.dp),
+                    .height(320.dp),
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
@@ -484,8 +484,8 @@ fun NovaFullPlayerScreen(
                     contentDescription = "Current album artwork",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .size(250.dp)
-                        .clip(RoundedCornerShape(22.dp))
+                        .size(300.dp)
+                        .clip(RoundedCornerShape(24.dp))
                         .onGloballyPositioned { coordinates ->
                             artworkBottomPx =
                                 coordinates.positionInRoot().y +
@@ -497,7 +497,7 @@ fun NovaFullPlayerScreen(
             Spacer(Modifier.height(12.dp))
 
             // Track information
-
+            
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -526,9 +526,7 @@ fun NovaFullPlayerScreen(
 
             // Playback progress
 
-            Column(
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
                 Slider(
                     value = currentPosition.coerceIn(
                         0f,
@@ -581,9 +579,7 @@ fun NovaFullPlayerScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = onToggleShuffle
-                ) {
+                IconButton(onClick = onToggleShuffle) {
                     Icon(
                         imageVector = Icons.Default.Shuffle,
                         contentDescription = "Shuffle",
@@ -609,16 +605,12 @@ fun NovaFullPlayerScreen(
                 }
 
                 Surface(
-                    onClick = {
-                        musicPlayer.togglePlayPause()
-                    },
+                    onClick = { musicPlayer.togglePlayPause() },
                     modifier = Modifier.size(72.dp),
                     shape = CircleShape,
                     color = PlayerLavender
                 ) {
-                    Box(
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = if (state.isPlaying) {
                                 Icons.Default.Pause
@@ -648,9 +640,7 @@ fun NovaFullPlayerScreen(
                     )
                 }
 
-                IconButton(
-                    onClick = onCycleRepeat
-                ) {
+                IconButton(onClick = onCycleRepeat) {
                     Icon(
                         imageVector = when (repeatMode) {
                             RepeatMode.ONE -> Icons.Default.RepeatOne
@@ -669,71 +659,113 @@ fun NovaFullPlayerScreen(
 
             Spacer(Modifier.height(18.dp))
 
-            // Bottom player actions
+            // Premium pill player actions
 
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(
-                    onClick = { showLyricsScreen = true }
+                Surface(
+                    onClick = { showLyricsScreen = true },
+                    modifier = Modifier.height(48.dp),
+                    shape = RoundedCornerShape(50.dp),
+                    color = Color.Transparent,
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        Color.White.copy(alpha = 0.16f)
+                    )
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Lyrics,
-                        contentDescription = null,
-                        tint = PlayerLavender
-                    )
+                    Row(
+                        modifier = Modifier
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        Color(0x553D304F),
+                                        Color(0x44251C35)
+                                    )
+                                )
+                            )
+                            .padding(horizontal = 18.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lyrics,
+                            contentDescription = "Lyrics",
+                            tint = PlayerLavender,
+                            modifier = Modifier.size(20.dp)
+                        )
 
-                    Spacer(Modifier.width(6.dp))
+                        Spacer(Modifier.width(8.dp))
 
-                    Text(
-                        text = "Lyrics",
-                        color = Color.White
-                    )
+                        Text(
+                            text = "Lyrics",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
 
-                TextButton(
-                    onClick = onOpenQueue
+                Spacer(Modifier.width(14.dp))
+
+                Surface(
+                    onClick = onOpenQueue,
+                    modifier = Modifier.height(48.dp),
+                    shape = RoundedCornerShape(50.dp),
+                    color = Color.Transparent,
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        Color.White.copy(alpha = 0.16f)
+                    )
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.QueueMusic,
-                        contentDescription = null,
-                        tint = PlayerLavender
-                    )
+                    Row(
+                        modifier = Modifier
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        Color(0x553D304F),
+                                        Color(0x44251C35)
+                                    )
+                                )
+                            )
+                            .padding(horizontal = 18.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.QueueMusic,
+                            contentDescription = "Queue",
+                            tint = PlayerLavender,
+                            modifier = Modifier.size(20.dp)
+                        )
 
-                    Spacer(Modifier.width(6.dp))
+                        Spacer(Modifier.width(8.dp))
 
-                    Text(
-                        text = "Queue",
-                        color = Color.White
-                    )
+                        Text(
+                            text = "Queue",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
-        } // Main Column
-    } // Root Box
-    
+        }
+    }
+
     // Audio Signal Path dialog
 
     if (showSignalPath) {
         Dialog(
-            onDismissRequest = {
-                showSignalPath = false
-            },
-            properties = DialogProperties(
-                usePlatformDefaultWidth = false
-            )
+            onDismissRequest = { showSignalPath = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
                 color = PlayerBackground
             ) {
                 AudioSignalPathScreen(
-                    onBack = {
-                        showSignalPath = false
-                    }
+                    onBack = { showSignalPath = false }
                 )
             }
         }
@@ -743,12 +775,8 @@ fun NovaFullPlayerScreen(
 
     if (showLyricsScreen) {
         Dialog(
-            onDismissRequest = {
-                showLyricsScreen = false
-            },
-            properties = DialogProperties(
-                usePlatformDefaultWidth = false
-            )
+            onDismissRequest = { showLyricsScreen = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
@@ -759,9 +787,7 @@ fun NovaFullPlayerScreen(
                     artist = state.artist,
                     lyricsState = lyricsState,
                     currentPosition = currentPosition,
-                    onBack = {
-                        showLyricsScreen = false
-                    },
+                    onBack = { showLyricsScreen = false },
                     onSeek = { position ->
                         musicPlayer.seekTo(position)
                         currentPosition = position.toFloat()
@@ -770,7 +796,7 @@ fun NovaFullPlayerScreen(
             }
         }
     }
-} // NovaFullPlayerScreen
+}
 
 /* ---------------- DEDICATED LYRICS SCREEN ---------------- */
 
@@ -945,7 +971,6 @@ fun NovaDedicatedLyricsScreen(
                 }
 
                 is LyricsUiState.Success -> {
-                    
                     val result = currentLyrics.result
                     val lines = result.lines
 
